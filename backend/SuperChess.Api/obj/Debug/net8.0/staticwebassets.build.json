@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "Pc/H15xooJtRXbSX7Tkm4yo1nsokcNemmPUHrY8Uvyc=",
+  "Source": "SuperChess.Api",
+  "BasePath": "_content/SuperChess.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

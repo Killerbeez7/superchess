@@ -1,0 +1,6 @@
+@SuperChess.Api_HostAddress = http://localhost:5027
+
+GET {{SuperChess.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

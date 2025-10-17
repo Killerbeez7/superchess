@@ -1,0 +1,11 @@
+Copyright (c) 2025 Killerbeez7
+
+This repository is made publicly visible for the sole purpose of demonstrating
+the author's work and skills
+
+Permission is hereby granted to view the source code. 
+No permission is granted to use, copy, modify, merge, publish, distribute, 
+sublicense, and/or sell copies of this software, in whole or in part, for any 
+purpose without the prior written consent of the author.
+
+All rights reserved.

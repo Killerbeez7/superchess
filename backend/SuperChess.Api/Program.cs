@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Data;
 using SuperChess.Api.Hubs;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,12 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
-// Configure JSON options to avoid object cycles when serializing EF navigation properties.
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
         opts.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-        opts.JsonSerializerOptions.MaxDepth = 64; // increase allowed depth for complex graphs
+        opts.JsonSerializerOptions.MaxDepth = 64;
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
     });
 
 // Add CORS

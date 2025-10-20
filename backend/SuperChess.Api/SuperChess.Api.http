@@ -1,6 +1,24 @@
-@SuperChess.Api_HostAddress = http://localhost:5027
+@SuperChess.Api_HostAddress = http://localhost:5000
 
-GET {{SuperChess.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Create Game
+POST {{host}}/api/game/create
+Content-Type: application/json
 
-###
+### Load Board
+POST {{host}}/api/game/load
+Content-Type: application/json
+
+{
+  "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+}
+
+### Make Move
+POST {{host}}/api/game/move
+Content-Type: application/json
+
+{
+  "uciMove": "e2e4"
+}
+
+### Legal Moves for e2
+GET {{host}}/api/game/legal-moves/e2

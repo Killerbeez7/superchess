@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "../components/layout/Navbar";
 import { createGame, getGames, joinGame, type GameResponse } from "@/api/games";
@@ -66,7 +67,7 @@ export default function PlayPage() {
     }
   }
 
-  async function handleCreateGame(e: FormEvent<HTMLFormElement>) {
+  async function handleCreateGame(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const trimmedName = createName.trim();
@@ -90,7 +91,7 @@ export default function PlayPage() {
     }
   }
 
-  async function handleJoinGame(e: FormEvent<HTMLFormElement>) {
+  async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const trimmedName = joinName.trim();
@@ -245,13 +246,12 @@ export default function PlayPage() {
                 </div>
               </form>
             </div>
+            {error && (
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+                {error}
+              </div>
+            )}
           </div>
-
-          {error && (
-            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
-              {error}
-            </div>
-          )}
 
           <aside className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
             <div className="mb-6 flex items-start justify-between gap-4">

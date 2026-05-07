@@ -14,7 +14,7 @@ export default function PlayPage() {
   const [joinName, setJoinName] = useState("");
 
   const [games, setGames] = useState<GameResponse[]>([]);
-  const [isLoadingGames, setIsLoadingGames] = useState(false);
+  const [isLoadingGames, setIsLoadingGames] = useState(true);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [isJoiningGame, setIsJoiningGame] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,8 +137,8 @@ export default function PlayPage() {
 
             <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
               Dive into the universe of superchess. A modern twist on classic chess —
-              where you break the rythm with new moves, special abilities, extended boards
-              and.. and...
+              where you break the rhythm with new moves, special abilities, extended
+              boards and.. and...
             </p>
           </div>
         </div>

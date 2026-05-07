@@ -1,49 +1,123 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Navbar } from "../components/layout/Navbar";
-
-type DemoGame = {
-  id: string;
-  whitePlayer: string;
-  status: "waiting" | "active";
-  createdAt: string;
-};
-
-const DEMO_GAMES: DemoGame[] = [
-  {
-    id: "a1f4c2d8",
-    whitePlayer: "Pyke",
-    status: "waiting",
-    createdAt: "just now",
-  },
-  {
-    id: "c9e7b1a4",
-    whitePlayer: "GuestPlayer",
-    status: "active",
-    createdAt: "2 min ago",
-  },
-];
+import { createGame, getGames, joinGame, type GameResponse } from "@/api/games";
 
 export default function PlayPage() {
+  const router = useRouter();
+
   const [createName, setCreateName] = useState("");
   const [joinGameId, setJoinGameId] = useState("");
   const [joinName, setJoinName] = useState("");
 
+  const [games, setGames] = useState<GameResponse[]>([]);
+  const [isLoadingGames, setIsLoadingGames] = useState(false);
+  const [isCreatingGame, setIsCreatingGame] = useState(false);
+  const [isJoiningGame, setIsJoiningGame] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const waitingGames = useMemo(
-    () => DEMO_GAMES.filter((game) => game.status === "waiting"),
-    []
+    () => games.filter((game) => game.status === "waiting"),
+    [games]
   );
 
-  function handleCreateGame(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    console.log("Create game:", { playerName: createName });
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchInitialGames() {
+      try {
+        const data = await getGames();
+
+        if (!cancelled) {
+          setGames(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load games.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingGames(false);
+        }
+      }
+    }
+
+    void fetchInitialGames();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleRefreshGames() {
+    try {
+      setError(null);
+      setIsLoadingGames(true);
+
+      const data = await getGames();
+      setGames(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load games.");
+    } finally {
+      setIsLoadingGames(false);
+    }
   }
 
-  function handleJoinGame(e: FormEvent<HTMLFormElement>) {
+  async function handleCreateGame(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    console.log("Join game:", { gameId: joinGameId, playerName: joinName });
+
+    const trimmedName = createName.trim();
+
+    if (!trimmedName) {
+      setError("Player name is required.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsCreatingGame(true);
+
+      const game = await createGame(trimmedName);
+      setCreateName("");
+      router.push(`/play/${game.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create game.");
+    } finally {
+      setIsCreatingGame(false);
+    }
+  }
+
+  async function handleJoinGame(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    const trimmedName = joinName.trim();
+    const trimmedGameId = joinGameId.trim();
+
+    if (!trimmedGameId) {
+      setError("Game id is required.");
+      return;
+    }
+
+    if (!trimmedName) {
+      setError("Player name is required.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsJoiningGame(true);
+
+      const game = await joinGame(trimmedGameId, trimmedName);
+      setJoinName("");
+      router.push(`/play/${game.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to join game.");
+    } finally {
+      setIsJoiningGame(false);
+    }
   }
 
   return (
@@ -104,9 +178,10 @@ export default function PlayPage() {
 
                 <button
                   type="submit"
-                  className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                  disabled={isCreatingGame}
+                  className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Create Game
+                  {isCreatingGame ? "Creating..." : "Create Game"}
                 </button>
               </form>
             </div>
@@ -120,8 +195,7 @@ export default function PlayPage() {
                   Join an existing match
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-                  Use this while we are still keeping the frontend simple. Later this can
-                  also connect from the games list or shared URLs.
+                  Paste a game id and join as the second player.
                 </p>
               </div>
 
@@ -163,74 +237,98 @@ export default function PlayPage() {
                 <div className="sm:col-span-2">
                   <button
                     type="submit"
-                    className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                    disabled={isJoiningGame}
+                    className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Join Game
+                    {isJoiningGame ? "Joining..." : "Join Game"}
                   </button>
                 </div>
               </form>
             </div>
           </div>
 
+          {error && (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+              {error}
+            </div>
+          )}
+
           <aside className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-            <div className="mb-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Open games
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">
-                Waiting for a second player
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                This will be connected to the backend list endpoint next. For now it gives
-                us the layout and interaction target.
-              </p>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  Open games
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">
+                  Waiting for a second player
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  Live data from the backend games endpoint.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRefreshGames}
+                className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
+              >
+                Refresh
+              </button>
             </div>
 
             <div className="space-y-4">
-              {waitingGames.map((game) => (
-                <div
-                  key={game.id}
-                  className="rounded-2xl border border-white/10 bg-slate-900/70 p-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm text-slate-400">Host</p>
-                      <p className="mt-1 font-semibold text-white">{game.whitePlayer}</p>
-                    </div>
-
-                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
-                      {game.status}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 space-y-1 text-sm text-slate-400">
-                    <p>Game id: {game.id}</p>
-                    <p>Created: {game.createdAt}</p>
-                  </div>
-
-                  <div className="mt-5 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setJoinGameId(game.id)}
-                      className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
-                    >
-                      Use id
-                    </button>
-
-                    <Link
-                      href={`/play/${game.id}`}
-                      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-                    >
-                      Open page
-                    </Link>
-                  </div>
+              {isLoadingGames ? (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-sm text-slate-400">
+                  Loading games...
                 </div>
-              ))}
-
-              {waitingGames.length === 0 && (
+              ) : waitingGames.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-sm text-slate-400">
                   No waiting games yet.
                 </div>
+              ) : (
+                waitingGames.map((game) => (
+                  <div
+                    key={game.id}
+                    className="rounded-2xl border border-white/10 bg-slate-900/70 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm text-slate-400">Host</p>
+                        <p className="mt-1 font-semibold text-white">
+                          {game.whitePlayer.displayName}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
+                        {game.status}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 space-y-1 text-sm text-slate-400">
+                      <p>Game id: {game.id}</p>
+                      <p>
+                        Turn: <span className="text-slate-200">{game.whoseTurn}</span>
+                      </p>
+                    </div>
+
+                    <div className="mt-5 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setJoinGameId(game.id)}
+                        className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
+                      >
+                        Use id
+                      </button>
+
+                      <Link
+                        href={`/play/${game.id}`}
+                        className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                      >
+                        Open page
+                      </Link>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </aside>

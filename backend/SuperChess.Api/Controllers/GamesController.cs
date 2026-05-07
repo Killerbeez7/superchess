@@ -42,6 +42,13 @@ public class GamesController : ControllerBase
         return Ok(game);
     }
 
+    [HttpGet]
+    public async Task<ActionResult<List<GameResponse>>> GetAll()
+    {
+        var games = await _gameService.GetGamesAsync();
+        return Ok(games);
+    }
+
     [HttpPost("{gameId:guid}/join")]
     public async Task<ActionResult<GameResponse>> Join(Guid gameId, [FromBody] JoinGameRequest request)
     {

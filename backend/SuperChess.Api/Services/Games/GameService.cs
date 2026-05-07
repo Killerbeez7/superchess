@@ -14,6 +14,7 @@ public class GameService : IGameService
         _db = db;
     }
 
+    // Create game
     public async Task<GameResponse> CreateGameAsync(CreateGameRequest request)
     {
         var trimmedName = request.PlayerName.Trim();
@@ -49,6 +50,7 @@ public class GameService : IGameService
         return MapGame(game);
     }
 
+    // Games game
     public async Task<GameResponse?> GetGameAsync(Guid gameId)
     {
         var game = await _db.Games
@@ -59,6 +61,19 @@ public class GameService : IGameService
         return game is null ? null : MapGame(game);
     }
 
+    // Get games
+    public async Task<List<GameResponse>> GetGamesAsync()
+    {
+        var games = await _db.Games
+            .Include(x => x.WhitePlayer)
+            .Include(x => x.BlackPlayer)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync();
+
+        return games.Select(MapGame).ToList();
+    }
+
+    // Join game
     public async Task<GameResponse?> JoinGameAsync(Guid gameId, JoinGameRequest request)
     {
         var trimmedName = request.PlayerName.Trim();
@@ -101,6 +116,7 @@ public class GameService : IGameService
         return MapGame(game);
     }
 
+    // Map game
     private static GameResponse MapGame(ChessGame game)
     {
         return new GameResponse

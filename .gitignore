@@ -141,3 +141,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+
+# Extra
+frontend/superchess-web/.next/
+frontend/superchess-web/node_modules/
+backend/SuperChess.Api/bin/
+backend/SuperChess.Api/obj/
+core/SuperChess.Core/bin/
+core/SuperChess.Core/obj/

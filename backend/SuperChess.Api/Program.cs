@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Data;
 using SuperChess.Api.Services.Games;
+using SuperChess.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -24,5 +26,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<GameHub>("/gamehub");
 
 app.Run();

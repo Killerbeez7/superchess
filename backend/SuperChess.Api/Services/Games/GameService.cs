@@ -2,16 +2,20 @@ using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Contracts.Games;
 using SuperChess.Api.Data;
 using SuperChess.Api.Models;
+using Microsoft.AspNetCore.SignalR;
+using SuperChess.Api.Hubs;
 
 namespace SuperChess.Api.Services.Games;
 
 public class GameService : IGameService
 {
     private readonly AppDbContext _db;
+    private readonly IHubContext<GameHub> _hubContext;
 
-    public GameService(AppDbContext db)
+    public GameService(AppDbContext db, IHubContext<GameHub> hubContext)
     {
         _db = db;
+        _hubContext = hubContext;
     }
 
     // Create game
@@ -113,7 +117,14 @@ public class GameService : IGameService
         _db.Players.Add(blackPlayer);
         await _db.SaveChangesAsync();
 
-        return MapGame(game);
+
+        var response = MapGame(game);
+
+        await _hubContext.Clients
+            .Group($"game:{game.Id}")
+            .SendAsync("PlayerJoined", response);
+
+        return response;
     }
 
     // Map game

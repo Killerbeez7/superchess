@@ -5,9 +5,11 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { SubmitEvent } from "react";
 import type { HubConnection } from "@microsoft/signalr";
-import { Navbar } from "../../components/layout/Navbar";
+import { Navbar } from "@components/layout/Navbar";
 import { getGame, joinGame, type GameResponse } from "@/api/games";
 import { createGameHubConnection } from "@/realtime/gameHub";
+import { LoadingSpinner } from "@components/layout/LoadingSpinner";
+import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
 
 export default function GameDetailsPage() {
   const params = useParams();
@@ -185,158 +187,79 @@ export default function GameDetailsPage() {
       ? "Black to move"
       : "Turn not available";
 
+  const activeColor = game?.whoseTurn === "black" ? "black" : "white";
+  const whitePlayerName = game?.whitePlayer.displayName ?? "White player";
+  const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
+  const roomCode = game?.id ?? gameId ?? "";
+  const matchTitle = game
+    ? `${whitePlayerName} vs ${game.blackPlayer?.displayName ?? "Open seat"}`
+    : "Match room";
+
   return (
     <main className="min-h-screen bg-slate-950/97 text-white">
       <Navbar />
 
-      <section className="border-b border-white/10">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-18">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">
-                Match room
-              </p>
+      {/* <section className="border-b border-white/10 bg-slate-950">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
+              SuperChess match
+            </p>
+            <h1 className="mt-2 truncate text-2xl font-semibold text-white sm:text-3xl">
+              {matchTitle}
+            </h1>
+          </div>
 
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-                SuperChess Lobby
-              </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <span
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                isRealtimeConnected
+                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                  : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
+              }`}
+            >
+              {isRealtimeConnected ? "Live" : "Connecting"}
+            </span>
 
-              <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-                Create the matchup, invite the second player, and prepare the board before
-                the game begins.
-              </p>
-            </div>
+            <span
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                game?.status === "active"
+                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                  : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
+              }`}
+            >
+              {statusLabel}
+            </span>
 
-            <div className="flex flex-wrap gap-3">
-              <span
-                className={`rounded-full px-5 py-3 text-sm font-semibold ${
-                  isRealtimeConnected
-                    ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                    : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-                }`}
-              >
-                {isRealtimeConnected ? "Live" : "Connecting..."}
-              </span>
-
-              <button
-                type="button"
-                onClick={handleRefreshGame}
-                className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
-              >
-                Refresh
-              </button>
-
-              <Link
-                href="/play"
-                className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
-              >
-                Back to play
-              </Link>
-            </div>
+            <Link
+              href="/play"
+              className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
+            >
+              Rooms
+            </Link>
           </div>
         </div>
-      </section>
+      </section> */}
 
       <section>
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:py-14">
-          <div className="space-y-8">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur">
-              <div className="border-b border-white/10 px-6 py-5">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      Current match
-                    </p>
-                    <h2 className="mt-2 text-2xl font-semibold text-white">
-                      Player lineup
-                    </h2>
-                  </div>
-
-                  {!isLoadingGame && game && (
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
-                        game.status === "waiting"
-                          ? "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-                          : "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                      }`}
-                    >
-                      {statusLabel}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {isLoadingGame ? (
-                <div className="px-6 py-8">
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-sm text-slate-400">
-                    Loading game...
-                  </div>
-                </div>
-              ) : game ? (
-                <div className="space-y-6 px-6 py-6">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        White side
-                      </p>
-                      <p className="mt-3 text-lg font-semibold text-white">
-                        {game.whitePlayer.displayName}
-                      </p>
-                      <p className="mt-2 text-sm text-slate-400">Host of this match</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        Black side
-                      </p>
-                      <p className="mt-3 text-lg font-semibold text-white">
-                        {game.blackPlayer?.displayName ?? "Waiting for player 2"}
-                      </p>
-                      <p className="mt-2 text-sm text-slate-400">
-                        {game.blackPlayer
-                          ? "Second player connected"
-                          : "Open for another player to join"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        Match status
-                      </p>
-                      <p className="mt-3 text-base font-semibold text-white">
-                        {statusLabel}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        Turn
-                      </p>
-                      <p className="mt-3 text-base font-semibold text-white">
-                        {turnLabel}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                      Room code
-                    </p>
-                    <p className="mt-2 break-all font-mono text-sm text-slate-300">
-                      {game.id}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="px-6 py-8">
-                  <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6 text-sm text-red-200">
-                    Game not found.
-                  </div>
-                </div>
-              )}
-            </div>
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-8">
+          <div className="space-y-5">
+            {isLoadingGame ? (
+              <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
+                <LoadingSpinner />
+              </section>
+            ) : game ? (
+              <ChessBoardPlaceholder
+                whitePlayerName={whitePlayerName}
+                blackPlayerName={blackPlayerName}
+                activeColor={activeColor}
+                statusLabel={turnLabel}
+              />
+            ) : (
+              <section className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-sm text-red-200">
+                Game not found.
+              </section>
+            )}
 
             {error && (
               <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
@@ -345,77 +268,162 @@ export default function GameDetailsPage() {
             )}
           </div>
 
-          <aside className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
-            <div className="mb-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                Match actions
+          <aside className="space-y-5">
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur">
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Players
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold text-white">Table</h2>
+                </div>
+
+                <span className="rounded-full border border-white/10 bg-slate-950 px-3 py-1 text-xs font-semibold text-slate-300">
+                  {turnLabel}
+                </span>
+              </div>
+
+              {isLoadingGame ? (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/70 p-6">
+                  <LoadingSpinner />
+                </div>
+              ) : game ? (
+                <div className="grid gap-3">
+                  <PlayerPanel
+                    color="white"
+                    name={whitePlayerName}
+                    detail="White"
+                    isActive={activeColor === "white"}
+                  />
+                  <PlayerPanel
+                    color="black"
+                    name={blackPlayerName}
+                    detail={game.blackPlayer ? "Black" : "Open seat"}
+                    isActive={activeColor === "black"}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-300">
+                  No table data available.
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Room
               </p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">
-                {canJoinAsBlack ? "Join this match" : "Lobby status"}
+              <h2 className="mt-1 text-xl font-semibold text-white">
+                {canJoinAsBlack ? "Take the black side" : statusLabel}
               </h2>
               <p className="mt-3 text-sm leading-7 text-slate-300">
                 {canJoinAsBlack
-                  ? "Take the black side and get ready to start."
+                  ? "Enter your name to sit across from white."
                   : game?.blackPlayer
-                  ? "Both players are in. The game can begin."
-                  : "Waiting for the room to become available."}
+                  ? "Both players are seated."
+                  : "Waiting for an opponent."}
               </p>
-            </div>
 
-            {canJoinAsBlack ? (
-              <form onSubmit={handleJoinGame} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="joinName"
-                    className="mb-2 block text-sm font-medium text-slate-200"
+              {canJoinAsBlack && (
+                <form onSubmit={handleJoinGame} className="mt-5 space-y-4">
+                  <div>
+                    <label
+                      htmlFor="joinName"
+                      className="mb-2 block text-sm font-medium text-slate-200"
+                    >
+                      Player name
+                    </label>
+                    <input
+                      id="joinName"
+                      type="text"
+                      value={joinName}
+                      onChange={(e) => setJoinName(e.target.value)}
+                      placeholder="Enter your name"
+                      className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isJoiningGame}
+                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Player name
-                  </label>
-                  <input
-                    id="joinName"
-                    type="text"
-                    value={joinName}
-                    onChange={(e) => setJoinName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-400"
-                  />
-                </div>
+                    {isJoiningGame ? "Joining..." : "Join as black"}
+                  </button>
+                </form>
+              )}
 
-                <button
-                  type="submit"
-                  disabled={isJoiningGame}
-                  className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isJoiningGame ? "Joining..." : "Join as black"}
-                </button>
-              </form>
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-300">
-                {game?.blackPlayer
-                  ? "This match already has two players."
-                  : "Open a valid waiting room to join the game."}
+              <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Room code
+                </p>
+                <p className="mt-2 break-all font-mono text-sm text-slate-300">
+                  {roomCode}
+                </p>
               </div>
-            )}
 
-            <div className="mt-6 grid gap-3">
-              <button
-                type="button"
-                onClick={handleRefreshGame}
-                className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
-              >
-                Refresh room
-              </button>
+              <div className="mt-5 grid gap-3">
+                <button
+                  type="button"
+                  onClick={handleRefreshGame}
+                  className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                >
+                  Refresh room
+                </button>
 
-              <Link
-                href="/play"
-                className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/5"
-              >
-                Browse other games
-              </Link>
-            </div>
+                <Link
+                  href="/play"
+                  className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/5"
+                >
+                  Browse rooms
+                </Link>
+              </div>
+            </section>
           </aside>
         </div>
       </section>
     </main>
+  );
+}
+
+function PlayerPanel({
+  color,
+  name,
+  detail,
+  isActive,
+}: {
+  color: "white" | "black";
+  name: string;
+  detail: string;
+  isActive: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-4 rounded-2xl border p-4 ${
+        isActive
+          ? "border-amber-300/40 bg-amber-300/10"
+          : "border-white/10 bg-slate-900/70"
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          className={`h-10 w-10 shrink-0 rounded-full border ${
+            color === "white"
+              ? "border-slate-300 bg-slate-100"
+              : "border-slate-700 bg-slate-950"
+          }`}
+        />
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-white">{name}</p>
+          <p className="text-sm text-slate-400">{detail}</p>
+        </div>
+      </div>
+
+      {isActive && (
+        <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-200">
+          Turn
+        </span>
+      )}
+    </div>
   );
 }

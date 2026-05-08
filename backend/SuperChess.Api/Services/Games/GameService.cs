@@ -55,7 +55,7 @@ public class GameService : IGameService
             WhitePlayerId = whitePlayer.Id,
             WhitePlayer = whitePlayer,
             Status = "waiting",
-            CurrentFen = "startpos",
+            CurrentFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             WhoseTurn = "white",
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow

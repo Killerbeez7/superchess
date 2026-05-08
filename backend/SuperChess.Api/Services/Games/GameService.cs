@@ -33,7 +33,7 @@ public class GameService : IGameService
     }
 
     // Create game
-    public async Task<GameResponse> CreateGameAsync(CreateGameRequest request)
+    public async Task<GameSessionResponse> CreateGameAsync(CreateGameRequest request)
     {
         var trimmedName = request.PlayerName.Trim();
 
@@ -66,7 +66,7 @@ public class GameService : IGameService
         await _db.SaveChangesAsync();
         await BroadcastOpenGamesChangedAsync();
 
-        return MapGame(game);
+        return MapGameSession(game, whitePlayer, "white");
     }
 
     // Get game
@@ -94,7 +94,7 @@ public class GameService : IGameService
     }
 
     // Join game
-    public async Task<GameResponse?> JoinGameAsync(Guid gameId, JoinGameRequest request)
+    public async Task<GameSessionResponse?> JoinGameAsync(Guid gameId, JoinGameRequest request)
     {
         var trimmedName = request.PlayerName.Trim();
 
@@ -136,12 +136,34 @@ public class GameService : IGameService
 
 
         var response = MapGame(game);
+        var sessionResponse = MapGameSession(game, blackPlayer, "black");
 
         await _hubContext.Clients
             .Group($"game:{game.Id}")
             .SendAsync("PlayerJoined", response);
 
-        return response;
+        return sessionResponse;
+    }
+
+    // Map session
+    private static PlayerSessionResponse MapSession(Player player, string color)
+    {
+        return new PlayerSessionResponse
+        {
+            PlayerId = player.Id,
+            SessionToken = player.SessionToken,
+            Color = color
+        };
+    }
+
+    // Map game session
+    private static GameSessionResponse MapGameSession(ChessGame game, Player player, string color)
+    {
+        return new GameSessionResponse
+        {
+            Game = MapGame(game),
+            Session = MapSession(player, color)
+        };
     }
 
     // Map game
@@ -170,6 +192,8 @@ public class GameService : IGameService
         };
     }
 
+    // Make move
+    // Make move
     public async Task<GameResponse?> MakeMoveAsync(Guid gameId, MakeMoveRequest request)
     {
         var game = await _db.Games
@@ -192,6 +216,30 @@ public class GameService : IGameService
             throw new ArgumentException("Both from and to squares are required.");
         }
 
+        if (request.PlayerId == Guid.Empty)
+        {
+            throw new ArgumentException("PlayerId is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SessionToken))
+        {
+            throw new ArgumentException("SessionToken is required.");
+        }
+
+        var expectedPlayer = game.WhoseTurn == "white"
+            ? game.WhitePlayer
+            : game.BlackPlayer;
+
+        if (expectedPlayer is null)
+        {
+            throw new InvalidOperationException("No player found for the current turn.");
+        }
+
+        if (request.PlayerId != expectedPlayer.Id || request.SessionToken != expectedPlayer.SessionToken)
+        {
+            throw new InvalidOperationException("You are not allowed to move for this turn.");
+        }
+
         var from = request.From.Trim().ToLowerInvariant();
         var to = request.To.Trim().ToLowerInvariant();
 
@@ -202,10 +250,14 @@ public class GameService : IGameService
 
         if (from == to)
         {
-            throw new ArgumentException("Destination cannot be same as starting point.");
+            throw new ArgumentException("Source and target squares must be different.");
         }
 
-        var board = ParseBoardFromFen(game.CurrentFen);
+        var fenToParse = game.CurrentFen == "startpos"
+            ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+            : game.CurrentFen;
+
+        var board = ParseBoardFromFen(fenToParse);
 
         if (!board.TryGetValue(from, out var piece))
         {
@@ -214,20 +266,19 @@ public class GameService : IGameService
 
         var isWhiteTurn = game.WhoseTurn == "white";
 
-        if (isWhiteTurn && !IsWhitePiece(piece))
+        switch (isWhiteTurn, IsWhitePiece(piece))
         {
-            throw new InvalidOperationException("It is white's turn.");
-        }
-
-        if (!isWhiteTurn && !IsBlackPiece(piece))
-        {
-            throw new InvalidOperationException("It is black's turn.");
+            case (true, false):
+                throw new InvalidOperationException("It is white's turn.");
+            case (false, true):
+                throw new InvalidOperationException("It is black's turn.");
         }
 
         if (board.TryGetValue(to, out var targetPiece))
         {
-            if ((IsWhitePiece(piece) && IsWhitePiece(targetPiece)) ||
-                (IsBlackPiece(piece) && IsBlackPiece(targetPiece)))
+            var isSameColor = (IsWhitePiece(piece) == IsWhitePiece(targetPiece));
+
+            if (isSameColor)
             {
                 throw new InvalidOperationException("You cannot capture your own piece.");
             }
@@ -238,7 +289,7 @@ public class GameService : IGameService
 
         var nextTurn = game.WhoseTurn == "white" ? "black" : "white";
 
-        game.CurrentFen = BuildUpdatedFen(game.CurrentFen, board, nextTurn);
+        game.CurrentFen = BuildUpdatedFen(fenToParse, board, nextTurn);
         game.WhoseTurn = nextTurn;
         game.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -253,6 +304,7 @@ public class GameService : IGameService
         return response;
     }
 
+    // validate square
     private static bool IsValidSquare(string square)
     {
         if (square.Length != 2)

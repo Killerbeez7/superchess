@@ -17,12 +17,12 @@ public class GamesController : ControllerBase
 
     // Create game
     [HttpPost]
-    public async Task<ActionResult<GameResponse>> Create([FromBody] CreateGameRequest request)
+    public async Task<ActionResult<GameSessionResponse>> Create([FromBody] CreateGameRequest request)
     {
         try
         {
             var game = await _gameService.CreateGameAsync(request);
-            return CreatedAtAction(nameof(GetById), new { gameId = game.Id }, game);
+            return CreatedAtAction(nameof(GetById), new { gameId = game.Game.Id }, game);
         }
         catch (ArgumentException ex)
         {
@@ -52,9 +52,9 @@ public class GamesController : ControllerBase
         return Ok(games);
     }
 
-    // Joing game
+    // Join game
     [HttpPost("{gameId:guid}/join")]
-    public async Task<ActionResult<GameResponse>> Join(Guid gameId, [FromBody] JoinGameRequest request)
+    public async Task<ActionResult<GameSessionResponse>> Join(Guid gameId, [FromBody] JoinGameRequest request)
     {
         try
         {
@@ -103,4 +103,4 @@ public class GamesController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
     }
-};
+}

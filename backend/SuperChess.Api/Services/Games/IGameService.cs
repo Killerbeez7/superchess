@@ -8,4 +8,5 @@ public interface IGameService
     Task<GameResponse?> GetGameAsync(Guid gameId);
     Task<List<GameResponse>> GetGamesAsync();
     Task<GameResponse?> JoinGameAsync(Guid gameId, JoinGameRequest request);
+    Task<GameResponse?> MakeMoveAsync(Guid gameId, MakeMoveRequest request);
 }

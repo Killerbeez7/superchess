@@ -69,7 +69,7 @@ public class GameService : IGameService
         return MapGame(game);
     }
 
-    // Games game
+    // Get game
     public async Task<GameResponse?> GetGameAsync(Guid gameId)
     {
         var game = await _db.Games
@@ -80,7 +80,7 @@ public class GameService : IGameService
         return game is null ? null : MapGame(game);
     }
 
-    // Get games
+    // Get games list
     public async Task<List<GameResponse>> GetGamesAsync()
     {
         var games = await _db.Games
@@ -168,5 +168,25 @@ public class GameService : IGameService
                     DisplayName = game.BlackPlayer.DisplayName
                 }
         };
+    }
+
+    public async Task<GameResponse?> MakeMoveAsync(Guid gameId, MakeMoveRequest request)
+    {
+        var game = await _db.Games
+            .Include(x => x.WhitePlayer)
+            .Include(x => x.BlackPlayer)
+            .FirstOrDefaultAsync(x => x.Id == gameId);
+
+        if (game is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.From) || string.IsNullOrWhiteSpace(request.To))
+        {
+            throw new ArgumentException("Both from and to squares are required.");
+        }
+
+        throw new InvalidOperationException("Move handling is not implemented yet.");
     }
 }

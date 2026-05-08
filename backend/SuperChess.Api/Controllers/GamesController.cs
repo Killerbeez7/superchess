@@ -15,6 +15,7 @@ public class GamesController : ControllerBase
         _gameService = gameService;
     }
 
+    // Create game
     [HttpPost]
     public async Task<ActionResult<GameResponse>> Create([FromBody] CreateGameRequest request)
     {
@@ -29,6 +30,7 @@ public class GamesController : ControllerBase
         }
     }
 
+    // Get game
     [HttpGet("{gameId:guid}")]
     public async Task<ActionResult<GameResponse>> GetById(Guid gameId)
     {
@@ -42,6 +44,7 @@ public class GamesController : ControllerBase
         return Ok(game);
     }
 
+    // Get games list
     [HttpGet]
     public async Task<ActionResult<List<GameResponse>>> GetAll()
     {
@@ -49,6 +52,7 @@ public class GamesController : ControllerBase
         return Ok(games);
     }
 
+    // Joing game
     [HttpPost("{gameId:guid}/join")]
     public async Task<ActionResult<GameResponse>> Join(Guid gameId, [FromBody] JoinGameRequest request)
     {
@@ -72,4 +76,31 @@ public class GamesController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
     }
-}
+
+    // Make a move
+    [HttpPost("{gameId:guid}/move")]
+    public async Task<ActionResult<GameResponse>> MakeMove(
+        Guid gameId,
+        [FromBody] MakeMoveRequest request)
+    {
+        try
+        {
+            var game = await _gameService.MakeMoveAsync(gameId, request);
+
+            if (game is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(game);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+};

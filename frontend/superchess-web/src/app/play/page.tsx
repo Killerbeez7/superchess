@@ -9,7 +9,7 @@ import type { HubConnection } from "@microsoft/signalr";
 import { Navbar } from "@components/layout/Navbar";
 import { createGame, getGames, joinGame, type GameResponse } from "@/api/games";
 import { createGameHubConnection } from "@/realtime/gameHub";
-import { saveGameSession } from "@/utils/gameSession";
+import { getGameSession, saveGameSession } from "@/utils/gameSession";
 import { LoadingSpinner } from "@components/layout/LoadingSpinner";
 
 export default function PlayPage() {
@@ -183,7 +183,13 @@ export default function PlayPage() {
       setError(null);
       setIsJoiningGame(true);
 
-      const result = await joinGame(trimmedGameId, trimmedName);
+      const existingSession = getGameSession(trimmedGameId);
+
+      const result = await joinGame(
+        trimmedGameId,
+        trimmedName,
+        existingSession?.sessionToken
+      );
 
       saveGameSession({
         gameId: result.game.id,

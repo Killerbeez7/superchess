@@ -53,6 +53,9 @@ export default function GameDetailsPage() {
     ((localSession.color === "white" && game?.whoseTurn === "white") ||
       (localSession.color === "black" && game?.whoseTurn === "black"));
 
+  const isSameBrowserWhitePlayer =
+    !!localSession && localSession.color === "white" && canJoinAsBlack;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -198,7 +201,7 @@ export default function GameDetailsPage() {
       setError(null);
       setIsJoiningGame(true);
 
-      const result = await joinGame(gameId, trimmedName);
+      const result = await joinGame(gameId, trimmedName, localSession?.sessionToken);
 
       saveGameSession({
         gameId: result.game.id,
@@ -327,7 +330,7 @@ export default function GameDetailsPage() {
                 </div>
               )}
 
-              {canJoinAsBlack && (
+              {canJoinAsBlack && !isSameBrowserWhitePlayer && (
                 <form onSubmit={handleJoinGame} className="space-y-4">
                   <div>
                     <label

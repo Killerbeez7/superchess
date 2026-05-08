@@ -118,6 +118,12 @@ public class GameService : IGameService
             throw new InvalidOperationException("Game already has two players.");
         }
 
+        if (!string.IsNullOrWhiteSpace(request.ExistingSessionToken) &&
+            request.ExistingSessionToken == game.WhitePlayer.SessionToken)
+        {
+            throw new InvalidOperationException("You cannot join as both players.");
+        }
+
         var blackPlayer = new Player
         {
             Id = Guid.NewGuid(),

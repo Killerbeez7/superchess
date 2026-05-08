@@ -82,14 +82,18 @@ export async function createGame(playerName: string): Promise<GameSessionRespons
 
 export async function joinGame(
   gameId: string,
-  playerName: string
+  playerName: string,
+  existingSessionToken?: string
 ): Promise<GameSessionResponse> {
   const res = await fetch(`${API_BASE_URL}/games/${gameId}/join`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ playerName }),
+    body: JSON.stringify({
+      playerName,
+      existingSessionToken: existingSessionToken ?? null,
+    }),
   });
 
   if (!res.ok) {

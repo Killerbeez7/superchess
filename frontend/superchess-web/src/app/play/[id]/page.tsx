@@ -16,7 +16,11 @@ import {
 import type { GameResponse } from "@/api/games";
 import { getGame, joinGame, makeMove } from "@/api/games";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
-import { getGameSession, saveGameSession } from "@/utils/gameSession";
+import {
+  getGameSession,
+  saveGameSession,
+  type LocalGameSession,
+} from "@/utils/gameSession";
 import { createGameHubConnection } from "@/realtime/gameHub";
 
 import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
@@ -35,6 +39,7 @@ export default function GameDetailsPage() {
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [lastMove, setLastMove] = useState<LastMove>(null);
+  const [localSession, setLocalSession] = useState<LocalGameSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
@@ -57,8 +62,6 @@ export default function GameDetailsPage() {
       : game?.whoseTurn === "black"
       ? "Black to move"
       : "Turn not available";
-
-  const localSession = gameId ? getGameSession(gameId) : null;
 
   const isLocalPlayersTurn =
     !!localSession &&
@@ -102,6 +105,20 @@ export default function GameDetailsPage() {
     if (selectedSquare) return `Selected ${selectedSquare}. Choose destination square.`;
     return "Select a piece, then select a destination square.";
   }, [localSession, game, isMakingMove, isLocalPlayersTurn, selectedSquare]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) return;
+
+      setLocalSession(gameId ? getGameSession(gameId) : null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -265,13 +282,16 @@ export default function GameDetailsPage() {
 
       const result = await joinGame(gameId, trimmedName, localSession?.sessionToken);
 
-      saveGameSession({
+      const session: LocalGameSession = {
         gameId: result.game.id,
         playerId: result.session.playerId,
         sessionToken: result.session.sessionToken,
         color: result.session.color,
         playerName: trimmedName,
-      });
+      };
+
+      saveGameSession(session);
+      setLocalSession(session);
 
       setGame(result.game);
       setJoinName("");

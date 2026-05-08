@@ -2,20 +2,18 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
-import type { HubConnection } from "@microsoft/signalr";
-import { Navbar } from "@components/layout/Navbar";
-import { getGame, joinGame, type GameResponse } from "@/api/games";
-import { createGameHubConnection } from "@/realtime/gameHub";
-import { LoadingSpinner } from "@components/layout/LoadingSpinner";
+import type { GameResponse } from "@/api/games";
+import { getGame, joinGame } from "@/api/games";
 import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
+import { Navbar } from "@components/layout/Navbar";
+import { LoadingSpinner } from "@components/layout/LoadingSpinner";
+import { createGameHubConnection } from "@/realtime/gameHub";
 
 export default function GameDetailsPage() {
   const params = useParams();
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
-
-  const connectionRef = useRef<HubConnection | null>(null);
 
   const [joinName, setJoinName] = useState("");
   const [game, setGame] = useState<GameResponse | null>(null);
@@ -25,6 +23,24 @@ export default function GameDetailsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
+  const activeColor = game?.whoseTurn === "black" ? "black" : "white";
+  const whitePlayerName = game?.whitePlayer.displayName ?? "White player";
+  const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
+  const roomCode = game?.id ?? gameId ?? "";
+
+  const statusLabel =
+    game?.status === "waiting"
+      ? "Waiting for player"
+      : game?.status === "active"
+      ? "Match ready"
+      : game?.status ?? "Unknown";
+
+  const turnLabel =
+    game?.whoseTurn === "white"
+      ? "White to move"
+      : game?.whoseTurn === "black"
+      ? "Black to move"
+      : "Turn not available";
 
   useEffect(() => {
     let cancelled = false;
@@ -65,14 +81,15 @@ export default function GameDetailsPage() {
     if (!gameId) return;
 
     const connection = createGameHubConnection();
-    connectionRef.current = connection;
 
     let disposed = false;
     let started = false;
     let joinedRoom = false;
 
     connection.on("PlayerJoined", (updatedGame: GameResponse) => {
-      setGame(updatedGame);
+      if (!disposed) {
+        setGame(updatedGame);
+      }
     });
 
     async function startConnection() {
@@ -173,73 +190,9 @@ export default function GameDetailsPage() {
     }
   }
 
-  const statusLabel =
-    game?.status === "waiting"
-      ? "Waiting for player"
-      : game?.status === "active"
-      ? "Match ready"
-      : game?.status ?? "Unknown";
-
-  const turnLabel =
-    game?.whoseTurn === "white"
-      ? "White to move"
-      : game?.whoseTurn === "black"
-      ? "Black to move"
-      : "Turn not available";
-
-  const activeColor = game?.whoseTurn === "black" ? "black" : "white";
-  const whitePlayerName = game?.whitePlayer.displayName ?? "White player";
-  const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
-  const roomCode = game?.id ?? gameId ?? "";
-  const matchTitle = game
-    ? `${whitePlayerName} vs ${game.blackPlayer?.displayName ?? "Open seat"}`
-    : "Match room";
-
   return (
     <main className="min-h-screen bg-slate-950/97 text-white">
       <Navbar />
-
-      {/* <section className="border-b border-white/10 bg-slate-950">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
-              SuperChess match
-            </p>
-            <h1 className="mt-2 truncate text-2xl font-semibold text-white sm:text-3xl">
-              {matchTitle}
-            </h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <span
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                isRealtimeConnected
-                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                  : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-              }`}
-            >
-              {isRealtimeConnected ? "Live" : "Connecting"}
-            </span>
-
-            <span
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                game?.status === "active"
-                  ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                  : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-              }`}
-            >
-              {statusLabel}
-            </span>
-
-            <Link
-              href="/play"
-              className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
-            >
-              Rooms
-            </Link>
-          </div>
-        </div>
-      </section> */}
 
       <section>
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-8">
@@ -249,12 +202,7 @@ export default function GameDetailsPage() {
                 <LoadingSpinner />
               </section>
             ) : game ? (
-              <ChessBoardPlaceholder
-                whitePlayerName={whitePlayerName}
-                blackPlayerName={blackPlayerName}
-                activeColor={activeColor}
-                statusLabel={turnLabel}
-              />
+              <ChessBoardPlaceholder variant="app" />
             ) : (
               <section className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-sm text-red-200">
                 Game not found.
@@ -310,22 +258,36 @@ export default function GameDetailsPage() {
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Room
-              </p>
-              <h2 className="mt-1 text-xl font-semibold text-white">
-                {canJoinAsBlack ? "Take the black side" : statusLabel}
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                {canJoinAsBlack
-                  ? "Enter your name to sit across from white."
-                  : game?.blackPlayer
-                  ? "Both players are seated."
-                  : "Waiting for an opponent."}
-              </p>
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Room
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold text-white">
+                    {canJoinAsBlack ? "Take the black side" : statusLabel}
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-300">
+                    {canJoinAsBlack
+                      ? "Enter your name to sit across from white."
+                      : game?.blackPlayer
+                      ? "Both players are seated."
+                      : "Waiting for an opponent."}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    isRealtimeConnected
+                      ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
+                  }`}
+                >
+                  {isRealtimeConnected ? "Live" : "Offline"}
+                </span>
+              </div>
 
               {canJoinAsBlack && (
-                <form onSubmit={handleJoinGame} className="mt-5 space-y-4">
+                <form onSubmit={handleJoinGame} className="space-y-4">
                   <div>
                     <label
                       htmlFor="joinName"

@@ -9,6 +9,7 @@ import type { HubConnection } from "@microsoft/signalr";
 import { Navbar } from "@components/layout/Navbar";
 import { createGame, getGames, joinGame, type GameResponse } from "@/api/games";
 import { createGameHubConnection } from "@/realtime/gameHub";
+import { saveGameSession } from "@/utils/gameSession";
 import { LoadingSpinner } from "@components/layout/LoadingSpinner";
 
 export default function PlayPage() {
@@ -143,9 +144,18 @@ export default function PlayPage() {
       setError(null);
       setIsCreatingGame(true);
 
-      const game = await createGame(trimmedName);
+      const result = await createGame(trimmedName);
+
+      saveGameSession({
+        gameId: result.game.id,
+        playerId: result.session.playerId,
+        sessionToken: result.session.sessionToken,
+        color: result.session.color,
+        playerName: trimmedName,
+      });
+
       setCreateName("");
-      router.push(`/play/${game.id}`);
+      router.push(`/play/${result.game.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create game.");
     } finally {
@@ -173,9 +183,18 @@ export default function PlayPage() {
       setError(null);
       setIsJoiningGame(true);
 
-      const game = await joinGame(trimmedGameId, trimmedName);
+      const result = await joinGame(trimmedGameId, trimmedName);
+
+      saveGameSession({
+        gameId: result.game.id,
+        playerId: result.session.playerId,
+        sessionToken: result.session.sessionToken,
+        color: result.session.color,
+        playerName: trimmedName,
+      });
+
       setJoinName("");
-      router.push(`/play/${game.id}`);
+      router.push(`/play/${result.game.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game.");
     } finally {

@@ -4,13 +4,16 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { SubmitEvent } from "react";
+
 import type { GameResponse } from "@/api/games";
 import { getGame, joinGame } from "@/api/games";
+import { getBoardPositionFromGameState } from "@/utils/board/position";
+import { getGameSession, saveGameSession } from "@/utils/gameSession";
+import { createGameHubConnection } from "@/realtime/gameHub";
+
 import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
 import { Navbar } from "@components/layout/Navbar";
 import { LoadingSpinner } from "@components/layout/LoadingSpinner";
-import { createGameHubConnection } from "@/realtime/gameHub";
-import { getBoardPositionFromGameState } from "@/utils/board/position";
 
 export default function GameDetailsPage() {
   const params = useParams();
@@ -43,6 +46,12 @@ export default function GameDetailsPage() {
       : game?.whoseTurn === "black"
       ? "Black to move"
       : "Turn not available";
+
+  const localSession = gameId ? getGameSession(gameId) : null;
+  const isLocalPlayersTurn =
+    !!localSession &&
+    ((localSession.color === "white" && game?.whoseTurn === "white") ||
+      (localSession.color === "black" && game?.whoseTurn === "black"));
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +103,12 @@ export default function GameDetailsPage() {
       }
     });
 
+    connection.on("MovePlayed", (updatedGame: GameResponse) => {
+      if (!disposed) {
+        setGame(updatedGame);
+      }
+    });
+
     async function startConnection() {
       try {
         await connection.start();
@@ -126,6 +141,7 @@ export default function GameDetailsPage() {
       async function cleanup() {
         try {
           connection.off("PlayerJoined");
+          connection.off("MovePlayed");
 
           if (joinedRoom && connection.state === "Connected") {
             try {
@@ -182,8 +198,17 @@ export default function GameDetailsPage() {
       setError(null);
       setIsJoiningGame(true);
 
-      const updatedGame = await joinGame(gameId, trimmedName);
-      setGame(updatedGame);
+      const result = await joinGame(gameId, trimmedName);
+
+      saveGameSession({
+        gameId: result.game.id,
+        playerId: result.session.playerId,
+        sessionToken: result.session.sessionToken,
+        color: result.session.color,
+        playerName: trimmedName,
+      });
+
+      setGame(result.game);
       setJoinName("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game.");
@@ -287,6 +312,20 @@ export default function GameDetailsPage() {
                   {isRealtimeConnected ? "Live" : "Offline"}
                 </span>
               </div>
+
+              {localSession && (
+                <div className="mb-5 rounded-2xl border border-white/10 bg-slate-950 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    You
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-white">
+                    {localSession.playerName} · {localSession.color}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {isLocalPlayersTurn ? "Your turn" : "Waiting for opponent"}
+                  </p>
+                </div>
+              )}
 
               {canJoinAsBlack && (
                 <form onSubmit={handleJoinGame} className="space-y-4">

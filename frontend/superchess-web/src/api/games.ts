@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:5199";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5199";
 
 export type PlayerSummary = {
   id: string;
@@ -14,6 +14,17 @@ export type GameResponse = {
   blackPlayer: PlayerSummary | null;
   createdAtUtc: string;
   updatedAtUtc: string;
+};
+
+export type PlayerSessionResponse = {
+  playerId: string;
+  sessionToken: string;
+  color: "white" | "black";
+};
+
+export type GameSessionResponse = {
+  game: GameResponse;
+  session: PlayerSessionResponse;
 };
 
 type ApiError = {
@@ -53,7 +64,7 @@ export async function getGame(gameId: string): Promise<GameResponse> {
   return res.json();
 }
 
-export async function createGame(playerName: string): Promise<GameResponse> {
+export async function createGame(playerName: string): Promise<GameSessionResponse> {
   const res = await fetch(`${API_BASE_URL}/games`, {
     method: "POST",
     headers: {
@@ -72,7 +83,7 @@ export async function createGame(playerName: string): Promise<GameResponse> {
 export async function joinGame(
   gameId: string,
   playerName: string
-): Promise<GameResponse> {
+): Promise<GameSessionResponse> {
   const res = await fetch(`${API_BASE_URL}/games/${gameId}/join`, {
     method: "POST",
     headers: {

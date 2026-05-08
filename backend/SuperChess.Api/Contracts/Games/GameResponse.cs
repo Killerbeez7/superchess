@@ -10,8 +10,11 @@ public class GameResponse
     public PlayerSummary WhitePlayer { get; set; } = null!;
     public PlayerSummary? BlackPlayer { get; set; }
 
+
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
+
+    public List<MoveSummaryResponse> Moves { get; set; } = new();
 }
 
 public class PlayerSummary

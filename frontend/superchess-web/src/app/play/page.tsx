@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import type { SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { SubmitEvent } from "react";
+import type { HubConnection } from "@microsoft/signalr";
+
 import { Navbar } from "../components/layout/Navbar";
 import { createGame, getGames, joinGame, type GameResponse } from "@/api/games";
+import { createGameHubConnection } from "@/realtime/gameHub";
+import { LoadingSpinner } from "../components/layout/LoadingSpinner";
 
 export default function PlayPage() {
   const router = useRouter();
+  const connectionRef = useRef<HubConnection | null>(null);
 
   const [createName, setCreateName] = useState("");
   const [joinGameId, setJoinGameId] = useState("");
@@ -18,6 +23,7 @@ export default function PlayPage() {
   const [isLoadingGames, setIsLoadingGames] = useState(true);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [isJoiningGame, setIsJoiningGame] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const waitingGames = useMemo(
@@ -30,6 +36,7 @@ export default function PlayPage() {
 
     async function fetchInitialGames() {
       try {
+        setError(null);
         const data = await getGames();
 
         if (!cancelled) {
@@ -50,6 +57,61 @@ export default function PlayPage() {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const connection = createGameHubConnection();
+    connectionRef.current = connection;
+
+    let disposed = false;
+    let started = false;
+
+    connection.on("OpenGamesChanged", (updatedGames: GameResponse[]) => {
+      if (!disposed) {
+        setGames(updatedGames);
+      }
+    });
+
+    async function startConnection() {
+      try {
+        await connection.start();
+        started = true;
+
+        if (!disposed) {
+          setIsRealtimeConnected(true);
+          return;
+        }
+
+        await connection.stop();
+      } catch (err) {
+        if (!disposed) {
+          console.error("Lobby SignalR connection failed:", err);
+          setIsRealtimeConnected(false);
+        }
+      }
+    }
+
+    void startConnection();
+
+    return () => {
+      disposed = true;
+
+      async function cleanup() {
+        try {
+          connection.off("OpenGamesChanged");
+
+          if (started && connection.state !== "Disconnected") {
+            await connection.stop();
+          }
+        } catch (err) {
+          console.error("Lobby SignalR cleanup failed:", err);
+        } finally {
+          setIsRealtimeConnected(false);
+        }
+      }
+
+      void cleanup();
     };
   }, []);
 
@@ -139,7 +201,7 @@ export default function PlayPage() {
             <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
               Dive into the universe of superchess. A modern twist on classic chess —
               where you break the rhythm with new moves, special abilities, extended
-              boards and.. and...
+              boards and...
             </p>
           </div>
         </div>
@@ -155,7 +217,7 @@ export default function PlayPage() {
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">Start as white</h2>
                 <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-                  Enter your player name and create a new game.
+                  Enter your player name and create a new game room.
                 </p>
               </div>
 
@@ -190,13 +252,13 @@ export default function PlayPage() {
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur">
               <div className="mb-6">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-400">
-                  Join by id
+                  Join by code
                 </p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">
                   Join an existing match
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-                  Paste a game id and join as the second player.
+                  Paste a room code and join as the second player.
                 </p>
               </div>
 
@@ -206,14 +268,14 @@ export default function PlayPage() {
                     htmlFor="joinGameId"
                     className="mb-2 block text-sm font-medium text-slate-200"
                   >
-                    Game id
+                    Room code
                   </label>
                   <input
                     id="joinGameId"
                     type="text"
                     value={joinGameId}
                     onChange={(e) => setJoinGameId(e.target.value)}
-                    placeholder="Paste game id"
+                    placeholder="Paste room code"
                     className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-400"
                   />
                 </div>
@@ -263,23 +325,35 @@ export default function PlayPage() {
                   Waiting for a second player
                 </h2>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Live data from the backend games endpoint.
+                  Live waiting rooms from the backend.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleRefreshGames}
-                className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    isRealtimeConnected
+                      ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
+                  }`}
+                >
+                  {isRealtimeConnected ? "Live" : "Offline"}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleRefreshGames}
+                  className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">
               {isLoadingGames ? (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-sm text-slate-400">
-                  Loading games...
+                  <LoadingSpinner />
                 </div>
               ) : waitingGames.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/50 p-6 text-sm text-slate-400">
@@ -299,13 +373,13 @@ export default function PlayPage() {
                         </p>
                       </div>
 
-                      <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-300">
-                        {game.status}
+                      <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
+                        Waiting
                       </span>
                     </div>
 
                     <div className="mt-4 space-y-1 text-sm text-slate-400">
-                      <p>Game id: {game.id}</p>
+                      <p>Room code: {game.id}</p>
                       <p>
                         Turn: <span className="text-slate-200">{game.whoseTurn}</span>
                       </p>
@@ -317,14 +391,14 @@ export default function PlayPage() {
                         onClick={() => setJoinGameId(game.id)}
                         className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/5"
                       >
-                        Use id
+                        Use code
                       </button>
 
                       <Link
                         href={`/play/${game.id}`}
                         className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
                       >
-                        Open page
+                        Open room
                       </Link>
                     </div>
                   </div>

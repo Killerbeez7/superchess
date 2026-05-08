@@ -12,6 +12,20 @@ public class GameService : IGameService
     private readonly AppDbContext _db;
     private readonly IHubContext<GameHub> _hubContext;
 
+    private async Task BroadcastOpenGamesChangedAsync()
+    {
+        var waitingGames = await _db.Games
+            .Include(x => x.WhitePlayer)
+            .Include(x => x.BlackPlayer)
+            .Where(x => x.Status == "waiting")
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToListAsync();
+
+        var response = waitingGames.Select(MapGame).ToList();
+
+        await _hubContext.Clients.All.SendAsync("OpenGamesChanged", response);
+    }
+
     public GameService(AppDbContext db, IHubContext<GameHub> hubContext)
     {
         _db = db;
@@ -50,6 +64,7 @@ public class GameService : IGameService
         _db.Players.Add(whitePlayer);
         _db.Games.Add(game);
         await _db.SaveChangesAsync();
+        await BroadcastOpenGamesChangedAsync();
 
         return MapGame(game);
     }
@@ -71,6 +86,7 @@ public class GameService : IGameService
         var games = await _db.Games
             .Include(x => x.WhitePlayer)
             .Include(x => x.BlackPlayer)
+            .Where(x => x.Status == "waiting")
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
@@ -116,6 +132,7 @@ public class GameService : IGameService
 
         _db.Players.Add(blackPlayer);
         await _db.SaveChangesAsync();
+        await BroadcastOpenGamesChangedAsync();
 
 
         var response = MapGame(game);

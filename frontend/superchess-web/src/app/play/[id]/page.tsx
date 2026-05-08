@@ -1,20 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { SubmitEvent } from "react";
 import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import type { SubmitEvent } from "react";
+import type { HubConnection } from "@microsoft/signalr";
 import { Navbar } from "../../components/layout/Navbar";
 import { getGame, joinGame, type GameResponse } from "@/api/games";
+import { createGameHubConnection } from "@/realtime/gameHub";
 
 export default function GameDetailsPage() {
   const params = useParams();
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
 
+  const connectionRef = useRef<HubConnection | null>(null);
+
   const [joinName, setJoinName] = useState("");
   const [game, setGame] = useState<GameResponse | null>(null);
   const [isLoadingGame, setIsLoadingGame] = useState(true);
   const [isJoiningGame, setIsJoiningGame] = useState(false);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
@@ -51,6 +56,73 @@ export default function GameDetailsPage() {
 
     return () => {
       cancelled = true;
+    };
+  }, [gameId]);
+
+  useEffect(() => {
+    if (!gameId) return;
+
+    const connection = createGameHubConnection();
+    connectionRef.current = connection;
+
+    let disposed = false;
+    let started = false;
+    let joinedRoom = false;
+
+    connection.on("PlayerJoined", (updatedGame: GameResponse) => {
+      setGame(updatedGame);
+    });
+
+    async function startConnection() {
+      try {
+        await connection.start();
+        started = true;
+
+        if (disposed) {
+          await connection.stop();
+          return;
+        }
+
+        await connection.invoke("JoinGameRoom", gameId);
+        joinedRoom = true;
+
+        if (!disposed) {
+          setIsRealtimeConnected(true);
+        }
+      } catch (err) {
+        if (!disposed) {
+          console.error("SignalR connection failed:", err);
+          setIsRealtimeConnected(false);
+        }
+      }
+    }
+
+    void startConnection();
+
+    return () => {
+      disposed = true;
+
+      async function cleanup() {
+        try {
+          connection.off("PlayerJoined");
+
+          if (joinedRoom && connection.state === "Connected") {
+            try {
+              await connection.invoke("LeaveGameRoom", gameId);
+            } catch {}
+          }
+
+          if (started && connection.state !== "Disconnected") {
+            await connection.stop();
+          }
+        } catch (err) {
+          console.error("SignalR cleanup failed:", err);
+        } finally {
+          setIsRealtimeConnected(false);
+        }
+      }
+
+      void cleanup();
     };
   }, [gameId]);
 
@@ -136,6 +208,16 @@ export default function GameDetailsPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <span
+                className={`rounded-full px-5 py-3 text-sm font-semibold ${
+                  isRealtimeConnected
+                    ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                    : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
+                }`}
+              >
+                {isRealtimeConnected ? "Live" : "Connecting..."}
+              </span>
+
               <button
                 type="button"
                 onClick={handleRefreshGame}

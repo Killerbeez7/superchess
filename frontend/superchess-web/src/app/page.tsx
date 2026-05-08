@@ -1,4 +1,4 @@
-import { Navbar } from "./components/layout/Navbar";
+import { Navbar } from "@components/layout/Navbar";
 import clsx from "clsx";
 
 export default function HomePage() {

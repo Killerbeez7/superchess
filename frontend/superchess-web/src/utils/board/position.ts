@@ -95,7 +95,7 @@ export function parseFenBoard(boardFen: string): BoardPosition {
 }
 
 export function getBoardPositionFromGameState(currentFen?: string | null): BoardPosition {
-  if (!currentFen || currentFen === "startpos") {
+  if (!currentFen) {
     return createStartPosition();
   }
 

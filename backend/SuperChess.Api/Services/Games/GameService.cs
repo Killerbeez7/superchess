@@ -200,7 +200,57 @@ public class GameService : IGameService
             throw new ArgumentException("Invalid move.");
         }
 
-        throw new InvalidOperationException("Move handling is not implemented yet.");
+        if (from == to)
+        {
+            throw new ArgumentException("Destination cannot be same as starting point.");
+        }
+
+        var board = ParseBoardFromFen(game.CurrentFen);
+
+        if (!board.TryGetValue(from, out var piece))
+        {
+            throw new InvalidOperationException("No piece found on the source square.");
+        }
+
+        var isWhiteTurn = game.WhoseTurn == "white";
+
+        if (isWhiteTurn && !IsWhitePiece(piece))
+        {
+            throw new InvalidOperationException("It is white's turn.");
+        }
+
+        if (!isWhiteTurn && !IsBlackPiece(piece))
+        {
+            throw new InvalidOperationException("It is black's turn.");
+        }
+
+        if (board.TryGetValue(to, out var targetPiece))
+        {
+            if ((IsWhitePiece(piece) && IsWhitePiece(targetPiece)) ||
+                (IsBlackPiece(piece) && IsBlackPiece(targetPiece)))
+            {
+                throw new InvalidOperationException("You cannot capture your own piece.");
+            }
+        }
+
+        board.Remove(from);
+        board[to] = piece;
+
+        var nextTurn = game.WhoseTurn == "white" ? "black" : "white";
+
+        game.CurrentFen = BuildUpdatedFen(game.CurrentFen, board, nextTurn);
+        game.WhoseTurn = nextTurn;
+        game.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        var response = MapGame(game);
+
+        await _hubContext.Clients
+            .Group($"game:{game.Id}")
+            .SendAsync("MovePlayed", response);
+
+        return response;
     }
 
     private static bool IsValidSquare(string square)
@@ -215,5 +265,107 @@ public class GameService : IGameService
         var rank = square[1];
 
         return file >= 'a' && file <= 'h' && rank >= '1' && rank <= '8';
+    }
+
+    private static Dictionary<string, char> ParseBoardFromFen(string fen)
+    {
+        var boardPart = fen.Split(' ')[0];
+        var ranks = boardPart.Split('/');
+
+        if (ranks.Length != 8)
+        {
+            throw new InvalidOperationException("Invalid FEN board.");
+        }
+
+        var board = new Dictionary<string, char>();
+
+        for (var row = 0; row < 8; row++)
+        {
+            var fileIndex = 0;
+
+            foreach (var ch in ranks[row])
+            {
+                if (char.IsDigit(ch))
+                {
+                    fileIndex += ch - '0';
+                    continue;
+                }
+
+                if (fileIndex > 7)
+                {
+                    throw new InvalidOperationException("Invalid FEN board.");
+                }
+
+                var square = $"{(char)('a' + fileIndex)}{8 - row}";
+                board[square] = ch;
+                fileIndex++;
+            }
+
+            if (fileIndex != 8)
+            {
+                throw new InvalidOperationException("Invalid FEN board.");
+            }
+        }
+
+        return board;
+    }
+
+    private static string BuildBoardFen(Dictionary<string, char> board)
+    {
+        var ranks = new List<string>();
+
+        for (var row = 8; row >= 1; row--)
+        {
+            var emptyCount = 0;
+            var rank = "";
+
+            for (var file = 'a'; file <= 'h'; file++)
+            {
+                var square = $"{file}{row}";
+
+                if (board.TryGetValue(square, out var piece))
+                {
+                    if (emptyCount > 0)
+                    {
+                        rank += emptyCount.ToString();
+                        emptyCount = 0;
+                    }
+
+                    rank += piece;
+                }
+                else
+                {
+                    emptyCount++;
+                }
+            }
+
+            if (emptyCount > 0)
+            {
+                rank += emptyCount.ToString();
+            }
+
+            ranks.Add(rank);
+        }
+
+        return string.Join("/", ranks);
+    }
+
+    private static bool IsWhitePiece(char piece) => char.IsUpper(piece);
+    private static bool IsBlackPiece(char piece) => char.IsLower(piece);
+
+
+    private static string BuildUpdatedFen(string currentFen, Dictionary<string, char> board, string nextTurn)
+    {
+        var parts = currentFen.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        var boardPart = BuildBoardFen(board);
+        var activeColor = nextTurn == "white" ? "w" : "b";
+
+        var castling = parts.Length > 2 ? parts[2] : "KQkq";
+        var enPassant = parts.Length > 3 ? parts[3] : "-";
+        var halfmove = parts.Length > 4 ? parts[4] : "0";
+        var fullmove = parts.Length > 5 ? parts[5] : "1";
+
+        return $"{boardPart} {activeColor} {castling} {enPassant} {halfmove} {fullmove}";
     }
 }

@@ -1,43 +1,29 @@
 import Image from "next/image";
 
+import type { BoardPiece, BoardPosition } from "@/utils/board/position";
+
 type ChessBoardPlaceholderProps = {
   variant?: "hero" | "app";
+  position?: BoardPosition;
 };
 
-type PieceType = "pawn" | "rook" | "knight" | "bishop" | "queen" | "king";
-type PieceColor = "white" | "black";
+const files = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 
-type Piece = {
-  type: PieceType;
-  color: PieceColor;
-};
-
-const backRank: PieceType[] = [
-  "rook",
-  "knight",
-  "bishop",
-  "queen",
-  "king",
-  "bishop",
-  "knight",
-  "rook",
-];
-
-function getPiece(row: number, col: number): Piece | null {
-  if (row === 0) return { type: backRank[col], color: "black" };
-  if (row === 1) return { type: "pawn", color: "black" };
-  if (row === 6) return { type: "pawn", color: "white" };
-  if (row === 7) return { type: backRank[col], color: "white" };
-
-  return null;
-}
-
-function getPieceSrc(piece: Piece) {
+function getPieceSrc(piece: BoardPiece) {
   const colorSuffix = piece.color === "white" ? "w" : "b";
   return `/pieces/${piece.type}-${colorSuffix}.svg`;
 }
 
-export function ChessBoardPlaceholder({ variant = "app" }: ChessBoardPlaceholderProps) {
+function getSquareKey(row: number, col: number) {
+  const file = files[col];
+  const rank = 8 - row;
+  return `${file}${rank}`;
+}
+
+export function ChessBoardPlaceholder({
+  variant = "app",
+  position,
+}: ChessBoardPlaceholderProps) {
   const isHero = variant === "hero";
 
   return (
@@ -51,7 +37,7 @@ export function ChessBoardPlaceholder({ variant = "app" }: ChessBoardPlaceholder
       <div
         className={
           isHero
-            ? "aspect-square rounded-[2rem] border border-white/10 bg-slate-950/60 p-4 shadow-2xl sm:p-5"
+            ? "aspect-square rounded-4xl border border-white/10 bg-slate-950/60 p-4 shadow-2xl sm:p-5"
             : "aspect-square rounded-[2.2rem] border border-white/10 bg-slate-950 p-4 shadow-2xl sm:p-5 lg:p-6"
         }
       >
@@ -60,11 +46,12 @@ export function ChessBoardPlaceholder({ variant = "app" }: ChessBoardPlaceholder
             const row = Math.floor(index / 8);
             const col = index % 8;
             const isDark = (row + col) % 2 === 1;
-            const piece = getPiece(row, col);
+            const square = getSquareKey(row, col);
+            const piece = position?.[square];
 
             return (
               <div
-                key={index}
+                key={square}
                 className={`relative aspect-square flex items-center justify-center ${
                   isDark ? "bg-slate-700" : "bg-slate-300"
                 }`}

@@ -1,6 +1,7 @@
-import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
-import { Navbar } from "@components/layout/Navbar";
 import Link from "next/link";
+import { Navbar } from "@components/layout/Navbar";
+import { createStartPosition } from "@/utils/board/position";
+import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
 
 export default function HomePage() {
   return (
@@ -40,7 +41,7 @@ export default function HomePage() {
               </a>
             </div>
           </div>
-          <ChessBoardPlaceholder variant="hero" />
+          <ChessBoardPlaceholder variant="hero" position={createStartPosition()} />
         </div>
       </section>
     </main>

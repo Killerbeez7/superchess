@@ -10,6 +10,7 @@ import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
 import { Navbar } from "@components/layout/Navbar";
 import { LoadingSpinner } from "@components/layout/LoadingSpinner";
 import { createGameHubConnection } from "@/realtime/gameHub";
+import { getBoardPositionFromGameState } from "@/utils/board/position";
 
 export default function GameDetailsPage() {
   const params = useParams();
@@ -27,6 +28,7 @@ export default function GameDetailsPage() {
   const whitePlayerName = game?.whitePlayer.displayName ?? "White player";
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
   const roomCode = game?.id ?? gameId ?? "";
+  const boardPosition = getBoardPositionFromGameState(game?.currentFen);
 
   const statusLabel =
     game?.status === "waiting"
@@ -202,7 +204,7 @@ export default function GameDetailsPage() {
                 <LoadingSpinner />
               </section>
             ) : game ? (
-              <ChessBoardPlaceholder variant="app" />
+              <ChessBoardPlaceholder variant="app" position={boardPosition} />
             ) : (
               <section className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-sm text-red-200">
                 Game not found.

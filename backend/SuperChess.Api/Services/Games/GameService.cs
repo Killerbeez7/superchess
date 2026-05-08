@@ -182,11 +182,38 @@ public class GameService : IGameService
             return null;
         }
 
+        if (game.Status != "active" || game.BlackPlayer is null)
+        {
+            throw new InvalidOperationException("The game is not ready for moves yet.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.From) || string.IsNullOrWhiteSpace(request.To))
         {
             throw new ArgumentException("Both from and to squares are required.");
         }
 
+        var from = request.From.Trim().ToLowerInvariant();
+        var to = request.To.Trim().ToLowerInvariant();
+
+        if (!IsValidSquare(from) || !IsValidSquare(to))
+        {
+            throw new ArgumentException("Invalid move.");
+        }
+
         throw new InvalidOperationException("Move handling is not implemented yet.");
+    }
+
+    private static bool IsValidSquare(string square)
+    {
+        if (square.Length != 2)
+        {
+            return false;
+        }
+
+
+        var file = square[0];
+        var rank = square[1];
+
+        return file >= 'a' && file <= 'h' && rank >= '1' && rank <= '8';
     }
 }

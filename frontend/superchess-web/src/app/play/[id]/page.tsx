@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SubmitEvent } from "react";
 
+import {
+  getCandidateSquares,
+  getPieceAtSquare,
+  inferLastMoveFromFens,
+  LastMove,
+  pieceBelongsToColor,
+} from "@/utils/board/interactions";
+
 import type { GameResponse } from "@/api/games";
-import { getGame, joinGame } from "@/api/games";
+import { getGame, joinGame, makeMove } from "@/api/games";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import { getGameSession, saveGameSession } from "@/utils/gameSession";
 import { createGameHubConnection } from "@/realtime/gameHub";
@@ -23,7 +31,10 @@ export default function GameDetailsPage() {
   const [game, setGame] = useState<GameResponse | null>(null);
   const [isLoadingGame, setIsLoadingGame] = useState(true);
   const [isJoiningGame, setIsJoiningGame] = useState(false);
+  const [isMakingMove, setIsMakingMove] = useState(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [lastMove, setLastMove] = useState<LastMove>(null);
   const [error, setError] = useState<string | null>(null);
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
@@ -48,6 +59,7 @@ export default function GameDetailsPage() {
       : "Turn not available";
 
   const localSession = gameId ? getGameSession(gameId) : null;
+
   const isLocalPlayersTurn =
     !!localSession &&
     ((localSession.color === "white" && game?.whoseTurn === "white") ||
@@ -55,6 +67,41 @@ export default function GameDetailsPage() {
 
   const isSameBrowserWhitePlayer =
     !!localSession && localSession.color === "white" && canJoinAsBlack;
+
+  const canInteractWithBoard =
+    !!game &&
+    !!localSession &&
+    game.status === "active" &&
+    isLocalPlayersTurn &&
+    !isMakingMove;
+
+  const selectedPiece = selectedSquare
+    ? getPieceAtSquare(boardPosition, selectedSquare)
+    : null;
+
+  const selectedPieceBelongsToLocalPlayer =
+    !!selectedPiece &&
+    !!localSession &&
+    pieceBelongsToColor(selectedPiece, localSession.color);
+
+  const candidateSquares = useMemo(() => {
+    if (!selectedSquare || !selectedPiece || !localSession) return [];
+
+    if (!pieceBelongsToColor(selectedPiece, localSession.color)) {
+      return [];
+    }
+
+    return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
+  }, [boardPosition, selectedSquare, selectedPiece, localSession]);
+
+  const helperText = useMemo(() => {
+    if (!localSession) return "Join or create a game to interact.";
+    if (!game || game.status !== "active") return "Waiting for both players.";
+    if (isMakingMove) return "Sending move...";
+    if (!isLocalPlayersTurn) return "Waiting for opponent's move.";
+    if (selectedSquare) return `Selected ${selectedSquare}. Choose destination square.`;
+    return "Select a piece, then select a destination square.";
+  }, [localSession, game, isMakingMove, isLocalPlayersTurn, selectedSquare]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,7 +155,20 @@ export default function GameDetailsPage() {
 
     connection.on("MovePlayed", (updatedGame: GameResponse) => {
       if (!disposed) {
-        setGame(updatedGame);
+        setGame((previousGame) => {
+          const inferredMove =
+            previousGame?.currentFen && updatedGame.currentFen
+              ? inferLastMoveFromFens(previousGame.currentFen, updatedGame.currentFen)
+              : null;
+
+          if (inferredMove) {
+            setLastMove(inferredMove);
+          }
+
+          return updatedGame;
+        });
+
+        setSelectedSquare(null);
       }
     });
 
@@ -175,6 +235,8 @@ export default function GameDetailsPage() {
 
       const data = await getGame(gameId);
       setGame(data);
+      setSelectedSquare(null);
+      setLastMove(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load game.");
     } finally {
@@ -213,10 +275,72 @@ export default function GameDetailsPage() {
 
       setGame(result.game);
       setJoinName("");
+      setSelectedSquare(null);
+      setLastMove(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game.");
     } finally {
       setIsJoiningGame(false);
+    }
+  }
+
+  async function handleSquareClick(square: string) {
+    if (!gameId || !game || !localSession) return;
+
+    if (!canInteractWithBoard) {
+      if (!game || game.status !== "active") {
+        setError("The game is not active yet.");
+      } else if (!isLocalPlayersTurn) {
+        setError("It is not your turn.");
+      }
+      return;
+    }
+
+    setError(null);
+
+    const clickedPiece = getPieceAtSquare(boardPosition, square);
+
+    if (!selectedSquare) {
+      if (!clickedPiece) return;
+
+      if (!pieceBelongsToColor(clickedPiece, localSession.color)) {
+        return;
+      }
+
+      setSelectedSquare(square);
+      return;
+    }
+
+    if (square === selectedSquare) {
+      setSelectedSquare(null);
+      return;
+    }
+
+    if (clickedPiece && pieceBelongsToColor(clickedPiece, localSession.color)) {
+      setSelectedSquare(square);
+      return;
+    }
+
+    try {
+      setIsMakingMove(true);
+
+      const moveFrom = selectedSquare;
+      const moveTo = square;
+
+      const updatedGame = await makeMove(gameId, {
+        from: moveFrom,
+        to: moveTo,
+        playerId: localSession.playerId,
+        sessionToken: localSession.sessionToken,
+      });
+
+      setGame(updatedGame);
+      setLastMove({ from: moveFrom, to: moveTo });
+      setSelectedSquare(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to make move.");
+    } finally {
+      setIsMakingMove(false);
     }
   }
 
@@ -232,7 +356,16 @@ export default function GameDetailsPage() {
                 <LoadingSpinner />
               </section>
             ) : game ? (
-              <ChessBoardPlaceholder variant="app" position={boardPosition} />
+              <ChessBoardPlaceholder
+                variant="app"
+                position={boardPosition}
+                interactive={canInteractWithBoard}
+                selectedSquare={selectedSquare}
+                candidateSquares={candidateSquares}
+                lastMoveFrom={lastMove?.from ?? null}
+                lastMoveTo={lastMove?.to ?? null}
+                onSquareClick={handleSquareClick}
+              />
             ) : (
               <section className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-sm text-red-200">
                 Game not found.
@@ -324,9 +457,21 @@ export default function GameDetailsPage() {
                   <p className="mt-2 text-sm font-semibold text-white">
                     {localSession.playerName} · {localSession.color}
                   </p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    {isLocalPlayersTurn ? "Your turn" : "Waiting for opponent"}
-                  </p>
+                  <p className="mt-1 text-sm text-slate-400">{helperText}</p>
+                  {selectedSquare && (
+                    <p className="mt-2 text-xs font-medium text-emerald-300">
+                      Selected: {selectedSquare}
+                    </p>
+                  )}
+                  {selectedPiece && selectedPieceBelongsToLocalPlayer && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSquare(null)}
+                      className="mt-3 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/5"
+                    >
+                      Clear selection
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -357,6 +502,13 @@ export default function GameDetailsPage() {
                     {isJoiningGame ? "Joining..." : "Join as black"}
                   </button>
                 </form>
+              )}
+
+              {canJoinAsBlack && isSameBrowserWhitePlayer && (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
+                  This browser session already owns the white seat, so joining as black is
+                  blocked here too.
+                </div>
               )}
 
               <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950 p-4">

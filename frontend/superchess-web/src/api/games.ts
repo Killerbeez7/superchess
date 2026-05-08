@@ -27,6 +27,14 @@ export type GameSessionResponse = {
   session: PlayerSessionResponse;
 };
 
+export type MakeMoveRequest = {
+  from: string;
+  to: string;
+  promotion?: string | null;
+  playerId: string;
+  sessionToken: string;
+};
+
 type ApiError = {
   message?: string;
 };
@@ -93,6 +101,31 @@ export async function joinGame(
     body: JSON.stringify({
       playerName,
       existingSessionToken: existingSessionToken ?? null,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await readError(res));
+  }
+
+  return res.json();
+}
+
+export async function makeMove(
+  gameId: string,
+  request: MakeMoveRequest
+): Promise<GameResponse> {
+  const res = await fetch(`${API_BASE_URL}/games/${gameId}/move`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: request.from,
+      to: request.to,
+      promotion: request.promotion ?? null,
+      playerId: request.playerId,
+      sessionToken: request.sessionToken,
     }),
   });
 

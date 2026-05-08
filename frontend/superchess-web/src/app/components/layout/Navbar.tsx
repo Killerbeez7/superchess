@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 
 const navItems = [
-  { label: "Play", href: "play" },
-  { label: "Games", href: "#games" },
-  { label: "About", href: "#about" },
+  { label: "Play", href: "/play" },
+  { label: "Games", href: "/#games" },
+  { label: "About", href: "/#about" },
 ];
 
 export function Navbar() {
@@ -34,7 +34,7 @@ export function Navbar() {
           ))}
 
           <Link
-            href="play"
+            href="/play"
             className="rounded-full border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
           >
             Start Game
@@ -67,7 +67,7 @@ export function Navbar() {
             ))}
 
             <Link
-              href="play"
+              href="/play"
               onClick={() => setIsOpen(false)}
               className="mt-2 rounded-full bg-white px-4 py-2 text-center text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
             >

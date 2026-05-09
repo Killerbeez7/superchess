@@ -171,12 +171,12 @@ public class GameService : IGameService
 
         if (game.Status != "active" || game.BlackPlayer is null)
         {
-            throw new InvalidOperationException("The game is not ready for moves yet.");
+            throw new InvalidOperationException("The game has not started yet.");
         }
 
         if (string.IsNullOrWhiteSpace(request.From) || string.IsNullOrWhiteSpace(request.To))
         {
-            throw new ArgumentException("Both from and to squares are required.");
+            throw new ArgumentException("Both from/to squares are required.");
         }
 
         if (request.PlayerId == Guid.Empty)
@@ -195,12 +195,12 @@ public class GameService : IGameService
 
         if (expectedPlayer is null)
         {
-            throw new InvalidOperationException("No player found for the current turn.");
+            throw new InvalidOperationException("Player not found.");
         }
 
         if (request.PlayerId != expectedPlayer.Id || request.SessionToken != expectedPlayer.SessionToken)
         {
-            throw new InvalidOperationException("You are not allowed to move for this turn.");
+            throw new InvalidOperationException("Its not your turn.");
         }
 
         var from = request.From.Trim().ToLowerInvariant();
@@ -247,6 +247,11 @@ public class GameService : IGameService
             }
         }
 
+        if (!IsLegalMove(board, from, to, piece))
+        {
+            throw new InvalidOperationException("Illegal move.");
+        }
+
         board.Remove(from);
         board[to] = piece;
 
@@ -260,9 +265,6 @@ public class GameService : IGameService
             PlayedByColor = game.WhoseTurn,
             CreatedAtUtc = DateTime.UtcNow
         };
-
-        game.Moves.Add(move);
-        _db.Set<Move>().Add(move);
 
         game.Moves.Add(move);
         _db.Moves.Add(move);
@@ -360,6 +362,143 @@ public class GameService : IGameService
         var rank = square[1];
 
         return file >= 'a' && file <= 'h' && rank >= '1' && rank <= '8';
+    }
+
+    private static bool IsLegalMove(
+        Dictionary<string, char> board,
+        string from,
+        string to,
+        char piece)
+    {
+        var (fromFile, fromRank) = ParseSquare(from);
+        var (toFile, toRank) = ParseSquare(to);
+
+        var fileDelta = toFile - fromFile;
+        var rankDelta = toRank - fromRank;
+        var absFileDelta = Math.Abs(fileDelta);
+        var absRankDelta = Math.Abs(rankDelta);
+
+        var isWhitePiece = IsWhitePiece(piece);
+        var targetPiece = board.TryGetValue(to, out var existingTarget) ? existingTarget : (char?)null;
+
+        switch (char.ToLowerInvariant(piece))
+        {
+            case 'p':
+                return IsLegalPawnMove(
+                    board,
+                    from,
+                    to,
+                    isWhitePiece,
+                    fileDelta,
+                    rankDelta,
+                    targetPiece);
+
+            case 'n':
+                return (absFileDelta == 1 && absRankDelta == 2) ||
+                       (absFileDelta == 2 && absRankDelta == 1);
+
+            case 'b':
+                return absFileDelta == absRankDelta &&
+                       IsPathClear(board, from, to);
+
+            case 'r':
+                return (fileDelta == 0 || rankDelta == 0) &&
+                       IsPathClear(board, from, to);
+
+            case 'q':
+                return ((absFileDelta == absRankDelta) || fileDelta == 0 || rankDelta == 0) &&
+                       IsPathClear(board, from, to);
+
+            case 'k':
+                return absFileDelta <= 1 && absRankDelta <= 1;
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsLegalPawnMove(
+        Dictionary<string, char> board,
+        string from,
+        string to,
+        bool isWhitePawn,
+        int fileDelta,
+        int rankDelta,
+        char? targetPiece)
+    {
+        var (_, fromRank) = ParseSquare(from);
+
+        var forwardStep = isWhitePawn ? 1 : -1;
+        var startRank = isWhitePawn ? 2 : 7;
+
+        var isForwardMove = fileDelta == 0;
+        var isDiagonalMove = Math.Abs(fileDelta) == 1 && rankDelta == forwardStep;
+        var targetOccupied = targetPiece.HasValue;
+
+        if (isForwardMove)
+        {
+            if (rankDelta == forwardStep && !targetOccupied)
+            {
+                return true;
+            }
+
+            if (fromRank == startRank && rankDelta == forwardStep * 2 && !targetOccupied)
+            {
+                var intermediateRank = fromRank + forwardStep;
+                var intermediateSquare = $"{from[0]}{intermediateRank}";
+
+                return !board.ContainsKey(intermediateSquare);
+            }
+
+            return false;
+        }
+
+        if (isDiagonalMove)
+        {
+            if (targetPiece is not char capturedPiece)
+            {
+                return false;
+            }
+
+            return IsWhitePiece(capturedPiece) != isWhitePawn;
+        }
+
+        return false;
+    }
+
+    private static bool IsPathClear(
+        Dictionary<string, char> board,
+        string from,
+        string to)
+    {
+        var (fromFile, fromRank) = ParseSquare(from);
+        var (toFile, toRank) = ParseSquare(to);
+
+        var fileStep = Math.Sign(toFile - fromFile);
+        var rankStep = Math.Sign(toRank - fromRank);
+
+        var currentFile = fromFile + fileStep;
+        var currentRank = fromRank + rankStep;
+
+        while (currentFile != toFile || currentRank != toRank)
+        {
+            var square = $"{(char)currentFile}{currentRank}";
+
+            if (board.ContainsKey(square))
+            {
+                return false;
+            }
+
+            currentFile += fileStep;
+            currentRank += rankStep;
+        }
+
+        return true;
+    }
+
+    private static (char file, int rank) ParseSquare(string square)
+    {
+        return (square[0], square[1] - '0');
     }
 
     private static Dictionary<string, char> ParseBoardFromFen(string fen)

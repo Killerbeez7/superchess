@@ -14,6 +14,7 @@ export type GameResponse = {
   blackPlayer: PlayerSummary | null;
   createdAtUtc: string;
   updatedAtUtc: string;
+  moves: MoveSummary[];
 };
 
 export type PlayerSessionResponse = {
@@ -33,6 +34,14 @@ export type MakeMoveRequest = {
   promotion?: string | null;
   playerId: string;
   sessionToken: string;
+};
+
+export type MoveSummary = {
+  moveNumber: number;
+  from: string;
+  to: string;
+  playerColor: "white" | "black";
+  createdAtUtc: string;
 };
 
 type ApiError = {

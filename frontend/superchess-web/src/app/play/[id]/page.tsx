@@ -8,10 +8,8 @@ import type { SubmitEvent } from "react";
 import {
   getCandidateSquares,
   getPieceAtSquare,
-  inferLastMoveFromFens,
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
-import type { LastMove } from "@/utils/board/interactions";
 
 import type { GameResponse } from "@/api/games";
 
@@ -39,7 +37,6 @@ export default function GameDetailsPage() {
   const [isMakingMove, setIsMakingMove] = useState(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [lastMove, setLastMove] = useState<LastMove>(null);
   const [localSession, setLocalSession] = useState<LocalGameSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,20 +46,7 @@ export default function GameDetailsPage() {
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
   const roomCode = game?.id ?? gameId ?? "";
   const boardPosition = getBoardPositionFromGameState(game?.currentFen);
-
-  const statusLabel =
-    game?.status === "waiting"
-      ? "Waiting for player"
-      : game?.status === "active"
-      ? "Match ready"
-      : game?.status ?? "Unknown";
-
-  const turnLabel =
-    game?.whoseTurn === "white"
-      ? "White to move"
-      : game?.whoseTurn === "black"
-      ? "Black to move"
-      : "Turn not available";
+  const latestMove = game?.moves?.length ? game.moves[game.moves.length - 1] : null;
 
   const isLocalPlayersTurn =
     !!localSession &&
@@ -83,11 +67,6 @@ export default function GameDetailsPage() {
     ? getPieceAtSquare(boardPosition, selectedSquare)
     : null;
 
-  const selectedPieceBelongsToLocalPlayer =
-    !!selectedPiece &&
-    !!localSession &&
-    pieceBelongsToColor(selectedPiece, localSession.color);
-
   const candidateSquares = useMemo(() => {
     if (!selectedSquare || !selectedPiece || !localSession) return [];
 
@@ -97,15 +76,6 @@ export default function GameDetailsPage() {
 
     return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
   }, [boardPosition, selectedSquare, selectedPiece, localSession]);
-
-  const helperText = useMemo(() => {
-    if (!localSession) return "Join or create a game to interact.";
-    if (!game || game.status !== "active") return "Waiting for both players.";
-    if (isMakingMove) return "Sending move...";
-    if (!isLocalPlayersTurn) return "Waiting for opponent's move.";
-    if (selectedSquare) return `Selected ${selectedSquare}. Choose destination square.`;
-    return "Select a piece, then select a destination square.";
-  }, [localSession, game, isMakingMove, isLocalPlayersTurn, selectedSquare]);
 
   useEffect(() => {
     let cancelled = false;
@@ -172,19 +142,7 @@ export default function GameDetailsPage() {
 
     connection.on("MovePlayed", (updatedGame: GameResponse) => {
       if (!disposed) {
-        setGame((previousGame) => {
-          const inferredMove =
-            previousGame?.currentFen && updatedGame.currentFen
-              ? inferLastMoveFromFens(previousGame.currentFen, updatedGame.currentFen)
-              : null;
-
-          if (inferredMove) {
-            setLastMove(inferredMove);
-          }
-
-          return updatedGame;
-        });
-
+        setGame(updatedGame);
         setSelectedSquare(null);
       }
     });
@@ -253,7 +211,6 @@ export default function GameDetailsPage() {
       const data = await getGame(gameId);
       setGame(data);
       setSelectedSquare(null);
-      setLastMove(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load game.");
     } finally {
@@ -296,7 +253,6 @@ export default function GameDetailsPage() {
       setGame(result.game);
       setJoinName("");
       setSelectedSquare(null);
-      setLastMove(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game.");
     } finally {
@@ -355,7 +311,7 @@ export default function GameDetailsPage() {
       });
 
       setGame(updatedGame);
-      setLastMove({ from: moveFrom, to: moveTo });
+
       setSelectedSquare(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to make move.");
@@ -382,8 +338,8 @@ export default function GameDetailsPage() {
                 interactive={canInteractWithBoard}
                 selectedSquare={selectedSquare}
                 candidateSquares={candidateSquares}
-                lastMoveFrom={lastMove?.from ?? null}
-                lastMoveTo={lastMove?.to ?? null}
+                lastMoveFrom={latestMove?.from ?? null}
+                lastMoveTo={latestMove?.to ?? null}
                 onSquareClick={handleSquareClick}
               />
             ) : (
@@ -402,14 +358,6 @@ export default function GameDetailsPage() {
           <aside>
             <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Game
-                  </p>
-                  <h2 className="mt-1 text-lg font-semibold text-white">{statusLabel}</h2>
-                  <p className="mt-2 text-sm text-slate-400">{turnLabel}</p>
-                </div>
-
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
                     isRealtimeConnected
@@ -436,7 +384,6 @@ export default function GameDetailsPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                     Players
                   </p>
-                  <h3 className="mt-1 text-sm font-semibold text-white">Table</h3>
                 </div>
 
                 {isLoadingGame ? (
@@ -465,39 +412,6 @@ export default function GameDetailsPage() {
                 )}
               </div>
 
-              {localSession && (
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <div className="mb-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      You
-                    </p>
-                    <h3 className="mt-1 text-sm font-semibold text-white">
-                      {localSession.playerName} · {localSession.color}
-                    </h3>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/75 p-3.5">
-                    <p className="text-[13px] leading-6 text-slate-400">{helperText}</p>
-
-                    {selectedSquare && (
-                      <p className="mt-2 text-xs font-medium text-emerald-300">
-                        Selected: {selectedSquare}
-                      </p>
-                    )}
-
-                    {selectedPiece && selectedPieceBelongsToLocalPlayer && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSquare(null)}
-                        className="mt-3 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/5"
-                      >
-                        Clear selection
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="mt-4 border-t border-white/10 pt-4">
                 {!localSession ? (
                   <>
@@ -506,7 +420,11 @@ export default function GameDetailsPage() {
                         Room
                       </p>
                       <h3 className="mt-1 text-sm font-semibold text-white">
-                        {canJoinAsBlack ? "Take the black side" : statusLabel}
+                        {canJoinAsBlack && (
+                          <h3 className="mt-1 text-sm font-semibold text-white">
+                            Take the black side
+                          </h3>
+                        )}
                       </h3>
                       <p className="mt-2 text-sm leading-7 text-slate-300">
                         {canJoinAsBlack

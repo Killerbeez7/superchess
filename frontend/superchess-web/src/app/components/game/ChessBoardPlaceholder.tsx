@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 
 import type { BoardPiece, BoardPosition } from "@/utils/board/position";
@@ -49,11 +51,12 @@ export function ChessBoardPlaceholder({
       <div
         className={
           isHero
-            ? "aspect-square rounded-4xl border border-white/10 bg-slate-950/60 p-4 shadow-2xl sm:p-5"
-            : "aspect-square rounded-[2.2rem] border border-white/10 bg-slate-950 p-4 shadow-2xl sm:p-5 lg:p-6"
+            ? "aspect-square rounded-2xl border border-white/10 bg-slate-950/60 p-4 shadow-2xl sm:p-5"
+            : "aspect-square rounded-[1.2rem] border border-white/10 bg-slate-950 p-4 shadow-2xl sm:p-5 lg:p-6"
+          // : ""
         }
       >
-        <div className="grid grid-cols-8 overflow-hidden rounded-2xl border border-white/10">
+        <div className="grid grid-cols-8 overflow-hidden rounded-xl border border-white/10">
           {Array.from({ length: 64 }).map((_, index) => {
             const row = Math.floor(index / 8);
             const col = index % 8;

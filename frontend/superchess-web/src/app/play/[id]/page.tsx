@@ -264,11 +264,6 @@ export default function GameDetailsPage() {
     if (!gameId || !game || !localSession) return;
 
     if (!canInteractWithBoard) {
-      if (!game || game.status !== "active") {
-        setError("The game is not active yet.");
-      } else if (!isLocalPlayersTurn) {
-        setError("It is not your turn.");
-      }
       return;
     }
 
@@ -313,19 +308,20 @@ export default function GameDetailsPage() {
       setGame(updatedGame);
 
       setSelectedSquare(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to make move.");
+    } catch {
+      // setError(err instanceof Error ? err.message : "Failed to make move.");
+      setSelectedSquare(null);
     } finally {
       setIsMakingMove(false);
     }
   }
 
   return (
-    <main className="min-h-screen bg-slate-950/97 text-white">
+    <main className="min-h-dvh bg-slate-950/97 text-white">
       <Navbar />
 
-      <section>
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8 lg:py-8">
+      <section className="min-h-[calc(100dvh-4.5rem)]">
+        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] max-w-7xl gap-6 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8 lg:py-6">
           <div className="space-y-5">
             {isLoadingGame ? (
               <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
@@ -355,8 +351,8 @@ export default function GameDetailsPage() {
             )}
           </div>
 
-          <aside>
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur">
+          <aside className="lg:h-[calc(100dvh-8rem)]">
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur lg:flex lg:h-full lg:flex-col lg:overflow-hidden">
               <div className="flex items-start justify-between gap-4">
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -373,7 +369,6 @@ export default function GameDetailsPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
                   Room code
                 </p>
-                {/* <p className="mt-2 break-all font-mono text-sm text-slate-300"> */}
                 <p className="mt-1.5 break-all font-mono text-[13px] text-slate-400">
                   {roomCode}
                 </p>
@@ -419,13 +414,13 @@ export default function GameDetailsPage() {
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                         Room
                       </p>
-                      <h3 className="mt-1 text-sm font-semibold text-white">
-                        {canJoinAsBlack && (
-                          <h3 className="mt-1 text-sm font-semibold text-white">
-                            Take the black side
-                          </h3>
-                        )}
-                      </h3>
+
+                      {canJoinAsBlack && (
+                        <h3 className="mt-1 text-sm font-semibold text-white">
+                          Take the black side
+                        </h3>
+                      )}
+
                       <p className="mt-2 text-sm leading-7 text-slate-300">
                         {canJoinAsBlack
                           ? "Enter your name to sit across from white."

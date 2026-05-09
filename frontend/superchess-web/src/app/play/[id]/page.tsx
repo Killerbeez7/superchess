@@ -11,7 +11,7 @@ import {
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
 
-import type { GameResponse } from "@/lib/api/games";
+import type { GameResponse } from "@/types/games";
 
 import { getGame, joinGame, makeMove } from "@/lib/api/games";
 import { getBoardPositionFromGameState } from "@/utils/board/position";

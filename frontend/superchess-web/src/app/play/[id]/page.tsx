@@ -9,11 +9,12 @@ import {
   getCandidateSquares,
   getPieceAtSquare,
   inferLastMoveFromFens,
-  LastMove,
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
+import type { LastMove } from "@/utils/board/interactions";
 
 import type { GameResponse } from "@/api/games";
+
 import { getGame, joinGame, makeMove } from "@/api/games";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import {
@@ -111,7 +112,6 @@ export default function GameDetailsPage() {
 
     queueMicrotask(() => {
       if (cancelled) return;
-
       setLocalSession(gameId ? getGameSession(gameId) : null);
     });
 
@@ -369,7 +369,7 @@ export default function GameDetailsPage() {
       <Navbar />
 
       <section>
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8 lg:py-8">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8 lg:py-8">
           <div className="space-y-5">
             {isLoadingGame ? (
               <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
@@ -399,63 +399,15 @@ export default function GameDetailsPage() {
             )}
           </div>
 
-          <aside className="space-y-5">
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur">
-              <div className="mb-5 flex items-center justify-between gap-4">
+          <aside>
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Players
+                    Game
                   </p>
-                  <h2 className="mt-1 text-xl font-semibold text-white">Table</h2>
-                </div>
-
-                <span className="rounded-full border border-white/10 bg-slate-950 px-3 py-1 text-xs font-semibold text-slate-300">
-                  {turnLabel}
-                </span>
-              </div>
-
-              {isLoadingGame ? (
-                <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/70 p-6">
-                  <LoadingSpinner />
-                </div>
-              ) : game ? (
-                <div className="grid gap-3">
-                  <PlayerPanel
-                    color="white"
-                    name={whitePlayerName}
-                    detail="White"
-                    isActive={activeColor === "white"}
-                  />
-                  <PlayerPanel
-                    color="black"
-                    name={blackPlayerName}
-                    detail={game.blackPlayer ? "Black" : "Open seat"}
-                    isActive={activeColor === "black"}
-                  />
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-300">
-                  No table data available.
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Room
-                  </p>
-                  <h2 className="mt-1 text-xl font-semibold text-white">
-                    {canJoinAsBlack ? "Take the black side" : statusLabel}
-                  </h2>
-                  <p className="mt-3 text-sm leading-7 text-slate-300">
-                    {canJoinAsBlack
-                      ? "Enter your name to sit across from white."
-                      : game?.blackPlayer
-                      ? "Both players are seated."
-                      : "Waiting for an opponent."}
-                  </p>
+                  <h2 className="mt-1 text-lg font-semibold text-white">{statusLabel}</h2>
+                  <p className="mt-2 text-sm text-slate-400">{turnLabel}</p>
                 </div>
 
                 <span
@@ -469,92 +421,190 @@ export default function GameDetailsPage() {
                 </span>
               </div>
 
-              {localSession && (
-                <div className="mb-5 rounded-2xl border border-white/10 bg-slate-950 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    You
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-white">
-                    {localSession.playerName} · {localSession.color}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-400">{helperText}</p>
-                  {selectedSquare && (
-                    <p className="mt-2 text-xs font-medium text-emerald-300">
-                      Selected: {selectedSquare}
-                    </p>
-                  )}
-                  {selectedPiece && selectedPieceBelongsToLocalPlayer && (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedSquare(null)}
-                      className="mt-3 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/5"
-                    >
-                      Clear selection
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {canJoinAsBlack && !isSameBrowserWhitePlayer && (
-                <form onSubmit={handleJoinGame} className="space-y-4">
-                  <div>
-                    <label
-                      htmlFor="joinName"
-                      className="mb-2 block text-sm font-medium text-slate-200"
-                    >
-                      Player name
-                    </label>
-                    <input
-                      id="joinName"
-                      type="text"
-                      value={joinName}
-                      onChange={(e) => setJoinName(e.target.value)}
-                      placeholder="Enter your name"
-                      className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isJoiningGame}
-                    className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isJoiningGame ? "Joining..." : "Join as black"}
-                  </button>
-                </form>
-              )}
-
-              {canJoinAsBlack && isSameBrowserWhitePlayer && (
-                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
-                  This browser session already owns the white seat, so joining as black is
-                  blocked here too.
-                </div>
-              )}
-
-              <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/70 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
                   Room code
                 </p>
-                <p className="mt-2 break-all font-mono text-sm text-slate-300">
+                {/* <p className="mt-2 break-all font-mono text-sm text-slate-300"> */}
+                <p className="mt-1.5 break-all font-mono text-[13px] text-slate-400">
                   {roomCode}
                 </p>
               </div>
 
-              <div className="mt-5 grid gap-3">
-                <button
-                  type="button"
-                  onClick={handleRefreshGame}
-                  className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
-                >
-                  Refresh room
-                </button>
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <div className="mb-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Players
+                  </p>
+                  <h3 className="mt-1 text-sm font-semibold text-white">Table</h3>
+                </div>
 
-                <Link
-                  href="/play"
-                  className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/5"
-                >
-                  Browse rooms
-                </Link>
+                {isLoadingGame ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/70 p-6">
+                    <LoadingSpinner />
+                  </div>
+                ) : game ? (
+                  <div className="grid gap-3">
+                    <PlayerPanel
+                      color="white"
+                      name={whitePlayerName}
+                      detail="White"
+                      isActive={activeColor === "white"}
+                    />
+                    <PlayerPanel
+                      color="black"
+                      name={blackPlayerName}
+                      detail={game.blackPlayer ? "Black" : "Open seat"}
+                      isActive={activeColor === "black"}
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-300">
+                    No table data available.
+                  </div>
+                )}
+              </div>
+
+              {localSession && (
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      You
+                    </p>
+                    <h3 className="mt-1 text-sm font-semibold text-white">
+                      {localSession.playerName} · {localSession.color}
+                    </h3>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/75 p-3.5">
+                    <p className="text-[13px] leading-6 text-slate-400">{helperText}</p>
+
+                    {selectedSquare && (
+                      <p className="mt-2 text-xs font-medium text-emerald-300">
+                        Selected: {selectedSquare}
+                      </p>
+                    )}
+
+                    {selectedPiece && selectedPieceBelongsToLocalPlayer && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSquare(null)}
+                        className="mt-3 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/5"
+                      >
+                        Clear selection
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                {!localSession ? (
+                  <>
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Room
+                      </p>
+                      <h3 className="mt-1 text-sm font-semibold text-white">
+                        {canJoinAsBlack ? "Take the black side" : statusLabel}
+                      </h3>
+                      <p className="mt-2 text-sm leading-7 text-slate-300">
+                        {canJoinAsBlack
+                          ? "Enter your name to sit across from white."
+                          : game?.blackPlayer
+                          ? "Both players are seated."
+                          : "Waiting for an opponent."}
+                      </p>
+                    </div>
+
+                    {canJoinAsBlack && !isSameBrowserWhitePlayer && (
+                      <form onSubmit={handleJoinGame} className="space-y-4">
+                        <div>
+                          <label
+                            htmlFor="joinName"
+                            className="mb-2 block text-sm font-medium text-slate-200"
+                          >
+                            Player name
+                          </label>
+                          <input
+                            id="joinName"
+                            type="text"
+                            value={joinName}
+                            onChange={(e) => setJoinName(e.target.value)}
+                            placeholder="Enter your name"
+                            className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isJoiningGame}
+                          className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isJoiningGame ? "Joining..." : "Join as black"}
+                        </button>
+                      </form>
+                    )}
+
+                    {canJoinAsBlack && isSameBrowserWhitePlayer && (
+                      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
+                        This browser session already owns the white seat, so joining as
+                        black is blocked here too.
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        Moves
+                      </p>
+                      <h3 className="mt-1 text-sm font-semibold text-white">History</h3>
+                    </div>
+
+                    {game?.moves?.length ? (
+                      <div className="space-y-2">
+                        {game.moves.map((move) => (
+                          <div
+                            key={move.moveNumber}
+                            className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2 text-sm"
+                          >
+                            <span className="min-w-8 text-xs text-slate-500">
+                              {move.moveNumber}.
+                            </span>
+                            <span className="flex-1 text-slate-200">
+                              {move.playerColor === "white" ? "W" : "B"} {move.from} →{" "}
+                              {move.to}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/60 p-3.5 text-[13px] text-slate-500">
+                        No moves yet.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <div className="grid gap-3">
+                  <button
+                    type="button"
+                    onClick={handleRefreshGame}
+                    className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
+                  >
+                    Refresh room
+                  </button>
+
+                  <Link
+                    href="/play"
+                    className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/5"
+                  >
+                    Browse rooms
+                  </Link>
+                </div>
               </div>
             </section>
           </aside>
@@ -577,31 +627,35 @@ function PlayerPanel({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-4 rounded-2xl border p-4 ${
+      className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-3 ${
         isActive
-          ? "border-amber-300/40 bg-amber-300/10"
-          : "border-white/10 bg-slate-900/70"
+          ? "border-amber-300/30 bg-amber-300/8"
+          : "border-white/10 bg-slate-950/80"
       }`}
     >
       <div className="flex min-w-0 items-center gap-3">
         <span
-          className={`h-10 w-10 shrink-0 rounded-full border ${
+          className={`h-9 w-9 shrink-0 rounded-full border ${
             color === "white"
               ? "border-slate-300 bg-slate-100"
               : "border-slate-700 bg-slate-950"
           }`}
         />
         <div className="min-w-0">
-          <p className="truncate font-semibold text-white">{name}</p>
-          <p className="text-sm text-slate-400">{detail}</p>
+          <p className="truncate text-sm font-semibold text-white">{name}</p>
+          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{detail}</p>
         </div>
       </div>
 
-      {isActive && (
-        <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-200">
-          Turn
-        </span>
-      )}
+      <div className="shrink-0">
+        {isActive ? (
+          <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200">
+            Turn
+          </span>
+        ) : (
+          <span className="text-xs font-medium text-slate-500">Waiting</span>
+        )}
+      </div>
     </div>
   );
 }

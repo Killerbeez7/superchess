@@ -5,8 +5,8 @@ import { useState } from "react";
 
 const navItems = [
   { label: "Play", href: "/play" },
-  { label: "Games", href: "/#games" },
-  { label: "About", href: "/#about" },
+  { label: "Games", href: "/games" },
+  { label: "About", href: "/about" },
 ];
 
 export function Navbar() {

@@ -6,11 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SubmitEvent } from "react";
 import type { HubConnection } from "@microsoft/signalr";
 
-import { Navbar } from "@components/layout/Navbar";
-import { createGame, getGames, joinGame, type GameResponse } from "@/api/games";
-import { createGameHubConnection } from "@/realtime/gameHub";
-import { getGameSession, saveGameSession } from "@/utils/gameSession";
-import { LoadingSpinner } from "@components/layout/LoadingSpinner";
+import { Navbar } from "@/components/layout/Navbar";
+import { createGame, getGames, joinGame, type GameResponse } from "@/lib/api/games";
+import { createGameHubConnection } from "@/lib/realtime/gameHub";
+import { getGameSession, saveGameSession } from "@/lib/storage/gameSession";
+import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
 
 export default function PlayPage() {
   const router = useRouter();

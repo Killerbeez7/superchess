@@ -1,9 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5199";
 
-export type PlayerSummary = {
-  id: string;
-  displayName: string;
-};
+import { PlayerSummary } from "@/types/games";
 
 export type GameResponse = {
   id: string;

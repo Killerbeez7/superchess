@@ -11,20 +11,20 @@ import {
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
 
-import type { GameResponse } from "@/api/games";
+import type { GameResponse } from "@/lib/api/games";
 
-import { getGame, joinGame, makeMove } from "@/api/games";
+import { getGame, joinGame, makeMove } from "@/lib/api/games";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import {
   getGameSession,
   saveGameSession,
   type LocalGameSession,
-} from "@/utils/gameSession";
-import { createGameHubConnection } from "@/realtime/gameHub";
+} from "@/lib/storage/gameSession";
+import { createGameHubConnection } from "@/lib/realtime/gameHub";
 
-import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
-import { Navbar } from "@components/layout/Navbar";
-import { LoadingSpinner } from "@components/layout/LoadingSpinner";
+import { ChessBoardPlaceholder } from "@/components/game/ChessBoardPlaceholder";
+import { Navbar } from "@/components/layout/Navbar";
+import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
 
 export default function GameDetailsPage() {
   const params = useParams();

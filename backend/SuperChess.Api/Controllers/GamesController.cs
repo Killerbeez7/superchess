@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using SuperChess.Api.Common;
+using SuperChess.Api.Common.Errors;
 using SuperChess.Api.Contracts.Games;
 using SuperChess.Api.Services.Games;
 
@@ -10,97 +12,43 @@ public class GamesController : ControllerBase
 {
     private readonly IGameService _gameService;
 
-    public GamesController(IGameService gameService)
-    {
-        _gameService = gameService;
-    }
+    public GamesController(IGameService gameService) => _gameService = gameService;
 
-    // Create game
     [HttpPost]
-    public async Task<ActionResult<GameSessionResponse>> Create([FromBody] CreateGameRequest request)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateGameRequest request, CancellationToken ct)
     {
-        try
-        {
-            var game = await _gameService.CreateGameAsync(request);
-            return CreatedAtAction(nameof(GetById), new { gameId = game.Game.Id }, game);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _gameService.CreateGameAsync(request, ct);
+        return result.IsSuccess
+            ? CreatedAtAction(nameof(GetById), new { gameId = result.Value!.Game.Id }, result.Value)
+            : ToActionResult(result);
     }
 
-    // Get game
     [HttpGet("{gameId:guid}")]
-    public async Task<ActionResult<GameResponse>> GetById(Guid gameId)
-    {
-        var game = await _gameService.GetGameAsync(gameId);
+    public async Task<IActionResult> GetById(Guid gameId, CancellationToken ct) =>
+        ToActionResult(await _gameService.GetGameAsync(gameId, ct));
 
-        if (game is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(game);
-    }
-
-    // Get games list
     [HttpGet]
-    public async Task<ActionResult<List<GameResponse>>> GetAll()
-    {
-        var games = await _gameService.GetGamesAsync();
-        return Ok(games);
-    }
+    public async Task<IActionResult> GetAll(CancellationToken ct) =>
+        Ok(await _gameService.GetGamesAsync(ct));
 
-    // Join game
     [HttpPost("{gameId:guid}/join")]
-    public async Task<ActionResult<GameSessionResponse>> Join(Guid gameId, [FromBody] JoinGameRequest request)
-    {
-        try
-        {
-            var game = await _gameService.JoinGameAsync(gameId, request);
+    public async Task<IActionResult> Join(
+        Guid gameId, [FromBody] JoinGameRequest request, CancellationToken ct) =>
+        ToActionResult(await _gameService.JoinGameAsync(gameId, request, ct));
 
-            if (game is null)
-            {
-                return NotFound();
-            }
-
-            return Ok(game);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
-    // Make a move
     [HttpPost("{gameId:guid}/move")]
-    public async Task<ActionResult<GameResponse>> MakeMove(
-        Guid gameId,
-        [FromBody] MakeMoveRequest request)
+    public async Task<IActionResult> MakeMove(
+        Guid gameId, [FromBody] MakeMoveRequest request, CancellationToken ct) =>
+        ToActionResult(await _gameService.MakeMoveAsync(gameId, request, ct));
+
+    private IActionResult ToActionResult<T>(Result<T> result) => result.Kind switch
     {
-        try
-        {
-            var game = await _gameService.MakeMoveAsync(gameId, request);
-
-            if (game is null)
-            {
-                return NotFound();
-            }
-
-            return Ok(game);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
+        ErrorKind.None       => Ok(result.Value),
+        ErrorKind.NotFound   => NotFound(new { message = result.Error }),
+        ErrorKind.Validation => BadRequest(new { message = result.Error }),
+        ErrorKind.Conflict   => Conflict(new { message = result.Error }),
+        ErrorKind.Forbidden  => StatusCode(403, new { message = result.Error }),
+        _                    => StatusCode(500)
+    };
 }

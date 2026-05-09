@@ -1,10 +1,11 @@
+using SuperChess.Api.Common;
 using SuperChess.Api.Contracts.Games;
 using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Domain.Enums;
-using SuperChess.Api.Realtime;
 using SuperChess.Api.Models;
-using SuperChess.Core.Chess;
+using SuperChess.Api.Realtime;
 using SuperChess.Api.Services.Mapping;
+using SuperChess.Core.Chess;
 
 namespace SuperChess.Api.Services.Games;
 
@@ -13,7 +14,6 @@ public class GameService : IGameService
     private readonly IGameRepository _repo;
     private readonly IGameNotifier _notifier;
     private readonly IChessEngine _engine;
-
 
     public GameService(
         IGameRepository repo,
@@ -25,148 +25,130 @@ public class GameService : IGameService
         _engine = engine;
     }
 
-    private async Task BroadcastOpenGamesChangedAsync()
+    public async Task<Result<GameSessionResponse>> CreateGameAsync(
+        CreateGameRequest request,
+        CancellationToken ct = default)
     {
-        var waitingGames = await _repo.GetWaitingGamesAsync();
-
-        var response = waitingGames.Select(GameMapper.ToResponse).ToList();
-
-        await _notifier.NotifyOpenGamesChangedAsync(response);
-    }
-
-    public async Task<GameSessionResponse> CreateGameAsync(CreateGameRequest request)
-    {
-        var trimmedName = request.PlayerName.Trim();
-
-        if (string.IsNullOrWhiteSpace(trimmedName))
+        var name = request.PlayerName?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Player name is required.");
+            return Result<GameSessionResponse>.Validation("Player name is required.");
         }
 
-        var whitePlayer = new Player
-        {
-            Id = Guid.NewGuid(),
-            DisplayName = trimmedName,
-            SessionToken = Guid.NewGuid().ToString("N")
-        };
-
+        var white = NewPlayer(name);
         var game = new ChessGame
         {
             Id = Guid.NewGuid(),
-            WhitePlayerId = whitePlayer.Id,
-            WhitePlayer = whitePlayer,
+            WhitePlayerId = white.Id,
+            WhitePlayer = white,
             Status = GameStatus.Waiting,
-            CurrentFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            CurrentFen = _engine.StartingFen,
             WhoseTurn = PieceColor.White,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
         };
 
-        _repo.AddPlayer(whitePlayer);
+        _repo.AddPlayer(white);
         _repo.AddGame(game);
+        await _repo.SaveChangesAsync(ct);
 
-        await _repo.SaveChangesAsync();
-        await BroadcastOpenGamesChangedAsync();
-
-        return GameMapper.ToSessionResponse(game, whitePlayer, PieceColor.White);
+        await BroadcastOpenGamesAsync(ct);
+        return Result<GameSessionResponse>.Success(
+            GameMapper.ToSessionResponse(game, white, PieceColor.White));
     }
 
-    // Get game
-    public async Task<GameResponse?> GetGameAsync(Guid gameId)
+    public async Task<Result<GameResponse>> GetGameAsync(Guid gameId, CancellationToken ct = default)
     {
-        var game = await _repo.GetByIdWithDetailsAsync(gameId);
-        return game is null ? null : GameMapper.ToResponse(game);
+        var game = await _repo.GetByIdWithDetailsAsync(gameId, ct);
+
+        return game is null
+            ? Result<GameResponse>.NotFound("Game not found.")
+            : Result<GameResponse>.Success(GameMapper.ToResponse(game));
     }
 
-    // Get games list
-    public async Task<List<GameResponse>> GetGamesAsync()
+    public async Task<List<GameResponse>> GetGamesAsync(CancellationToken ct = default)
     {
-        var games = await _repo.GetWaitingGamesAsync();
+        var games = await _repo.GetWaitingGamesAsync(ct);
         return games.Select(GameMapper.ToResponse).ToList();
     }
 
-    // Join game
-    public async Task<GameSessionResponse?> JoinGameAsync(Guid gameId, JoinGameRequest request)
+    public async Task<Result<GameSessionResponse>> JoinGameAsync(
+        Guid gameId,
+        JoinGameRequest request,
+        CancellationToken ct = default)
     {
-        var trimmedName = request.PlayerName.Trim();
-
-        if (string.IsNullOrWhiteSpace(trimmedName))
+        var name = request.PlayerName?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Player name is required.");
+            return Result<GameSessionResponse>.Validation("Player name is required.");
         }
 
-        var game = await _repo.GetByIdWithDetailsAsync(gameId);
-
+        var game = await _repo.GetByIdWithDetailsAsync(gameId, ct);
         if (game is null)
         {
-            return null;
+            return Result<GameSessionResponse>.NotFound("Game not found.");
         }
 
         if (game.BlackPlayerId is not null)
         {
-            throw new InvalidOperationException("Game already has two players.");
+            return Result<GameSessionResponse>.Conflict("Game already has two players.");
         }
 
         if (!string.IsNullOrWhiteSpace(request.ExistingSessionToken) &&
             request.ExistingSessionToken == game.WhitePlayer.SessionToken)
         {
-            throw new InvalidOperationException("You cannot join as both players.");
+            return Result<GameSessionResponse>.Forbidden("You cannot join as both players.");
         }
 
-        var blackPlayer = new Player
-        {
-            Id = Guid.NewGuid(),
-            DisplayName = trimmedName,
-            SessionToken = Guid.NewGuid().ToString("N")
-        };
+        var black = NewPlayer(name);
 
-        game.BlackPlayerId = blackPlayer.Id;
-        game.BlackPlayer = blackPlayer;
+        game.BlackPlayerId = black.Id;
+        game.BlackPlayer = black;
         game.Status = GameStatus.Active;
         game.UpdatedAtUtc = DateTime.UtcNow;
 
-        _repo.AddPlayer(blackPlayer);
+        _repo.AddPlayer(black);
+        await _repo.SaveChangesAsync(ct);
 
-        await _repo.SaveChangesAsync();
-        await BroadcastOpenGamesChangedAsync();
+        await BroadcastOpenGamesAsync(ct);
 
         var response = GameMapper.ToResponse(game);
-        var sessionResponse = GameMapper.ToSessionResponse(game, blackPlayer, PieceColor.Black);
+        var sessionResponse = GameMapper.ToSessionResponse(game, black, PieceColor.Black);
 
         await _notifier.NotifyPlayerJoinedAsync(game.Id, response);
 
-
-        return sessionResponse;
+        return Result<GameSessionResponse>.Success(sessionResponse);
     }
 
-    // Make a move
-    public async Task<GameResponse?> MakeMoveAsync(Guid gameId, MakeMoveRequest request)
+    public async Task<Result<GameResponse>> MakeMoveAsync(
+        Guid gameId,
+        MakeMoveRequest request,
+        CancellationToken ct = default)
     {
-        var game = await _repo.GetByIdWithDetailsAsync(gameId);
-
+        var game = await _repo.GetByIdWithDetailsAsync(gameId, ct);
         if (game is null)
         {
-            return null;
+            return Result<GameResponse>.NotFound("Game not found.");
         }
 
         if (game.Status != GameStatus.Active || game.BlackPlayer is null)
         {
-            throw new InvalidOperationException("The game has not started yet.");
+            return Result<GameResponse>.Conflict("The game has not started yet.");
         }
 
         if (string.IsNullOrWhiteSpace(request.From) || string.IsNullOrWhiteSpace(request.To))
         {
-            throw new ArgumentException("Both from/to squares are required.");
+            return Result<GameResponse>.Validation("Both from/to squares are required.");
         }
 
         if (request.PlayerId == Guid.Empty)
         {
-            throw new ArgumentException("PlayerId is required.");
+            return Result<GameResponse>.Validation("PlayerId is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.SessionToken))
         {
-            throw new ArgumentException("SessionToken is required.");
+            return Result<GameResponse>.Validation("SessionToken is required.");
         }
 
         var expectedPlayer = game.WhoseTurn == PieceColor.White
@@ -175,23 +157,21 @@ public class GameService : IGameService
 
         if (expectedPlayer is null)
         {
-            throw new InvalidOperationException("Player not found.");
+            return Result<GameResponse>.Conflict("Player not found.");
         }
 
         if (request.PlayerId != expectedPlayer.Id || request.SessionToken != expectedPlayer.SessionToken)
         {
-            throw new InvalidOperationException("Its not your turn.");
+            return Result<GameResponse>.Forbidden("Its not your turn.");
         }
 
         var from = request.From.Trim().ToLowerInvariant();
         var to = request.To.Trim().ToLowerInvariant();
 
-
         if (from == to)
         {
-            throw new ArgumentException("Source and target squares must be different.");
+            return Result<GameResponse>.Validation("Source and target squares must be different.");
         }
-
 
         var moveResult = _engine.TryApplyMove(
             game.CurrentFen,
@@ -200,7 +180,9 @@ public class GameService : IGameService
             request.Promotion);
 
         if (!moveResult.IsLegal)
-            throw new InvalidOperationException(moveResult.Error ?? "Illegal move.");
+        {
+            return Result<GameResponse>.Validation(moveResult.Error ?? "Illegal move.");
+        }
 
         var move = new Move
         {
@@ -223,12 +205,26 @@ public class GameService : IGameService
         game.WhoseTurn = nextTurn;
         game.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _repo.SaveChangesAsync();
+        await _repo.SaveChangesAsync(ct);
 
         var response = GameMapper.ToResponse(game);
 
         await _notifier.NotifyMovePlayedAsync(game.Id, response);
 
-        return response;
+        return Result<GameResponse>.Success(response);
+    }
+
+    private static Player NewPlayer(string displayName) => new()
+    {
+        Id = Guid.NewGuid(),
+        DisplayName = displayName,
+        SessionToken = Guid.NewGuid().ToString("N")
+    };
+
+    private async Task BroadcastOpenGamesAsync(CancellationToken ct)
+    {
+        var games = await _repo.GetWaitingGamesAsync(ct);
+        var responses = games.Select(GameMapper.ToResponse).ToList();
+        await _notifier.NotifyOpenGamesChangedAsync(responses);
     }
 }

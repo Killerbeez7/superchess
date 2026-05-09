@@ -27,9 +27,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ChessGame>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
             entity.Property(x => x.CurrentFen).HasMaxLength(200).IsRequired();
-            entity.Property(x => x.WhoseTurn).HasMaxLength(10).IsRequired();
+            entity.Property(x => x.WhoseTurn).HasConversion<string>().HasMaxLength(10).IsRequired();
 
             entity.HasOne(x => x.WhitePlayer)
                 .WithMany()
@@ -47,7 +47,7 @@ public class AppDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Uci).HasMaxLength(20).IsRequired();
             entity.Property(x => x.San).HasMaxLength(20);
-            entity.Property(x => x.PlayedByColor).HasMaxLength(10).IsRequired();
+            entity.Property(x => x.PlayedByColor).HasConversion<string>().HasMaxLength(10).IsRequired();
 
             entity.HasOne(x => x.Game)
                 .WithMany(x => x.Moves)

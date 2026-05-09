@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Contracts.Games;
 using SuperChess.Api.Data;
+using SuperChess.Api.Domain.Enums;
 using SuperChess.Api.Hubs;
 using SuperChess.Api.Models;
+using SuperChess.Core.Chess;
 
 namespace SuperChess.Api.Services.Games;
 
@@ -23,8 +25,8 @@ public class GameService : IGameService
         var waitingGames = await _db.Games
             .Include(x => x.WhitePlayer)
             .Include(x => x.BlackPlayer)
-            .Include(g => g.Moves)
-            .Where(x => x.Status == "waiting")
+            .Include(x => x.Moves)
+            .Where(x => x.Status == GameStatus.Waiting)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
@@ -54,9 +56,9 @@ public class GameService : IGameService
             Id = Guid.NewGuid(),
             WhitePlayerId = whitePlayer.Id,
             WhitePlayer = whitePlayer,
-            Status = "waiting",
+            Status = GameStatus.Waiting,
             CurrentFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            WhoseTurn = "white",
+            WhoseTurn = PieceColor.White,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow
         };
@@ -88,8 +90,8 @@ public class GameService : IGameService
         var games = await _db.Games
             .Include(x => x.WhitePlayer)
             .Include(x => x.BlackPlayer)
-            .Include(g => g.Moves)
-            .Where(x => x.Status == "waiting")
+            .Include(x => x.Moves)
+            .Where(x => x.Status == GameStatus.Waiting)
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
@@ -109,7 +111,7 @@ public class GameService : IGameService
         var game = await _db.Games
             .Include(x => x.WhitePlayer)
             .Include(x => x.BlackPlayer)
-            .Include(g => g.Moves)
+            .Include(x => x.Moves)
             .FirstOrDefaultAsync(x => x.Id == gameId);
 
         if (game is null)
@@ -137,7 +139,7 @@ public class GameService : IGameService
 
         game.BlackPlayerId = blackPlayer.Id;
         game.BlackPlayer = blackPlayer;
-        game.Status = "active";
+        game.Status = GameStatus.Active;
         game.UpdatedAtUtc = DateTime.UtcNow;
 
         _db.Players.Add(blackPlayer);
@@ -169,7 +171,7 @@ public class GameService : IGameService
             return null;
         }
 
-        if (game.Status != "active" || game.BlackPlayer is null)
+        if (game.Status != GameStatus.Active || game.BlackPlayer is null)
         {
             throw new InvalidOperationException("The game has not started yet.");
         }
@@ -189,7 +191,7 @@ public class GameService : IGameService
             throw new ArgumentException("SessionToken is required.");
         }
 
-        var expectedPlayer = game.WhoseTurn == "white"
+        var expectedPlayer = game.WhoseTurn == PieceColor.White
             ? game.WhitePlayer
             : game.BlackPlayer;
 
@@ -227,7 +229,7 @@ public class GameService : IGameService
             throw new InvalidOperationException("No piece found on the source square.");
         }
 
-        var isWhiteTurn = game.WhoseTurn == "white";
+        var isWhiteTurn = game.WhoseTurn == PieceColor.White;
 
         switch (isWhiteTurn, IsWhitePiece(piece))
         {
@@ -269,7 +271,7 @@ public class GameService : IGameService
         game.Moves.Add(move);
         _db.Moves.Add(move);
 
-        var nextTurn = game.WhoseTurn == "white" ? "black" : "white";
+        var nextTurn = game.WhoseTurn == PieceColor.White ? PieceColor.Black : PieceColor.White;
 
         game.CurrentFen = BuildUpdatedFen(fenToParse, board, nextTurn);
         game.WhoseTurn = nextTurn;
@@ -313,9 +315,9 @@ public class GameService : IGameService
         return new GameResponse
         {
             Id = game.Id,
-            Status = game.Status,
+            Status = game.Status.ToString().ToLowerInvariant(),
             CurrentFen = game.CurrentFen,
-            WhoseTurn = game.WhoseTurn,
+            WhoseTurn = game.WhoseTurn.ToString().ToLowerInvariant(),
             CreatedAtUtc = game.CreatedAtUtc,
             UpdatedAtUtc = game.UpdatedAtUtc,
             WhitePlayer = new PlayerSummary
@@ -587,12 +589,12 @@ public class GameService : IGameService
     private static bool IsWhitePiece(char piece) => char.IsUpper(piece);
     private static bool IsBlackPiece(char piece) => char.IsLower(piece);
 
-    private static string BuildUpdatedFen(string currentFen, Dictionary<string, char> board, string nextTurn)
+    private static string BuildUpdatedFen(string currentFen, Dictionary<string, char> board, PieceColor nextTurn)
     {
         var parts = currentFen.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         var boardPart = BuildBoardFen(board);
-        var activeColor = nextTurn == "white" ? "w" : "b";
+        var activeColor = nextTurn == PieceColor.White ? "w" : "b";
 
         var castling = parts.Length > 2 ? parts[2] : "KQkq";
         var enPassant = parts.Length > 3 ? parts[3] : "-";

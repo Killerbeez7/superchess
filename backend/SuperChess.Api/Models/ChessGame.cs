@@ -1,3 +1,6 @@
+using SuperChess.Api.Domain.Enums;
+using SuperChess.Core.Chess;
+
 namespace SuperChess.Api.Models;
 
 public class ChessGame
@@ -10,9 +13,9 @@ public class ChessGame
     public Guid? BlackPlayerId { get; set; }
     public Player? BlackPlayer { get; set; }
 
-    public string Status { get; set; } = "waiting";
+    public GameStatus Status { get; set; }
     public string CurrentFen { get; set; } = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    public string WhoseTurn { get; set; } = "white";
+    public PieceColor WhoseTurn { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;

@@ -1,3 +1,5 @@
+using SuperChess.Core.Chess;
+
 namespace SuperChess.Api.Models;
 
 public class Move
@@ -10,7 +12,7 @@ public class Move
     public int MoveNumber { get; set; }
     public string Uci { get; set; } = string.Empty;
     public string? San { get; set; }
-    public string PlayedByColor { get; set; } = string.Empty;
+    public PieceColor PlayedByColor { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Data;
-using SuperChess.Api.Services.Games;
+using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,7 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<IGameService, GameService>();
+builder.Services.AddScoped<IGameRepository, GameRepository>();
 
 
 const string frontendCorsPolicy = "FrontendCorsPolicy";

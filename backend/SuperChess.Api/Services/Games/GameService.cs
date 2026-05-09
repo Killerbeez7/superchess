@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Contracts.Games;
-using SuperChess.Api.Data;
+using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Domain.Enums;
 using SuperChess.Api.Hubs;
 using SuperChess.Api.Models;
@@ -12,24 +11,18 @@ namespace SuperChess.Api.Services.Games;
 
 public class GameService : IGameService
 {
-    private readonly AppDbContext _db;
+    private IGameRepository _repo;
     private readonly IHubContext<GameHub> _hubContext;
 
-    public GameService(AppDbContext db, IHubContext<GameHub> hubContext)
+    public GameService(IGameRepository repo, IHubContext<GameHub> hubContext)
     {
-        _db = db;
+        _repo = repo;
         _hubContext = hubContext;
     }
 
     private async Task BroadcastOpenGamesChangedAsync()
     {
-        var waitingGames = await _db.Games
-            .Include(x => x.WhitePlayer)
-            .Include(x => x.BlackPlayer)
-            .Include(x => x.Moves)
-            .Where(x => x.Status == GameStatus.Waiting)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .ToListAsync();
+        var waitingGames = await _repo.GetWaitingGamesAsync();
 
         var response = waitingGames.Select(GameMapper.ToResponse).ToList();
 
@@ -64,10 +57,10 @@ public class GameService : IGameService
             UpdatedAtUtc = DateTime.UtcNow
         };
 
-        _db.Players.Add(whitePlayer);
-        _db.Games.Add(game);
+        _repo.AddPlayer(whitePlayer);
+        _repo.AddGame(game);
 
-        await _db.SaveChangesAsync();
+        await _repo.SaveChangesAsync();
         await BroadcastOpenGamesChangedAsync();
 
         return GameMapper.ToSessionResponse(game, whitePlayer, PieceColor.White);
@@ -76,26 +69,14 @@ public class GameService : IGameService
     // Get game
     public async Task<GameResponse?> GetGameAsync(Guid gameId)
     {
-        var game = await _db.Games
-            .Include(x => x.WhitePlayer)
-            .Include(x => x.BlackPlayer)
-            .Include(g => g.Moves)
-            .FirstOrDefaultAsync(x => x.Id == gameId);
-
+        var game = await _repo.GetByIdWithDetailsAsync(gameId);
         return game is null ? null : GameMapper.ToResponse(game);
     }
 
     // Get games list
     public async Task<List<GameResponse>> GetGamesAsync()
     {
-        var games = await _db.Games
-            .Include(x => x.WhitePlayer)
-            .Include(x => x.BlackPlayer)
-            .Include(x => x.Moves)
-            .Where(x => x.Status == GameStatus.Waiting)
-            .OrderByDescending(x => x.CreatedAtUtc)
-            .ToListAsync();
-
+        var games = await _repo.GetWaitingGamesAsync();
         return games.Select(GameMapper.ToResponse).ToList();
     }
 
@@ -109,11 +90,7 @@ public class GameService : IGameService
             throw new ArgumentException("Player name is required.");
         }
 
-        var game = await _db.Games
-            .Include(x => x.WhitePlayer)
-            .Include(x => x.BlackPlayer)
-            .Include(x => x.Moves)
-            .FirstOrDefaultAsync(x => x.Id == gameId);
+        var game = await _repo.GetByIdWithDetailsAsync(gameId);
 
         if (game is null)
         {
@@ -143,9 +120,9 @@ public class GameService : IGameService
         game.Status = GameStatus.Active;
         game.UpdatedAtUtc = DateTime.UtcNow;
 
-        _db.Players.Add(blackPlayer);
+        _repo.AddPlayer(blackPlayer);
 
-        await _db.SaveChangesAsync();
+        await _repo.SaveChangesAsync();
         await BroadcastOpenGamesChangedAsync();
 
         var response = GameMapper.ToResponse(game);
@@ -161,11 +138,7 @@ public class GameService : IGameService
     // Make a move
     public async Task<GameResponse?> MakeMoveAsync(Guid gameId, MakeMoveRequest request)
     {
-        var game = await _db.Games
-            .Include(x => x.WhitePlayer)
-            .Include(x => x.BlackPlayer)
-            .Include(g => g.Moves)
-            .FirstOrDefaultAsync(x => x.Id == gameId);
+        var game = await _repo.GetByIdWithDetailsAsync(gameId);
 
         if (game is null)
         {
@@ -270,7 +243,7 @@ public class GameService : IGameService
         };
 
         game.Moves.Add(move);
-        _db.Moves.Add(move);
+        _repo.AddMove(move);
 
         var nextTurn = game.WhoseTurn == PieceColor.White ? PieceColor.Black : PieceColor.White;
 
@@ -278,7 +251,7 @@ public class GameService : IGameService
         game.WhoseTurn = nextTurn;
         game.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync();
+        await _repo.SaveChangesAsync();
 
         var response = GameMapper.ToResponse(game);
 
@@ -289,70 +262,6 @@ public class GameService : IGameService
         return response;
     }
 
-    // Map session
-    // private static PlayerSessionResponse MapSession(Player player, string color)
-    // {
-    //     return new PlayerSessionResponse
-    //     {
-    //         PlayerId = player.Id,
-    //         SessionToken = player.SessionToken,
-    //         Color = color
-    //     };
-    // }
-
-    // Map game session
-    // private static GameSessionResponse MapGameSession(ChessGame game, Player player, string color)
-    // {
-    //     return new GameSessionResponse
-    //     {
-    //         Game = MapGame(game),
-    //         Session = MapSession(player, color)
-    //     };
-    // }
-
-    // Map game
-    // private static GameResponse MapGame(ChessGame game)
-    // {
-    //     return new GameResponse
-    //     {
-    //         Id = game.Id,
-    //         Status = game.Status.ToString().ToLowerInvariant(),
-    //         CurrentFen = game.CurrentFen,
-    //         WhoseTurn = game.WhoseTurn.ToString().ToLowerInvariant(),
-    //         CreatedAtUtc = game.CreatedAtUtc,
-    //         UpdatedAtUtc = game.UpdatedAtUtc,
-    //         WhitePlayer = new PlayerSummary
-    //         {
-    //             Id = game.WhitePlayer.Id,
-    //             DisplayName = game.WhitePlayer.DisplayName
-    //         },
-    //         BlackPlayer = game.BlackPlayer is null
-    //             ? null
-    //             : new PlayerSummary
-    //             {
-    //                 Id = game.BlackPlayer.Id,
-    //                 DisplayName = game.BlackPlayer.DisplayName
-    //             },
-    //         Moves = BuildMoveSummaries(game)
-    //     };
-    // }
-
-    // Build move summaries
-    // private static List<MoveSummaryResponse> BuildMoveSummaries(ChessGame game)
-    // {
-    //     return game.Moves
-    //         .OrderBy(m => m.MoveNumber)
-    //         .ThenBy(m => m.CreatedAtUtc)
-    //         .Select(move => new MoveSummaryResponse
-    //         {
-    //             MoveNumber = move.MoveNumber,
-    //             From = move.Uci.Length >= 4 ? move.Uci[..2] : string.Empty,
-    //             To = move.Uci.Length >= 4 ? move.Uci.Substring(2, 2) : string.Empty,
-    //             PlayerColor = move.PlayedByColor,
-    //             CreatedAtUtc = move.CreatedAtUtc
-    //         })
-    //         .ToList();
-    // }
 
     private static bool IsValidSquare(string square)
     {

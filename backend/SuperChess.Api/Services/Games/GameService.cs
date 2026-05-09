@@ -1,8 +1,7 @@
-using Microsoft.AspNetCore.SignalR;
 using SuperChess.Api.Contracts.Games;
 using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Domain.Enums;
-using SuperChess.Api.Hubs;
+using SuperChess.Api.Realtime;
 using SuperChess.Api.Models;
 using SuperChess.Core.Chess;
 using SuperChess.Api.Services.Mapping;
@@ -11,13 +10,19 @@ namespace SuperChess.Api.Services.Games;
 
 public class GameService : IGameService
 {
-    private IGameRepository _repo;
-    private readonly IHubContext<GameHub> _hubContext;
+    private readonly IGameRepository _repo;
+    private readonly IGameNotifier _notifier;
+    private readonly IChessEngine _engine;
 
-    public GameService(IGameRepository repo, IHubContext<GameHub> hubContext)
+
+    public GameService(
+        IGameRepository repo,
+        IGameNotifier notifier,
+        IChessEngine engine)
     {
         _repo = repo;
-        _hubContext = hubContext;
+        _notifier = notifier;
+        _engine = engine;
     }
 
     private async Task BroadcastOpenGamesChangedAsync()
@@ -26,7 +31,7 @@ public class GameService : IGameService
 
         var response = waitingGames.Select(GameMapper.ToResponse).ToList();
 
-        await _hubContext.Clients.All.SendAsync("OpenGamesChanged", response);
+        await _notifier.NotifyOpenGamesChangedAsync(response);
     }
 
     public async Task<GameSessionResponse> CreateGameAsync(CreateGameRequest request)
@@ -128,9 +133,8 @@ public class GameService : IGameService
         var response = GameMapper.ToResponse(game);
         var sessionResponse = GameMapper.ToSessionResponse(game, blackPlayer, PieceColor.Black);
 
-        await _hubContext.Clients
-            .Group($"game:{game.Id}")
-            .SendAsync("PlayerJoined", response);
+        await _notifier.NotifyPlayerJoinedAsync(game.Id, response);
+
 
         return sessionResponse;
     }
@@ -182,54 +186,21 @@ public class GameService : IGameService
         var from = request.From.Trim().ToLowerInvariant();
         var to = request.To.Trim().ToLowerInvariant();
 
-        if (!IsValidSquare(from) || !IsValidSquare(to))
-        {
-            throw new ArgumentException("Invalid move.");
-        }
 
         if (from == to)
         {
             throw new ArgumentException("Source and target squares must be different.");
         }
 
-        var fenToParse = game.CurrentFen == "startpos"
-            ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-            : game.CurrentFen;
 
-        var board = ParseBoardFromFen(fenToParse);
+        var moveResult = _engine.TryApplyMove(
+            game.CurrentFen,
+            request.From,
+            request.To,
+            request.Promotion);
 
-        if (!board.TryGetValue(from, out var piece))
-        {
-            throw new InvalidOperationException("No piece found on the source square.");
-        }
-
-        var isWhiteTurn = game.WhoseTurn == PieceColor.White;
-
-        switch (isWhiteTurn, IsWhitePiece(piece))
-        {
-            case (true, false):
-                throw new InvalidOperationException("It is white's turn.");
-            case (false, true):
-                throw new InvalidOperationException("It is black's turn.");
-        }
-
-        if (board.TryGetValue(to, out var targetPiece))
-        {
-            var isSameColor = IsWhitePiece(piece) == IsWhitePiece(targetPiece);
-
-            if (isSameColor)
-            {
-                throw new InvalidOperationException("You cannot capture your own piece.");
-            }
-        }
-
-        if (!IsLegalMove(board, from, to, piece))
-        {
-            throw new InvalidOperationException("Illegal move.");
-        }
-
-        board.Remove(from);
-        board[to] = piece;
+        if (!moveResult.IsLegal)
+            throw new InvalidOperationException(moveResult.Error ?? "Illegal move.");
 
         var move = new Move
         {
@@ -245,9 +216,10 @@ public class GameService : IGameService
         game.Moves.Add(move);
         _repo.AddMove(move);
 
+        game.CurrentFen = moveResult.NewFen!;
+
         var nextTurn = game.WhoseTurn == PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-        game.CurrentFen = BuildUpdatedFen(fenToParse, board, nextTurn);
         game.WhoseTurn = nextTurn;
         game.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -255,262 +227,8 @@ public class GameService : IGameService
 
         var response = GameMapper.ToResponse(game);
 
-        await _hubContext.Clients
-            .Group($"game:{game.Id}")
-            .SendAsync("MovePlayed", response);
+        await _notifier.NotifyMovePlayedAsync(game.Id, response);
 
         return response;
-    }
-
-
-    private static bool IsValidSquare(string square)
-    {
-        if (square.Length != 2)
-        {
-            return false;
-        }
-
-        var file = square[0];
-        var rank = square[1];
-
-        return file >= 'a' && file <= 'h' && rank >= '1' && rank <= '8';
-    }
-
-    private static bool IsLegalMove(
-        Dictionary<string, char> board,
-        string from,
-        string to,
-        char piece)
-    {
-        var (fromFile, fromRank) = ParseSquare(from);
-        var (toFile, toRank) = ParseSquare(to);
-
-        var fileDelta = toFile - fromFile;
-        var rankDelta = toRank - fromRank;
-        var absFileDelta = Math.Abs(fileDelta);
-        var absRankDelta = Math.Abs(rankDelta);
-
-        var isWhitePiece = IsWhitePiece(piece);
-        var targetPiece = board.TryGetValue(to, out var existingTarget) ? existingTarget : (char?)null;
-
-        switch (char.ToLowerInvariant(piece))
-        {
-            case 'p':
-                return IsLegalPawnMove(
-                    board,
-                    from,
-                    to,
-                    isWhitePiece,
-                    fileDelta,
-                    rankDelta,
-                    targetPiece);
-
-            case 'n':
-                return (absFileDelta == 1 && absRankDelta == 2) ||
-                       (absFileDelta == 2 && absRankDelta == 1);
-
-            case 'b':
-                return absFileDelta == absRankDelta &&
-                       IsPathClear(board, from, to);
-
-            case 'r':
-                return (fileDelta == 0 || rankDelta == 0) &&
-                       IsPathClear(board, from, to);
-
-            case 'q':
-                return ((absFileDelta == absRankDelta) || fileDelta == 0 || rankDelta == 0) &&
-                       IsPathClear(board, from, to);
-
-            case 'k':
-                return absFileDelta <= 1 && absRankDelta <= 1;
-
-            default:
-                return false;
-        }
-    }
-
-    private static bool IsLegalPawnMove(
-        Dictionary<string, char> board,
-        string from,
-        string to,
-        bool isWhitePawn,
-        int fileDelta,
-        int rankDelta,
-        char? targetPiece)
-    {
-        var (_, fromRank) = ParseSquare(from);
-
-        var forwardStep = isWhitePawn ? 1 : -1;
-        var startRank = isWhitePawn ? 2 : 7;
-
-        var isForwardMove = fileDelta == 0;
-        var isDiagonalMove = Math.Abs(fileDelta) == 1 && rankDelta == forwardStep;
-        var targetOccupied = targetPiece.HasValue;
-
-        if (isForwardMove)
-        {
-            if (rankDelta == forwardStep && !targetOccupied)
-            {
-                return true;
-            }
-
-            if (fromRank == startRank && rankDelta == forwardStep * 2 && !targetOccupied)
-            {
-                var intermediateRank = fromRank + forwardStep;
-                var intermediateSquare = $"{from[0]}{intermediateRank}";
-
-                return !board.ContainsKey(intermediateSquare);
-            }
-
-            return false;
-        }
-
-        if (isDiagonalMove)
-        {
-            if (targetPiece is not char capturedPiece)
-            {
-                return false;
-            }
-
-            return IsWhitePiece(capturedPiece) != isWhitePawn;
-        }
-
-        return false;
-    }
-
-    private static bool IsPathClear(
-        Dictionary<string, char> board,
-        string from,
-        string to)
-    {
-        var (fromFile, fromRank) = ParseSquare(from);
-        var (toFile, toRank) = ParseSquare(to);
-
-        var fileStep = Math.Sign(toFile - fromFile);
-        var rankStep = Math.Sign(toRank - fromRank);
-
-        var currentFile = fromFile + fileStep;
-        var currentRank = fromRank + rankStep;
-
-        while (currentFile != toFile || currentRank != toRank)
-        {
-            var square = $"{(char)currentFile}{currentRank}";
-
-            if (board.ContainsKey(square))
-            {
-                return false;
-            }
-
-            currentFile += fileStep;
-            currentRank += rankStep;
-        }
-
-        return true;
-    }
-
-    private static (char file, int rank) ParseSquare(string square)
-    {
-        return (square[0], square[1] - '0');
-    }
-
-    private static Dictionary<string, char> ParseBoardFromFen(string fen)
-    {
-        var boardPart = fen.Split(' ')[0];
-        var ranks = boardPart.Split('/');
-
-        if (ranks.Length != 8)
-        {
-            throw new InvalidOperationException("Invalid FEN board.");
-        }
-
-        var board = new Dictionary<string, char>();
-
-        for (var row = 0; row < 8; row++)
-        {
-            var fileIndex = 0;
-
-            foreach (var ch in ranks[row])
-            {
-                if (char.IsDigit(ch))
-                {
-                    fileIndex += ch - '0';
-                    continue;
-                }
-
-                if (fileIndex > 7)
-                {
-                    throw new InvalidOperationException("Invalid FEN board.");
-                }
-
-                var square = $"{(char)('a' + fileIndex)}{8 - row}";
-                board[square] = ch;
-                fileIndex++;
-            }
-
-            if (fileIndex != 8)
-            {
-                throw new InvalidOperationException("Invalid FEN board.");
-            }
-        }
-
-        return board;
-    }
-
-    private static string BuildBoardFen(Dictionary<string, char> board)
-    {
-        var ranks = new List<string>();
-
-        for (var row = 8; row >= 1; row--)
-        {
-            var emptyCount = 0;
-            var rank = "";
-
-            for (var file = 'a'; file <= 'h'; file++)
-            {
-                var square = $"{file}{row}";
-
-                if (board.TryGetValue(square, out var piece))
-                {
-                    if (emptyCount > 0)
-                    {
-                        rank += emptyCount.ToString();
-                        emptyCount = 0;
-                    }
-
-                    rank += piece;
-                }
-                else
-                {
-                    emptyCount++;
-                }
-            }
-
-            if (emptyCount > 0)
-            {
-                rank += emptyCount.ToString();
-            }
-
-            ranks.Add(rank);
-        }
-
-        return string.Join("/", ranks);
-    }
-
-    private static bool IsWhitePiece(char piece) => char.IsUpper(piece);
-    private static bool IsBlackPiece(char piece) => char.IsLower(piece);
-
-    private static string BuildUpdatedFen(string currentFen, Dictionary<string, char> board, PieceColor nextTurn)
-    {
-        var parts = currentFen.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        var boardPart = BuildBoardFen(board);
-        var activeColor = nextTurn == PieceColor.White ? "w" : "b";
-
-        var castling = parts.Length > 2 ? parts[2] : "KQkq";
-        var enPassant = parts.Length > 3 ? parts[3] : "-";
-        var halfmove = parts.Length > 4 ? parts[4] : "0";
-        var fullmove = parts.Length > 5 ? parts[5] : "1";
-
-        return $"{boardPart} {activeColor} {castling} {enPassant} {halfmove} {fullmove}";
     }
 }

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 
-namespace SuperChess.Api.Hubs;
+namespace SuperChess.Api.Realtime;
 
 public class GameHub : Hub
 {

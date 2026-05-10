@@ -14,15 +14,17 @@ import {
 import type { GameResponse } from "@/types/games";
 
 import { getGame, joinGame, makeMove } from "@/lib/api/games";
-import { getBoardPositionFromGameState } from "@/utils/board/position";
+import { createGameHubConnection } from "@/lib/realtime/gameHub";
 import {
   getGameSession,
   saveGameSession,
   type LocalGameSession,
 } from "@/lib/storage/gameSession";
-import { createGameHubConnection } from "@/lib/realtime/gameHub";
+import { getBoardPositionFromGameState } from "@/utils/board/position";
 
 import { ChessBoard } from "@/features/game/components/ChessBoard";
+import { useGameSession } from "@/features/game/hooks/useGameSession";
+
 import { Navbar } from "@/components/layout/Navbar";
 import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
 
@@ -37,7 +39,7 @@ export default function GameDetailsPage() {
   const [isMakingMove, setIsMakingMove] = useState(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [localSession, setLocalSession] = useState<LocalGameSession | null>(null);
+  const { session: localSession, saveSession } = useGameSession(gameId);
   const [error, setError] = useState<string | null>(null);
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
@@ -76,19 +78,6 @@ export default function GameDetailsPage() {
 
     return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
   }, [boardPosition, selectedSquare, selectedPiece, localSession]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setLocalSession(gameId ? getGameSession(gameId) : null);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [gameId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,8 +236,7 @@ export default function GameDetailsPage() {
         playerName: trimmedName,
       };
 
-      saveGameSession(session);
-      setLocalSession(session);
+      saveSession(session);
 
       setGame(result.game);
       setJoinName("");

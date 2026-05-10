@@ -1,4 +1,4 @@
-import type { PieceColor, PieceType } from "@/types/games";
+import type { PieceColor, PieceType } from "@/types/game";
 
 export type BoardPiece = {
   type: PieceType;

@@ -1,6 +1,6 @@
 import type { BoardPosition, BoardPiece } from "./position";
 import { getBoardPositionFromGameState } from "./position";
-import type { PieceColor, GameStatus } from "@/types/games";
+import type { PieceColor, GameStatus } from "@/types/game";
 
 export type LastMove = {
   from: string;

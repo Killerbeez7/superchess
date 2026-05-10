@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { GameResponse, GameSessionResponse } from "@/types/games";
+import type { GameResponse, GameSessionResponse } from "@/types/game";
 
 export type MakeMoveRequest = {
   from: string;

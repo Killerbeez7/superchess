@@ -11,18 +11,15 @@ import {
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
 
-import type { GameResponse } from "@/types/games";
+import type { GameResponse } from "@/types/game";
 
-import { getGame, joinGame, makeMove } from "@/lib/api/games";
+import { joinGame, makeMove } from "@/lib/api/games";
 import { createGameHubConnection } from "@/lib/realtime/gameHub";
-import {
-  getGameSession,
-  saveGameSession,
-  type LocalGameSession,
-} from "@/lib/storage/gameSession";
+import type { LocalGameSession } from "@/lib/storage/gameSession";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 
 import { ChessBoard } from "@/features/game/components/ChessBoard";
+import { useGame } from "@/features/game/hooks/useGame";
 import { useGameSession } from "@/features/game/hooks/useGameSession";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -33,14 +30,19 @@ export default function GameDetailsPage() {
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [joinName, setJoinName] = useState("");
-  const [game, setGame] = useState<GameResponse | null>(null);
-  const [isLoadingGame, setIsLoadingGame] = useState(true);
   const [isJoiningGame, setIsJoiningGame] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const { session: localSession, saveSession } = useGameSession(gameId);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    game,
+    setGame,
+    isLoading: isLoadingGame,
+    error,
+    setError,
+    refresh: handleRefreshGame,
+  } = useGame(gameId);
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
   const activeColor = game?.whoseTurn === "black" ? "black" : "white";
@@ -78,41 +80,6 @@ export default function GameDetailsPage() {
 
     return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
   }, [boardPosition, selectedSquare, selectedPiece, localSession]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchGame() {
-      if (!gameId) {
-        setError("Missing game id.");
-        setIsLoadingGame(false);
-        return;
-      }
-
-      try {
-        setError(null);
-        const data = await getGame(gameId);
-
-        if (!cancelled) {
-          setGame(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load game.");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingGame(false);
-        }
-      }
-    }
-
-    void fetchGame();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [gameId]);
 
   useEffect(() => {
     if (!gameId) return;
@@ -188,24 +155,7 @@ export default function GameDetailsPage() {
 
       void cleanup();
     };
-  }, [gameId]);
-
-  async function handleRefreshGame() {
-    if (!gameId) return;
-
-    try {
-      setError(null);
-      setIsLoadingGame(true);
-
-      const data = await getGame(gameId);
-      setGame(data);
-      setSelectedSquare(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load game.");
-    } finally {
-      setIsLoadingGame(false);
-    }
-  }
+  }, [gameId, setGame]);
 
   async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();

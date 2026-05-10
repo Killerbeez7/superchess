@@ -22,7 +22,7 @@ import {
 } from "@/lib/storage/gameSession";
 import { createGameHubConnection } from "@/lib/realtime/gameHub";
 
-import { ChessBoardPlaceholder } from "@/components/game/ChessBoardPlaceholder";
+import { ChessBoard } from "@/features/game/components/ChessBoard";
 import { Navbar } from "@/components/layout/Navbar";
 import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
 
@@ -328,7 +328,7 @@ export default function GameDetailsPage() {
                 <LoadingSpinner />
               </section>
             ) : game ? (
-              <ChessBoardPlaceholder
+              <ChessBoard
                 variant="app"
                 position={boardPosition}
                 interactive={canInteractWithBoard}

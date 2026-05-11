@@ -212,3 +212,91 @@ export function inferLastMoveFromFens(previousFen?: string, nextFen?: string): L
 
   return { from, to };
 }
+
+export function applyOptimisticMoveToFen(
+  currentFen: string,
+  from: string,
+  to: string
+): string {
+  try {
+    const parts = currentFen.trim().split(/\s+/);
+    const boardFen = parts[0];
+
+    if (!boardFen) return currentFen;
+
+    const board = expandFenBoard(boardFen);
+    const fromCoords = squareToCoords(from.trim().toLowerCase());
+    const toCoords = squareToCoords(to.trim().toLowerCase());
+
+    if (!isInsideBoard(fromCoords.row, fromCoords.col)) return currentFen;
+    if (!isInsideBoard(toCoords.row, toCoords.col)) return currentFen;
+
+    const piece = board[fromCoords.row][fromCoords.col];
+    if (!piece) return currentFen;
+
+    board[fromCoords.row][fromCoords.col] = null;
+    board[toCoords.row][toCoords.col] = piece;
+
+    const nextParts = [...parts];
+    nextParts[0] = compressFenBoard(board);
+
+    if (nextParts[1] === "w") {
+      nextParts[1] = "b";
+    } else if (nextParts[1] === "b") {
+      nextParts[1] = "w";
+    }
+
+    return nextParts.join(" ");
+  } catch (error) {
+    console.warn("Failed to apply optimistic move.", error);
+    return currentFen;
+  }
+}
+
+function expandFenBoard(boardFen: string): (string | null)[][] {
+  return boardFen.split("/").map((rank) => {
+    const row: (string | null)[] = [];
+
+    for (const char of rank) {
+      const emptySquares = Number(char);
+
+      if (!Number.isNaN(emptySquares) && emptySquares > 0) {
+        row.push(...Array<string | null>(emptySquares).fill(null));
+        continue;
+      }
+
+      row.push(char);
+    }
+
+    return row;
+  });
+}
+
+function compressFenBoard(board: (string | null)[][]) {
+  return board
+    .map((row) => {
+      let emptySquares = 0;
+      let rank = "";
+
+      for (const piece of row) {
+        if (!piece) {
+          emptySquares += 1;
+          continue;
+        }
+
+        if (emptySquares > 0) {
+          rank += emptySquares;
+          emptySquares = 0;
+        }
+
+        rank += piece;
+      }
+
+      return emptySquares > 0 ? `${rank}${emptySquares}` : rank;
+    })
+    .join("/");
+}
+
+function isInsideBoard(row: number, col: number) {
+  return row >= 0 && row <= 7 && col >= 0 && col <= 7;
+}

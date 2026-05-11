@@ -2,18 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import type { SubmitEvent } from "react";
-
+import { useEffect, useMemo, useState, type SubmitEvent } from "react";
 import {
+  applyOptimisticMoveToFen,
   getCandidateSquares,
   getPieceAtSquare,
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
-
-import type { GameResponse } from "@/api/games";
-
-import { getGame, joinGame, makeMove } from "@/api/games";
+import { getGame, joinGame, makeMove, type GameResponse } from "@/api/games";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import {
   getGameSession,
@@ -21,7 +17,6 @@ import {
   type LocalGameSession,
 } from "@/utils/gameSession";
 import { createGameHubConnection } from "@/realtime/gameHub";
-
 import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
 import { Navbar } from "@components/layout/Navbar";
 import { LoadingSpinner } from "@components/layout/LoadingSpinner";
@@ -39,14 +34,18 @@ export default function GameDetailsPage() {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [localSession, setLocalSession] = useState<LocalGameSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [optimisticFen, setOptimisticFen] = useState<string | null>(null);
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
   const activeColor = game?.whoseTurn === "black" ? "black" : "white";
   const whitePlayerName = game?.whitePlayer.displayName ?? "White player";
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
   const roomCode = game?.id ?? gameId ?? "";
-  const boardPosition = getBoardPositionFromGameState(game?.currentFen);
+
   const latestMove = game?.moves?.length ? game.moves[game.moves.length - 1] : null;
+
+  const displayedFen = optimisticFen ?? game?.currentFen;
+  const boardPosition = getBoardPositionFromGameState(displayedFen);
 
   const isLocalPlayersTurn =
     !!localSession &&
@@ -106,6 +105,7 @@ export default function GameDetailsPage() {
 
         if (!cancelled) {
           setGame(data);
+          setOptimisticFen(null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -137,12 +137,14 @@ export default function GameDetailsPage() {
     connection.on("PlayerJoined", (updatedGame: GameResponse) => {
       if (!disposed) {
         setGame(updatedGame);
+        setOptimisticFen(null);
       }
     });
 
     connection.on("MovePlayed", (updatedGame: GameResponse) => {
       if (!disposed) {
         setGame(updatedGame);
+        setOptimisticFen(null);
         setSelectedSquare(null);
       }
     });
@@ -210,6 +212,7 @@ export default function GameDetailsPage() {
 
       const data = await getGame(gameId);
       setGame(data);
+      setOptimisticFen(null);
       setSelectedSquare(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load game.");
@@ -252,6 +255,7 @@ export default function GameDetailsPage() {
 
       setGame(result.game);
       setJoinName("");
+      setOptimisticFen(null);
       setSelectedSquare(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game.");
@@ -298,6 +302,15 @@ export default function GameDetailsPage() {
       const moveFrom = selectedSquare;
       const moveTo = square;
 
+      const optimisticNextFen = applyOptimisticMoveToFen(
+        game.currentFen,
+        moveFrom,
+        moveTo
+      );
+
+      setOptimisticFen(optimisticNextFen);
+      setSelectedSquare(null);
+
       const updatedGame = await makeMove(gameId, {
         from: moveFrom,
         to: moveTo,
@@ -306,10 +319,10 @@ export default function GameDetailsPage() {
       });
 
       setGame(updatedGame);
-
-      setSelectedSquare(null);
+      setOptimisticFen(null);
     } catch {
       // setError(err instanceof Error ? err.message : "Failed to make move.");
+      setOptimisticFen(null);
       setSelectedSquare(null);
     } finally {
       setIsMakingMove(false);

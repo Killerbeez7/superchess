@@ -1,5 +1,6 @@
 import type { BoardPosition, BoardPiece } from "./position";
 import { getBoardPositionFromGameState } from "./position";
+import type { PieceColor, GameStatus } from "@/types/game";
 
 export type LastMove = {
   from: string;
@@ -14,7 +15,7 @@ export function getPieceAtSquare(
   return position[square] ?? null;
 }
 
-export function pieceBelongsToColor(piece: BoardPiece, color: "white" | "black") {
+export function pieceBelongsToColor(piece: BoardPiece, color: PieceColor) {
   return piece.color === color;
 }
 

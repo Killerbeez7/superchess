@@ -2,19 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SubmitEvent } from "react";
-import type { HubConnection } from "@microsoft/signalr";
 
-import { Navbar } from "@components/layout/Navbar";
-import { createGame, getGames, joinGame, type GameResponse } from "@/api/games";
-import { createGameHubConnection } from "@/realtime/gameHub";
-import { getGameSession, saveGameSession } from "@/utils/gameSession";
-import { LoadingSpinner } from "@components/layout/LoadingSpinner";
+import { Navbar } from "@/components/layout/Navbar";
+import { createGame, getGames, joinGame } from "@/lib/api/games";
+import type { GameResponse } from "@/types/game";
+import { getGameSession, saveGameSession } from "@/lib/storage/gameSession";
+import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
+import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 
 export default function PlayPage() {
   const router = useRouter();
-  const connectionRef = useRef<HubConnection | null>(null);
 
   const [createName, setCreateName] = useState("");
   const [joinGameId, setJoinGameId] = useState("");
@@ -24,8 +23,11 @@ export default function PlayPage() {
   const [isLoadingGames, setIsLoadingGames] = useState(true);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [isJoiningGame, setIsJoiningGame] = useState(false);
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+  const { isConnected: isRealtimeConnected } = useGameRealtime({
+    onOpenGamesChanged: setGames,
+  });
 
   const waitingGames = useMemo(
     () => games.filter((game) => game.status === "waiting"),
@@ -58,61 +60,6 @@ export default function PlayPage() {
 
     return () => {
       cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    const connection = createGameHubConnection();
-    connectionRef.current = connection;
-
-    let disposed = false;
-    let started = false;
-
-    connection.on("OpenGamesChanged", (updatedGames: GameResponse[]) => {
-      if (!disposed) {
-        setGames(updatedGames);
-      }
-    });
-
-    async function startConnection() {
-      try {
-        await connection.start();
-        started = true;
-
-        if (!disposed) {
-          setIsRealtimeConnected(true);
-          return;
-        }
-
-        await connection.stop();
-      } catch (err) {
-        if (!disposed) {
-          console.error("Lobby SignalR connection failed:", err);
-          setIsRealtimeConnected(false);
-        }
-      }
-    }
-
-    void startConnection();
-
-    return () => {
-      disposed = true;
-
-      async function cleanup() {
-        try {
-          connection.off("OpenGamesChanged");
-
-          if (started && connection.state !== "Disconnected") {
-            await connection.stop();
-          }
-        } catch (err) {
-          console.error("Lobby SignalR cleanup failed:", err);
-        } finally {
-          setIsRealtimeConnected(false);
-        }
-      }
-
-      void cleanup();
     };
   }, []);
 

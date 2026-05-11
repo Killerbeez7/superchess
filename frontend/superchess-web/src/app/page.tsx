@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Navbar } from "@components/layout/Navbar";
+import { Navbar } from "@/components/layout/Navbar";
 import { createStartPosition } from "@/utils/board/position";
-import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
+import { ChessBoard } from "@/features/game/components/ChessBoard";
 
 export default function HomePage() {
   return (
@@ -34,14 +34,14 @@ export default function HomePage() {
               </Link>
 
               <a
-                href="#about"
+                href="/about"
                 className="rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
               >
                 Learn More
               </a>
             </div>
           </div>
-          <ChessBoardPlaceholder variant="hero" position={createStartPosition()} />
+          <ChessBoard variant="hero" position={createStartPosition()} />
         </div>
       </section>
     </main>

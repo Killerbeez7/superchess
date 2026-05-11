@@ -1,5 +1,4 @@
-export type PieceType = "pawn" | "rook" | "knight" | "bishop" | "queen" | "king";
-export type PieceColor = "white" | "black";
+import type { PieceColor, PieceType } from "@/types/game";
 
 export type BoardPiece = {
   type: PieceType;

@@ -4,7 +4,7 @@ import Image from "next/image";
 
 import type { BoardPiece, BoardPosition } from "@/utils/board/position";
 
-type ChessBoardPlaceholderProps = {
+type ChessBoardProps = {
   variant?: "hero" | "app";
   position?: BoardPosition;
   interactive?: boolean;
@@ -28,7 +28,7 @@ function getSquareKey(row: number, col: number) {
   return `${file}${rank}`;
 }
 
-export function ChessBoardPlaceholder({
+export function ChessBoard({
   variant = "app",
   position,
   interactive = false,
@@ -37,7 +37,7 @@ export function ChessBoardPlaceholder({
   lastMoveFrom = null,
   lastMoveTo = null,
   onSquareClick,
-}: ChessBoardPlaceholderProps) {
+}: ChessBoardProps) {
   const isHero = variant === "hero";
 
   return (

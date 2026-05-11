@@ -1,354 +1,97 @@
 "use client";
 
-import Link from "next/link";
+import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState, type SubmitEvent } from "react";
-import {
-  applyOptimisticMoveToFen,
-  getCandidateSquares,
-  getPieceAtSquare,
-  pieceBelongsToColor,
-} from "@/utils/board/interactions";
-import { getGame, joinGame, makeMove, type GameResponse } from "@/api/games";
-import { getBoardPositionFromGameState } from "@/utils/board/position";
-import {
-  getGameSession,
-  saveGameSession,
-  type LocalGameSession,
-} from "@/utils/gameSession";
-import { createGameHubConnection } from "@/realtime/gameHub";
-import { ChessBoardPlaceholder } from "@components/game/ChessBoardPlaceholder";
-import { Navbar } from "@components/layout/Navbar";
-import { LoadingSpinner } from "@components/layout/LoadingSpinner";
+import { Navbar } from "@/components/layout/Navbar";
+import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
+import { ChessBoard } from "@/features/game/components/ChessBoard";
+import { GameSidebar } from "@/features/game/components/GameSidebar";
+import { useGame } from "@/features/game/hooks/useGame";
+import { useGameSession } from "@/features/game/hooks/useGameSession";
+import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
+import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
+import { useGameActions } from "@/features/game/hooks/useGameActions";
+import type { GameResponse } from "@/types/game";
 
 export default function GameDetailsPage() {
   const params = useParams();
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
-
-  const [joinName, setJoinName] = useState("");
-  const [game, setGame] = useState<GameResponse | null>(null);
-  const [isLoadingGame, setIsLoadingGame] = useState(true);
-  const [isJoiningGame, setIsJoiningGame] = useState(false);
-  const [isMakingMove, setIsMakingMove] = useState(false);
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
-  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [localSession, setLocalSession] = useState<LocalGameSession | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [optimisticFen, setOptimisticFen] = useState<string | null>(null);
 
-  const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
-  const activeColor = game?.whoseTurn === "black" ? "black" : "white";
-  const whitePlayerName = game?.whitePlayer.displayName ?? "White player";
-  const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
-  const roomCode = game?.id ?? gameId ?? "";
-
-  const latestMove = game?.moves?.length ? game.moves[game.moves.length - 1] : null;
-
+  const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
+  const { session, saveSession } = useGameSession(gameId);
   const displayedFen = optimisticFen ?? game?.currentFen;
-  const boardPosition = getBoardPositionFromGameState(displayedFen);
+  const {
+    selectedSquare,
+    setSelectedSquare,
+    boardPosition,
+    candidateSquares,
+    lastMoveFrom,
+    lastMoveTo,
+  } = useBoardSelection(game, session, displayedFen);
 
-  const isLocalPlayersTurn =
-    !!localSession &&
-    ((localSession.color === "white" && game?.whoseTurn === "white") ||
-      (localSession.color === "black" && game?.whoseTurn === "black"));
+  const handlePlayerJoined = useCallback(
+    (updated: GameResponse) => {
+      setGame(updated);
+      setOptimisticFen(null);
+    },
+    [setGame]
+  );
 
-  const isSameBrowserWhitePlayer =
-    !!localSession && localSession.color === "white" && canJoinAsBlack;
+  const handleMovePlayed = useCallback(
+    (updated: GameResponse) => {
+      setGame(updated);
+      setOptimisticFen(null);
+      setSelectedSquare(null);
+    },
+    [setGame, setSelectedSquare]
+  );
 
-  const canInteractWithBoard =
-    !!game &&
-    !!localSession &&
-    game.status === "active" &&
-    isLocalPlayersTurn &&
-    !isMakingMove;
+  const { isConnected } = useGameRealtime({
+    gameId,
+    onPlayerJoined: handlePlayerJoined,
+    onMovePlayed: handleMovePlayed,
+  });
 
-  const selectedPiece = selectedSquare
-    ? getPieceAtSquare(boardPosition, selectedSquare)
-    : null;
-
-  const candidateSquares = useMemo(() => {
-    if (!selectedSquare || !selectedPiece || !localSession) return [];
-
-    if (!pieceBelongsToColor(selectedPiece, localSession.color)) {
-      return [];
-    }
-
-    return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
-  }, [boardPosition, selectedSquare, selectedPiece, localSession]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setLocalSession(gameId ? getGameSession(gameId) : null);
+  const { handleJoin, handleSquareClick, isJoining, canInteractWithBoard } =
+    useGameActions({
+      gameId,
+      game,
+      session,
+      saveSession,
+      setGame,
+      setError,
+      selectedSquare,
+      setSelectedSquare,
+      setOptimisticFen,
+      boardPosition,
     });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [gameId]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchGame() {
-      if (!gameId) {
-        setError("Missing game id.");
-        setIsLoadingGame(false);
-        return;
-      }
-
-      try {
-        setError(null);
-        const data = await getGame(gameId);
-
-        if (!cancelled) {
-          setGame(data);
-          setOptimisticFen(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load game.");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingGame(false);
-        }
-      }
-    }
-
-    void fetchGame();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [gameId]);
-
-  useEffect(() => {
-    if (!gameId) return;
-
-    const connection = createGameHubConnection();
-
-    let disposed = false;
-    let started = false;
-    let joinedRoom = false;
-
-    connection.on("PlayerJoined", (updatedGame: GameResponse) => {
-      if (!disposed) {
-        setGame(updatedGame);
-        setOptimisticFen(null);
-      }
-    });
-
-    connection.on("MovePlayed", (updatedGame: GameResponse) => {
-      if (!disposed) {
-        setGame(updatedGame);
-        setOptimisticFen(null);
-        setSelectedSquare(null);
-      }
-    });
-
-    async function startConnection() {
-      try {
-        await connection.start();
-        started = true;
-
-        if (disposed) {
-          await connection.stop();
-          return;
-        }
-
-        await connection.invoke("JoinGameRoom", gameId);
-        joinedRoom = true;
-
-        if (!disposed) {
-          setIsRealtimeConnected(true);
-        }
-      } catch (err) {
-        if (!disposed) {
-          console.error("SignalR connection failed:", err);
-          setIsRealtimeConnected(false);
-        }
-      }
-    }
-
-    void startConnection();
-
-    return () => {
-      disposed = true;
-
-      async function cleanup() {
-        try {
-          connection.off("PlayerJoined");
-          connection.off("MovePlayed");
-
-          if (joinedRoom && connection.state === "Connected") {
-            try {
-              await connection.invoke("LeaveGameRoom", gameId);
-            } catch {}
-          }
-
-          if (started && connection.state !== "Disconnected") {
-            await connection.stop();
-          }
-        } catch (err) {
-          console.error("SignalR cleanup failed:", err);
-        } finally {
-          setIsRealtimeConnected(false);
-        }
-      }
-
-      void cleanup();
-    };
-  }, [gameId]);
-
-  async function handleRefreshGame() {
-    if (!gameId) return;
-
-    try {
-      setError(null);
-      setIsLoadingGame(true);
-
-      const data = await getGame(gameId);
-      setGame(data);
-      setOptimisticFen(null);
-      setSelectedSquare(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load game.");
-    } finally {
-      setIsLoadingGame(false);
-    }
-  }
-
-  async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!gameId) {
-      setError("Missing game id.");
-      return;
-    }
-
-    const trimmedName = joinName.trim();
-
-    if (!trimmedName) {
-      setError("Player name is required.");
-      return;
-    }
-
-    try {
-      setError(null);
-      setIsJoiningGame(true);
-
-      const result = await joinGame(gameId, trimmedName, localSession?.sessionToken);
-
-      const session: LocalGameSession = {
-        gameId: result.game.id,
-        playerId: result.session.playerId,
-        sessionToken: result.session.sessionToken,
-        color: result.session.color,
-        playerName: trimmedName,
-      };
-
-      saveGameSession(session);
-      setLocalSession(session);
-
-      setGame(result.game);
-      setJoinName("");
-      setOptimisticFen(null);
-      setSelectedSquare(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join game.");
-    } finally {
-      setIsJoiningGame(false);
-    }
-  }
-
-  async function handleSquareClick(square: string) {
-    if (!gameId || !game || !localSession) return;
-
-    if (!canInteractWithBoard) {
-      return;
-    }
-
-    setError(null);
-
-    const clickedPiece = getPieceAtSquare(boardPosition, square);
-
-    if (!selectedSquare) {
-      if (!clickedPiece) return;
-
-      if (!pieceBelongsToColor(clickedPiece, localSession.color)) {
-        return;
-      }
-
-      setSelectedSquare(square);
-      return;
-    }
-
-    if (square === selectedSquare) {
-      setSelectedSquare(null);
-      return;
-    }
-
-    if (clickedPiece && pieceBelongsToColor(clickedPiece, localSession.color)) {
-      setSelectedSquare(square);
-      return;
-    }
-
-    try {
-      setIsMakingMove(true);
-
-      const moveFrom = selectedSquare;
-      const moveTo = square;
-
-      const optimisticNextFen = applyOptimisticMoveToFen(
-        game.currentFen,
-        moveFrom,
-        moveTo
-      );
-
-      setOptimisticFen(optimisticNextFen);
-      setSelectedSquare(null);
-
-      const updatedGame = await makeMove(gameId, {
-        from: moveFrom,
-        to: moveTo,
-        playerId: localSession.playerId,
-        sessionToken: localSession.sessionToken,
-      });
-
-      setGame(updatedGame);
-      setOptimisticFen(null);
-    } catch {
-      // setError(err instanceof Error ? err.message : "Failed to make move.");
-      setOptimisticFen(null);
-      setSelectedSquare(null);
-    } finally {
-      setIsMakingMove(false);
-    }
-  }
+  const handleRefresh = useCallback(async () => {
+    await refresh();
+    setOptimisticFen(null);
+    setSelectedSquare(null);
+  }, [refresh, setSelectedSquare]);
 
   return (
     <main className="min-h-dvh bg-slate-950/97 text-white">
       <Navbar />
-
       <section className="min-h-[calc(100dvh-4.5rem)]">
         <div className="mx-auto grid min-h-[calc(100dvh-6rem)] max-w-7xl gap-6 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8 lg:py-6">
           <div className="space-y-5">
-            {isLoadingGame ? (
+            {isLoading ? (
               <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
                 <LoadingSpinner />
               </section>
             ) : game ? (
-              <ChessBoardPlaceholder
+              <ChessBoard
                 variant="app"
                 position={boardPosition}
                 interactive={canInteractWithBoard}
                 selectedSquare={selectedSquare}
                 candidateSquares={candidateSquares}
-                lastMoveFrom={latestMove?.from ?? null}
-                lastMoveTo={latestMove?.to ?? null}
+                lastMoveFrom={lastMoveFrom}
+                lastMoveTo={lastMoveTo}
                 onSquareClick={handleSquareClick}
               />
             ) : (
@@ -364,224 +107,17 @@ export default function GameDetailsPage() {
             )}
           </div>
 
-          <aside className="lg:h-[calc(100dvh-8rem)]">
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur lg:flex lg:h-full lg:flex-col lg:overflow-hidden">
-              <div className="flex items-start justify-between gap-4">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    isRealtimeConnected
-                      ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                      : "border border-amber-500/20 bg-amber-500/10 text-amber-300"
-                  }`}
-                >
-                  {isRealtimeConnected ? "Live" : "Offline"}
-                </span>
-              </div>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/70 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
-                  Room code
-                </p>
-                <p className="mt-1.5 break-all font-mono text-[13px] text-slate-400">
-                  {roomCode}
-                </p>
-              </div>
-
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <div className="mb-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Players
-                  </p>
-                </div>
-
-                {isLoadingGame ? (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/70 p-6">
-                    <LoadingSpinner />
-                  </div>
-                ) : game ? (
-                  <div className="grid gap-3">
-                    <PlayerPanel
-                      color="white"
-                      name={whitePlayerName}
-                      detail="White"
-                      isActive={activeColor === "white"}
-                    />
-                    <PlayerPanel
-                      color="black"
-                      name={blackPlayerName}
-                      detail={game.blackPlayer ? "Black" : "Open seat"}
-                      isActive={activeColor === "black"}
-                    />
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-300">
-                    No table data available.
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 border-t border-white/10 pt-4">
-                {!localSession ? (
-                  <>
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Room
-                      </p>
-
-                      {canJoinAsBlack && (
-                        <h3 className="mt-1 text-sm font-semibold text-white">
-                          Take the black side
-                        </h3>
-                      )}
-
-                      <p className="mt-2 text-sm leading-7 text-slate-300">
-                        {canJoinAsBlack
-                          ? "Enter your name to sit across from white."
-                          : game?.blackPlayer
-                          ? "Both players are seated."
-                          : "Waiting for an opponent."}
-                      </p>
-                    </div>
-
-                    {canJoinAsBlack && !isSameBrowserWhitePlayer && (
-                      <form onSubmit={handleJoinGame} className="space-y-4">
-                        <div>
-                          <label
-                            htmlFor="joinName"
-                            className="mb-2 block text-sm font-medium text-slate-200"
-                          >
-                            Player name
-                          </label>
-                          <input
-                            id="joinName"
-                            type="text"
-                            value={joinName}
-                            onChange={(e) => setJoinName(e.target.value)}
-                            placeholder="Enter your name"
-                            className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={isJoiningGame}
-                          className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isJoiningGame ? "Joining..." : "Join as black"}
-                        </button>
-                      </form>
-                    )}
-
-                    {canJoinAsBlack && isSameBrowserWhitePlayer && (
-                      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">
-                        This browser session already owns the white seat, so joining as
-                        black is blocked here too.
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div className="mb-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Moves
-                      </p>
-                      <h3 className="mt-1 text-sm font-semibold text-white">History</h3>
-                    </div>
-
-                    {game?.moves?.length ? (
-                      <div className="space-y-2">
-                        {game.moves.map((move) => (
-                          <div
-                            key={move.moveNumber}
-                            className="flex items-center justify-between rounded-xl border border-white/10 bg-slate-950/75 px-3 py-2 text-sm"
-                          >
-                            <span className="min-w-8 text-xs text-slate-500">
-                              {move.moveNumber}.
-                            </span>
-                            <span className="flex-1 text-slate-200">
-                              {move.playerColor === "white" ? "W" : "B"} {move.from} →{" "}
-                              {move.to}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/60 p-3.5 text-[13px] text-slate-500">
-                        No moves yet.
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <div className="grid gap-3">
-                  <button
-                    type="button"
-                    onClick={handleRefreshGame}
-                    className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/5"
-                  >
-                    Refresh room
-                  </button>
-
-                  <Link
-                    href="/play"
-                    className="rounded-full border border-white/15 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/5"
-                  >
-                    Browse rooms
-                  </Link>
-                </div>
-              </div>
-            </section>
-          </aside>
+          <GameSidebar
+            game={game}
+            session={session}
+            isLoading={isLoading}
+            isConnected={isConnected}
+            isJoining={isJoining}
+            onJoin={handleJoin}
+            onRefresh={handleRefresh}
+          />
         </div>
       </section>
     </main>
-  );
-}
-
-function PlayerPanel({
-  color,
-  name,
-  detail,
-  isActive,
-}: {
-  color: "white" | "black";
-  name: string;
-  detail: string;
-  isActive: boolean;
-}) {
-  return (
-    <div
-      className={`flex items-center justify-between gap-4 rounded-2xl border px-4 py-3 ${
-        isActive
-          ? "border-amber-300/30 bg-amber-300/8"
-          : "border-white/10 bg-slate-950/80"
-      }`}
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <span
-          className={`h-9 w-9 shrink-0 rounded-full border ${
-            color === "white"
-              ? "border-slate-300 bg-slate-100"
-              : "border-slate-700 bg-slate-950"
-          }`}
-        />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">{name}</p>
-          <p className="text-xs uppercase tracking-[0.14em] text-slate-500">{detail}</p>
-        </div>
-      </div>
-
-      <div className="shrink-0">
-        {isActive ? (
-          <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-200">
-            Turn
-          </span>
-        ) : (
-          <span className="text-xs font-medium text-slate-500">Waiting</span>
-        )}
-      </div>
-    </div>
   );
 }

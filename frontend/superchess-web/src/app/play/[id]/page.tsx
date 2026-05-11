@@ -3,20 +3,16 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useState } from "react";
-import type { SubmitEvent } from "react";
-
-import { getPieceAtSquare, pieceBelongsToColor } from "@/utils/board/interactions";
+import { SubmitEvent } from "react";
 
 import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
 import type { GameResponse } from "@/types/game";
-
-import { joinGame, makeMove } from "@/lib/api/games";
-import type { LocalGameSession } from "@/lib/storage/gameSession";
 
 import { ChessBoard } from "@/features/game/components/ChessBoard";
 import { useGame } from "@/features/game/hooks/useGame";
 import { useGameSession } from "@/features/game/hooks/useGameSession";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
+import { useGameActions } from "@/features/game/hooks/useGameActions";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
@@ -26,8 +22,6 @@ export default function GameDetailsPage() {
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [joinName, setJoinName] = useState("");
-  const [isJoiningGame, setIsJoiningGame] = useState(false);
-  const [isMakingMove, setIsMakingMove] = useState(false);
 
   const { session: localSession, saveSession } = useGameSession(gameId);
   const {
@@ -48,6 +42,23 @@ export default function GameDetailsPage() {
     lastMoveTo,
   } = useBoardSelection(game, localSession);
 
+  const {
+    handleJoin,
+    handleSquareClick,
+    isJoining: isJoiningGame,
+    canInteractWithBoard,
+  } = useGameActions({
+    gameId,
+    game,
+    session: localSession,
+    saveSession,
+    setGame,
+    setError,
+    selectedSquare,
+    setSelectedSquare,
+    boardPosition,
+  });
+
   const handleMovePlayed = useCallback(
     (updatedGame: GameResponse) => {
       setGame(updatedGame);
@@ -67,116 +78,13 @@ export default function GameDetailsPage() {
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
   const roomCode = game?.id ?? gameId ?? "";
 
-  const isLocalPlayersTurn =
-    !!localSession &&
-    ((localSession.color === "white" && game?.whoseTurn === "white") ||
-      (localSession.color === "black" && game?.whoseTurn === "black"));
-
   const isSameBrowserWhitePlayer =
     !!localSession && localSession.color === "white" && canJoinAsBlack;
 
-  const canInteractWithBoard =
-    !!game &&
-    !!localSession &&
-    game.status === "active" &&
-    isLocalPlayersTurn &&
-    !isMakingMove;
-
-  async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
+  async function onSubmitJoin(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    if (!gameId) {
-      setError("Missing game id.");
-      return;
-    }
-
-    const trimmedName = joinName.trim();
-
-    if (!trimmedName) {
-      setError("Player name is required.");
-      return;
-    }
-
-    try {
-      setError(null);
-      setIsJoiningGame(true);
-
-      const result = await joinGame(gameId, trimmedName, localSession?.sessionToken);
-
-      const session: LocalGameSession = {
-        gameId: result.game.id,
-        playerId: result.session.playerId,
-        sessionToken: result.session.sessionToken,
-        color: result.session.color,
-        playerName: trimmedName,
-      };
-
-      saveSession(session);
-
-      setGame(result.game);
-      setJoinName("");
-      setSelectedSquare(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to join game.");
-    } finally {
-      setIsJoiningGame(false);
-    }
-  }
-
-  async function handleSquareClick(square: string) {
-    if (!gameId || !game || !localSession) return;
-
-    if (!canInteractWithBoard) {
-      return;
-    }
-
-    setError(null);
-
-    const clickedPiece = getPieceAtSquare(boardPosition, square);
-
-    if (!selectedSquare) {
-      if (!clickedPiece) return;
-
-      if (!pieceBelongsToColor(clickedPiece, localSession.color)) {
-        return;
-      }
-
-      setSelectedSquare(square);
-      return;
-    }
-
-    if (square === selectedSquare) {
-      setSelectedSquare(null);
-      return;
-    }
-
-    if (clickedPiece && pieceBelongsToColor(clickedPiece, localSession.color)) {
-      setSelectedSquare(square);
-      return;
-    }
-
-    try {
-      setIsMakingMove(true);
-
-      const moveFrom = selectedSquare;
-      const moveTo = square;
-
-      const updatedGame = await makeMove(gameId, {
-        from: moveFrom,
-        to: moveTo,
-        playerId: localSession.playerId,
-        sessionToken: localSession.sessionToken,
-      });
-
-      setGame(updatedGame);
-
-      setSelectedSquare(null);
-    } catch {
-      // setError(err instanceof Error ? err.message : "Failed to make move.");
-      setSelectedSquare(null);
-    } finally {
-      setIsMakingMove(false);
-    }
+    await handleJoin(joinName);
+    setJoinName("");
   }
 
   return (
@@ -294,7 +202,7 @@ export default function GameDetailsPage() {
                     </div>
 
                     {canJoinAsBlack && !isSameBrowserWhitePlayer && (
-                      <form onSubmit={handleJoinGame} className="space-y-4">
+                      <form onSubmit={onSubmitJoin} className="space-y-4">
                         <div>
                           <label
                             htmlFor="joinName"

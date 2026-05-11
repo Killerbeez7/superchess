@@ -67,9 +67,8 @@ app.MapHub<GameHub>("/gamehub");
 
 app.Run();
 
-// --- Helpers ---
-// Railway provides DATABASE_URL as: postgres://user:pass@host:port/db
-// Npgsql wants key=value form, so we convert if needed.
+return;
+
 static string NormalizePostgresUrl(string connectionString)
 {
     if (!connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&

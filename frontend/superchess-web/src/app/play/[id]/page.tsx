@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { SubmitEvent } from "react";
 
 import {
@@ -14,13 +14,13 @@ import {
 import type { GameResponse } from "@/types/game";
 
 import { joinGame, makeMove } from "@/lib/api/games";
-import { createGameHubConnection } from "@/lib/realtime/gameHub";
 import type { LocalGameSession } from "@/lib/storage/gameSession";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 
 import { ChessBoard } from "@/features/game/components/ChessBoard";
 import { useGame } from "@/features/game/hooks/useGame";
 import { useGameSession } from "@/features/game/hooks/useGameSession";
+import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
@@ -32,7 +32,7 @@ export default function GameDetailsPage() {
   const [joinName, setJoinName] = useState("");
   const [isJoiningGame, setIsJoiningGame] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const { session: localSession, saveSession } = useGameSession(gameId);
   const {
@@ -43,6 +43,19 @@ export default function GameDetailsPage() {
     setError,
     refresh: handleRefreshGame,
   } = useGame(gameId);
+
+  const handleMovePlayed = useCallback(
+    (updatedGame: GameResponse) => {
+      setGame(updatedGame);
+      setSelectedSquare(null);
+    },
+    [setGame]
+  );
+  const { isConnected: isRealtimeConnected } = useGameRealtime({
+    gameId,
+    onPlayerJoined: setGame,
+    onMovePlayed: handleMovePlayed,
+  });
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
   const activeColor = game?.whoseTurn === "black" ? "black" : "white";
@@ -80,82 +93,6 @@ export default function GameDetailsPage() {
 
     return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
   }, [boardPosition, selectedSquare, selectedPiece, localSession]);
-
-  useEffect(() => {
-    if (!gameId) return;
-
-    const connection = createGameHubConnection();
-
-    let disposed = false;
-    let started = false;
-    let joinedRoom = false;
-
-    connection.on("PlayerJoined", (updatedGame: GameResponse) => {
-      if (!disposed) {
-        setGame(updatedGame);
-      }
-    });
-
-    connection.on("MovePlayed", (updatedGame: GameResponse) => {
-      if (!disposed) {
-        setGame(updatedGame);
-        setSelectedSquare(null);
-      }
-    });
-
-    async function startConnection() {
-      try {
-        await connection.start();
-        started = true;
-
-        if (disposed) {
-          await connection.stop();
-          return;
-        }
-
-        await connection.invoke("JoinGameRoom", gameId);
-        joinedRoom = true;
-
-        if (!disposed) {
-          setIsRealtimeConnected(true);
-        }
-      } catch (err) {
-        if (!disposed) {
-          console.error("SignalR connection failed:", err);
-          setIsRealtimeConnected(false);
-        }
-      }
-    }
-
-    void startConnection();
-
-    return () => {
-      disposed = true;
-
-      async function cleanup() {
-        try {
-          connection.off("PlayerJoined");
-          connection.off("MovePlayed");
-
-          if (joinedRoom && connection.state === "Connected") {
-            try {
-              await connection.invoke("LeaveGameRoom", gameId);
-            } catch {}
-          }
-
-          if (started && connection.state !== "Disconnected") {
-            await connection.stop();
-          }
-        } catch (err) {
-          console.error("SignalR cleanup failed:", err);
-        } finally {
-          setIsRealtimeConnected(false);
-        }
-      }
-
-      void cleanup();
-    };
-  }, [gameId, setGame]);
 
   async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();

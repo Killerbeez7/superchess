@@ -11,6 +11,7 @@ import { useGameSession } from "@/features/game/hooks/useGameSession";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
 import { useGameActions } from "@/features/game/hooks/useGameActions";
+import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import type { GameResponse } from "@/types/game";
 
 export default function GameDetailsPage() {
@@ -20,6 +21,11 @@ export default function GameDetailsPage() {
 
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
+  const {
+    identity,
+    isReady: isIdentityReady,
+    setDisplayName,
+  } = usePlayerIdentity();
   const displayedFen = optimisticFen ?? game?.currentFen;
   const {
     selectedSquare,
@@ -67,6 +73,27 @@ export default function GameDetailsPage() {
       boardPosition,
     });
 
+  const handleSaveIdentity = useCallback(
+    (displayName: string) => {
+      try {
+        setError(null);
+        setDisplayName(displayName);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to save player name.");
+      }
+    },
+    [setDisplayName, setError]
+  );
+
+  const handleJoinWithIdentity = useCallback(async () => {
+    if (!identity) {
+      setError("Player name is required.");
+      return;
+    }
+
+    await handleJoin(identity.displayName);
+  }, [handleJoin, identity, setError]);
+
   const handleRefresh = useCallback(async () => {
     await refresh();
     setOptimisticFen(null);
@@ -113,7 +140,10 @@ export default function GameDetailsPage() {
             isLoading={isLoading}
             isConnected={isConnected}
             isJoining={isJoining}
-            onJoin={handleJoin}
+            identityName={identity?.displayName ?? null}
+            isIdentityReady={isIdentityReady}
+            onSaveIdentity={handleSaveIdentity}
+            onJoin={handleJoinWithIdentity}
             onRefresh={handleRefresh}
           />
         </div>

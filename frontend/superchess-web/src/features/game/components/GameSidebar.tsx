@@ -8,6 +8,7 @@ import { PlayerPanel } from "./PlayerPanel";
 import { JoinGameForm } from "./JoinGameForm";
 import { MoveHistory } from "./MoveHistory";
 import { RoomActions } from "./RoomActions";
+import { PlayerIdentitySetup } from "./PlayerIdentitySetup";
 
 type Props = {
   game: GameResponse | null;
@@ -15,7 +16,10 @@ type Props = {
   isLoading: boolean;
   isConnected: boolean;
   isJoining: boolean;
-  onJoin: (playerName: string) => Promise<void>;
+  identityName: string | null;
+  isIdentityReady: boolean;
+  onSaveIdentity: (displayName: string) => void;
+  onJoin: () => Promise<void>;
   onRefresh: () => void;
 };
 
@@ -25,6 +29,9 @@ export function GameSidebar({
   isLoading,
   isConnected,
   isJoining,
+  identityName,
+  isIdentityReady,
+  onSaveIdentity,
   onJoin,
   onRefresh,
 }: Props) {
@@ -50,6 +57,9 @@ export function GameSidebar({
               hasBlackPlayer={!!game?.blackPlayer}
               isSameBrowserWhite={isSameBrowserWhite}
               isJoining={isJoining}
+              identityName={identityName}
+              isIdentityReady={isIdentityReady}
+              onSaveIdentity={onSaveIdentity}
               onJoin={onJoin}
             />
           ) : (
@@ -125,13 +135,19 @@ function RoomJoinPanel({
   hasBlackPlayer,
   isSameBrowserWhite,
   isJoining,
+  identityName,
+  isIdentityReady,
+  onSaveIdentity,
   onJoin,
 }: {
   canJoinAsBlack: boolean;
   hasBlackPlayer: boolean;
   isSameBrowserWhite: boolean;
   isJoining: boolean;
-  onJoin: (name: string) => Promise<void>;
+  identityName: string | null;
+  isIdentityReady: boolean;
+  onSaveIdentity: (displayName: string) => void;
+  onJoin: () => Promise<void>;
 }) {
   return (
     <>
@@ -144,16 +160,30 @@ function RoomJoinPanel({
         )}
         <p className="mt-2 text-sm leading-7 text-slate-300">
           {canJoinAsBlack
-            ? "Enter your name to sit across from white."
+            ? identityName
+              ? `Ready to join as ${identityName}.`
+              : "Choose your player name to sit across from white."
             : hasBlackPlayer
             ? "Both players are seated."
             : "Waiting for an opponent."}
         </p>
       </div>
 
-      {canJoinAsBlack && !isSameBrowserWhite && (
-        <JoinGameForm isJoining={isJoining} onSubmit={onJoin} />
-      )}
+      {canJoinAsBlack &&
+        !isSameBrowserWhite &&
+        (!isIdentityReady ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/70 p-6">
+            <LoadingSpinner />
+          </div>
+        ) : identityName ? (
+          <JoinGameForm
+            isJoining={isJoining}
+            playerName={identityName}
+            onSubmit={onJoin}
+          />
+        ) : (
+          <PlayerIdentitySetup onSave={onSaveIdentity} />
+        ))}
 
       {canJoinAsBlack && isSameBrowserWhite && (
         <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-200">

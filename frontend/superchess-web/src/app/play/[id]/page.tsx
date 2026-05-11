@@ -2,20 +2,16 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import type { SubmitEvent } from "react";
 
-import {
-  getCandidateSquares,
-  getPieceAtSquare,
-  pieceBelongsToColor,
-} from "@/utils/board/interactions";
+import { getPieceAtSquare, pieceBelongsToColor } from "@/utils/board/interactions";
 
+import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
 import type { GameResponse } from "@/types/game";
 
 import { joinGame, makeMove } from "@/lib/api/games";
 import type { LocalGameSession } from "@/lib/storage/gameSession";
-import { getBoardPositionFromGameState } from "@/utils/board/position";
 
 import { ChessBoard } from "@/features/game/components/ChessBoard";
 import { useGame } from "@/features/game/hooks/useGame";
@@ -33,7 +29,6 @@ export default function GameDetailsPage() {
   const [isJoiningGame, setIsJoiningGame] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
 
-  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const { session: localSession, saveSession } = useGameSession(gameId);
   const {
     game,
@@ -44,12 +39,21 @@ export default function GameDetailsPage() {
     refresh: handleRefreshGame,
   } = useGame(gameId);
 
+  const {
+    selectedSquare,
+    setSelectedSquare,
+    boardPosition,
+    candidateSquares,
+    lastMoveFrom,
+    lastMoveTo,
+  } = useBoardSelection(game, localSession);
+
   const handleMovePlayed = useCallback(
     (updatedGame: GameResponse) => {
       setGame(updatedGame);
       setSelectedSquare(null);
     },
-    [setGame]
+    [setGame, setSelectedSquare]
   );
   const { isConnected: isRealtimeConnected } = useGameRealtime({
     gameId,
@@ -62,8 +66,6 @@ export default function GameDetailsPage() {
   const whitePlayerName = game?.whitePlayer.displayName ?? "White player";
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for black";
   const roomCode = game?.id ?? gameId ?? "";
-  const boardPosition = getBoardPositionFromGameState(game?.currentFen);
-  const latestMove = game?.moves?.length ? game.moves[game.moves.length - 1] : null;
 
   const isLocalPlayersTurn =
     !!localSession &&
@@ -79,20 +81,6 @@ export default function GameDetailsPage() {
     game.status === "active" &&
     isLocalPlayersTurn &&
     !isMakingMove;
-
-  const selectedPiece = selectedSquare
-    ? getPieceAtSquare(boardPosition, selectedSquare)
-    : null;
-
-  const candidateSquares = useMemo(() => {
-    if (!selectedSquare || !selectedPiece || !localSession) return [];
-
-    if (!pieceBelongsToColor(selectedPiece, localSession.color)) {
-      return [];
-    }
-
-    return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
-  }, [boardPosition, selectedSquare, selectedPiece, localSession]);
 
   async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -209,8 +197,8 @@ export default function GameDetailsPage() {
                 interactive={canInteractWithBoard}
                 selectedSquare={selectedSquare}
                 candidateSquares={candidateSquares}
-                lastMoveFrom={latestMove?.from ?? null}
-                lastMoveTo={latestMove?.to ?? null}
+                lastMoveFrom={lastMoveFrom}
+                lastMoveTo={lastMoveTo}
                 onSquareClick={handleSquareClick}
               />
             ) : (

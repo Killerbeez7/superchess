@@ -5,6 +5,7 @@ import { joinGame, makeMove } from "@/lib/api/games";
 import { ApiError } from "@/lib/api/client";
 import {
   applyOptimisticMoveToFen,
+  getCandidateSquares,
   getPieceAtSquare,
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
@@ -95,6 +96,75 @@ export function useGameActions({
     ]
   );
 
+  const handleMoveAttempt = useCallback(
+    async (from: string, to: string) => {
+      if (!gameId || !game || !session || !canInteractWithBoard) return;
+      if (from === to) {
+        setSelectedSquare(null);
+        return;
+      }
+
+      const movingPiece = getPieceAtSquare(boardPosition, from);
+      const targetPiece = getPieceAtSquare(boardPosition, to);
+
+      if (!movingPiece || !pieceBelongsToColor(movingPiece, session.color)) {
+        setSelectedSquare(null);
+        return;
+      }
+
+      if (targetPiece && pieceBelongsToColor(targetPiece, session.color)) {
+        setSelectedSquare(null);
+        return;
+      }
+
+      const candidateSquares = getCandidateSquares(boardPosition, from, movingPiece);
+      if (!candidateSquares.includes(to)) {
+        setSelectedSquare(null);
+        return;
+      }
+
+      try {
+        setError(null);
+        setIsMakingMove(true);
+
+        const optimisticNextFen = applyOptimisticMoveToFen(game.currentFen, from, to);
+
+        setOptimisticFen(optimisticNextFen);
+        setSelectedSquare(null);
+
+        const updatedGame = await makeMove(gameId, {
+          from,
+          to,
+          playerId: session.playerId,
+          sessionToken: session.sessionToken,
+        });
+
+        setGame(updatedGame);
+        setOptimisticFen(null);
+      } catch (err) {
+        setOptimisticFen(null);
+        setSelectedSquare(null);
+
+        if (!(err instanceof ApiError && err.kind === "validation")) {
+          setError(err instanceof Error ? err.message : "Failed to make move.");
+        }
+      } finally {
+        setIsMakingMove(false);
+      }
+    },
+    [
+      gameId,
+      game,
+      session,
+      canInteractWithBoard,
+      boardPosition,
+      setGame,
+      setError,
+      setOptimisticFen,
+      setSelectedSquare,
+    ]
+  );
+
   const handleSquareClick = useCallback(
     async (square: string) => {
       if (!gameId || !game || !session || !canInteractWithBoard) return;
@@ -119,36 +189,7 @@ export function useGameActions({
         return;
       }
 
-      try {
-        setIsMakingMove(true);
-        const optimisticNextFen = applyOptimisticMoveToFen(
-          game.currentFen,
-          selectedSquare,
-          square
-        );
-
-        setOptimisticFen(optimisticNextFen);
-        setSelectedSquare(null);
-
-        const updatedGame = await makeMove(gameId, {
-          from: selectedSquare,
-          to: square,
-          playerId: session.playerId,
-          sessionToken: session.sessionToken,
-        });
-
-        setGame(updatedGame);
-        setOptimisticFen(null);
-      } catch (err) {
-        setOptimisticFen(null);
-        setSelectedSquare(null);
-
-        if (!(err instanceof ApiError && err.kind === "validation")) {
-          setError(err instanceof Error ? err.message : "Failed to make move.");
-        }
-      } finally {
-        setIsMakingMove(false);
-      }
+      await handleMoveAttempt(selectedSquare, square);
     },
     [
       gameId,
@@ -157,16 +198,16 @@ export function useGameActions({
       canInteractWithBoard,
       boardPosition,
       selectedSquare,
-      setGame,
       setError,
-      setOptimisticFen,
       setSelectedSquare,
+      handleMoveAttempt,
     ]
   );
 
   return {
     handleJoin,
     handleSquareClick,
+    handleMoveAttempt,
     isJoining,
     isMakingMove,
     canInteractWithBoard,

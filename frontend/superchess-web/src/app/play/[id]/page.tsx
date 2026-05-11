@@ -61,7 +61,13 @@ export default function GameDetailsPage() {
     onMovePlayed: handleMovePlayed,
   });
 
-  const { handleJoin, handleSquareClick, isJoining, canInteractWithBoard } =
+  const {
+    handleJoin,
+    handleSquareClick,
+    handleMoveAttempt,
+    isJoining,
+    canInteractWithBoard,
+  } =
     useGameActions({
       gameId,
       game,
@@ -102,6 +108,17 @@ export default function GameDetailsPage() {
     setSelectedSquare(null);
   }, [refresh, setSelectedSquare]);
 
+  const handleSelectionClear = useCallback(() => {
+    setSelectedSquare(null);
+  }, [setSelectedSquare]);
+
+  const handleVisualSelect = useCallback(
+    (square: string) => {
+      setSelectedSquare(square);
+    },
+    [setSelectedSquare]
+  );
+
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
   const canTakeBlackSeat = canJoinAsBlack && !session;
   const isWhiteTurn = game?.status === "active" && game.whoseTurn === "white";
@@ -114,8 +131,8 @@ export default function GameDetailsPage() {
     <main className="min-h-dvh bg-slate-950/97 text-white">
       <Navbar />
       <section className="min-h-[calc(100dvh-4.5rem)]">
-        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] w-full max-w-6xl gap-5 px-4 py-3 sm:px-6 lg:grid-cols-[minmax(0,820px)_210px] lg:items-start lg:px-8 lg:py-4">
-          <div className="mx-auto w-full max-w-[min(92vw,78dvh,820px)] space-y-2 lg:mx-0">
+        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] w-full max-w-6xl gap-4 px-2 py-2 sm:px-6 lg:grid-cols-[minmax(0,820px)_210px] lg:items-start lg:gap-5 lg:px-8 lg:py-4">
+          <div className="mx-auto w-full max-w-[min(98vw,82dvh,820px)] space-y-1.5 sm:space-y-2 lg:mx-0 lg:max-w-[min(92vw,78dvh,820px)]">
             {isLoading ? (
               <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
                 <LoadingSpinner />
@@ -160,6 +177,11 @@ export default function GameDetailsPage() {
                   lastMoveFrom={lastMoveFrom}
                   lastMoveTo={lastMoveTo}
                   onSquareClick={handleSquareClick}
+                  onMoveAttempt={handleMoveAttempt}
+                  onSelectionClear={handleSelectionClear}
+                  onVisualSelect={handleVisualSelect}
+                  draggableColor={session?.color ?? null}
+                  allowPieceDrag={!!game}
                 />
 
                 <GamePlayerBar

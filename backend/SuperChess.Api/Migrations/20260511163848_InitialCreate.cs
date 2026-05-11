@@ -15,10 +15,10 @@ namespace SuperChess.Api.Migrations
                 name: "Players",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    DisplayName = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: false),
-                    SessionToken = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    DisplayName = table.Column<string>(type: "character varying(80)", maxLength: 80, nullable: false),
+                    SessionToken = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -29,14 +29,14 @@ namespace SuperChess.Api.Migrations
                 name: "Games",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    WhitePlayerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    BlackPlayerId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    CurrentFen = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    WhoseTurn = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    WhitePlayerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    BlackPlayerId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Status = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    CurrentFen = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    WhoseTurn = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -59,13 +59,13 @@ namespace SuperChess.Api.Migrations
                 name: "Moves",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    GameId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    MoveNumber = table.Column<int>(type: "int", nullable: false),
-                    Uci = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    San = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    PlayedByColor = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    GameId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MoveNumber = table.Column<int>(type: "integer", nullable: false),
+                    Uci = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    San = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    PlayedByColor = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {

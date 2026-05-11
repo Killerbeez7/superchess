@@ -45,7 +45,7 @@ export function ChessBoard({
       className={
         isHero
           ? "mx-auto w-full max-w-[560px]"
-          : "mx-auto w-full max-w-[min(82vw,78dvh,820px)]"
+          : "mx-auto w-full max-w-[min(92vw,78dvh,820px)]"
       }
     >
       <div

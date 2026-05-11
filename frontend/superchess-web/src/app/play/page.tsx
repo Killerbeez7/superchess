@@ -115,16 +115,7 @@ export default function PlayPage() {
     }
   }
 
-  async function handleJoinGame(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    const trimmedGameId = joinGameId.trim();
-
-    if (!trimmedGameId) {
-      setError("Game id is required.");
-      return;
-    }
-
+  async function joinExistingGame(gameIdToJoin: string) {
     if (!identity) {
       setError("Player name is required.");
       return;
@@ -134,10 +125,10 @@ export default function PlayPage() {
       setError(null);
       setIsJoiningGame(true);
 
-      const existingSession = getGameSession(trimmedGameId);
+      const existingSession = getGameSession(gameIdToJoin);
 
       const result = await joinGame(
-        trimmedGameId,
+        gameIdToJoin,
         identity.displayName,
         existingSession?.sessionToken
       );
@@ -157,6 +148,19 @@ export default function PlayPage() {
     } finally {
       setIsJoiningGame(false);
     }
+  }
+
+  async function handleJoinGame(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    const trimmedGameId = joinGameId.trim();
+
+    if (!trimmedGameId) {
+      setError("Game id is required.");
+      return;
+    }
+
+    await joinExistingGame(trimmedGameId);
   }
 
   return (
@@ -366,6 +370,15 @@ export default function PlayPage() {
                     </div>
 
                     <div className="mt-5 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => joinExistingGame(game.id)}
+                        disabled={isJoiningGame}
+                        className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isJoiningGame ? "Joining..." : "Join room"}
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => setJoinGameId(game.id)}

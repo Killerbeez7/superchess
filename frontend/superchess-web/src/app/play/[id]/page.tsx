@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
 import { ChessBoard } from "@/features/game/components/ChessBoard";
-import { GameSidebar } from "@/features/game/components/GameSidebar";
+import { GamePlayerBar } from "@/features/game/components/GamePlayerBar";
+import { GameUtilityRail } from "@/features/game/components/GameUtilityRail";
+import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
 import { useGame } from "@/features/game/hooks/useGame";
 import { useGameSession } from "@/features/game/hooks/useGameSession";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
@@ -100,27 +102,73 @@ export default function GameDetailsPage() {
     setSelectedSquare(null);
   }, [refresh, setSelectedSquare]);
 
+  const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
+  const canTakeBlackSeat = canJoinAsBlack && !session;
+  const isWhiteTurn = game?.status === "active" && game.whoseTurn === "white";
+  const isBlackTurn = game?.status === "active" && game.whoseTurn === "black";
+
+  const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for player 2";
+  const whitePlayerName = game?.whitePlayer.displayName ?? "Waiting for player 1";
+
   return (
     <main className="min-h-dvh bg-slate-950/97 text-white">
       <Navbar />
       <section className="min-h-[calc(100dvh-4.5rem)]">
-        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] max-w-7xl gap-6 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-8 lg:py-6">
-          <div className="space-y-5">
+        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] w-full max-w-6xl gap-5 px-4 py-3 sm:px-6 lg:grid-cols-[minmax(0,820px)_210px] lg:items-start lg:px-8 lg:py-4">
+          <div className="mx-auto w-full max-w-[min(92vw,78dvh,820px)] space-y-2 lg:mx-0">
             {isLoading ? (
               <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
                 <LoadingSpinner />
               </section>
             ) : game ? (
-              <ChessBoard
-                variant="app"
-                position={boardPosition}
-                interactive={canInteractWithBoard}
-                selectedSquare={selectedSquare}
-                candidateSquares={candidateSquares}
-                lastMoveFrom={lastMoveFrom}
-                lastMoveTo={lastMoveTo}
-                onSquareClick={handleSquareClick}
-              />
+              <>
+                <GamePlayerBar
+                  name={blackPlayerName}
+                  color="black"
+                  timer={game.blackPlayer ? "10:00" : "--:--"}
+                  isActive={isBlackTurn}
+                  action={
+                    canTakeBlackSeat && identity ? (
+                      <button
+                        type="button"
+                        onClick={handleJoinWithIdentity}
+                        disabled={isJoining}
+                        className="rounded-md bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isJoining ? "Joining..." : "Join"}
+                      </button>
+                    ) : null
+                  }
+                />
+
+                {canTakeBlackSeat && !isIdentityReady && (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/70 p-6">
+                    <LoadingSpinner />
+                  </div>
+                )}
+
+                {canTakeBlackSeat && isIdentityReady && !identity && (
+                  <PlayerIdentitySetup onSave={handleSaveIdentity} />
+                )}
+
+                <ChessBoard
+                  variant="app"
+                  position={boardPosition}
+                  interactive={canInteractWithBoard}
+                  selectedSquare={selectedSquare}
+                  candidateSquares={candidateSquares}
+                  lastMoveFrom={lastMoveFrom}
+                  lastMoveTo={lastMoveTo}
+                  onSquareClick={handleSquareClick}
+                />
+
+                <GamePlayerBar
+                  name={whitePlayerName}
+                  color="white"
+                  timer={game.whitePlayer ? "10:00" : "--:--"}
+                  isActive={isWhiteTurn}
+                />
+              </>
             ) : (
               <section className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-sm text-red-200">
                 Game not found.
@@ -134,16 +182,9 @@ export default function GameDetailsPage() {
             )}
           </div>
 
-          <GameSidebar
-            game={game}
-            session={session}
-            isLoading={isLoading}
+          <GameUtilityRail
+            roomCode={game?.id ?? gameId ?? ""}
             isConnected={isConnected}
-            isJoining={isJoining}
-            identityName={identity?.displayName ?? null}
-            isIdentityReady={isIdentityReady}
-            onSaveIdentity={handleSaveIdentity}
-            onJoin={handleJoinWithIdentity}
             onRefresh={handleRefresh}
           />
         </div>

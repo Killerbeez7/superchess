@@ -5,7 +5,7 @@ type ConnectionBadgeProps = {
 export function ConnectionBadge({ isConnected }: ConnectionBadgeProps) {
   return (
     <span
-      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
         isConnected
           ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
           : "border border-amber-500/20 bg-amber-500/10 text-amber-300"

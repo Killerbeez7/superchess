@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
@@ -14,20 +14,23 @@ import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
 import { useGameActions } from "@/features/game/hooks/useGameActions";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
+import {
+  getCandidateSquares,
+  getPieceAtSquare,
+  pieceBelongsToColor,
+} from "@/utils/board/interactions";
 import type { GameResponse } from "@/types/game";
+import type { BoardPiece } from "@/utils/board/position";
 
 export default function GameDetailsPage() {
   const params = useParams();
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [optimisticFen, setOptimisticFen] = useState<string | null>(null);
+  const pendingTapMoveFromRef = useRef<string | null>(null);
 
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
-  const {
-    identity,
-    isReady: isIdentityReady,
-    setDisplayName,
-  } = usePlayerIdentity();
+  const { identity, isReady: isIdentityReady, setDisplayName } = usePlayerIdentity();
   const displayedFen = optimisticFen ?? game?.currentFen;
   const {
     selectedSquare,
@@ -63,23 +66,21 @@ export default function GameDetailsPage() {
 
   const {
     handleJoin,
-    handleSquareClick,
     handleMoveAttempt,
     isJoining,
     canInteractWithBoard,
-  } =
-    useGameActions({
-      gameId,
-      game,
-      session,
-      saveSession,
-      setGame,
-      setError,
-      selectedSquare,
-      setSelectedSquare,
-      setOptimisticFen,
-      boardPosition,
-    });
+  } = useGameActions({
+    gameId,
+    game,
+    session,
+    saveSession,
+    setGame,
+    setError,
+    selectedSquare,
+    setSelectedSquare,
+    setOptimisticFen,
+    boardPosition,
+  });
 
   const handleSaveIdentity = useCallback(
     (displayName: string) => {
@@ -108,22 +109,153 @@ export default function GameDetailsPage() {
     setSelectedSquare(null);
   }, [refresh, setSelectedSquare]);
 
-  const handleSelectionClear = useCallback(() => {
-    setSelectedSquare(null);
-  }, [setSelectedSquare]);
+  const isOwnPlayablePiece = useCallback(
+    (piece: BoardPiece | null) =>
+      !!piece &&
+      canInteractWithBoard &&
+      !!session &&
+      pieceBelongsToColor(piece, session.color),
+    [canInteractWithBoard, session]
+  );
 
-  const handleVisualSelect = useCallback(
-    (square: string) => {
+  const handleBoardPiecePress = useCallback(
+    (square: string, piece: BoardPiece) => {
+      const selectedPiece = selectedSquare
+        ? getPieceAtSquare(boardPosition, selectedSquare)
+        : null;
+      const selectedOwnPlayable = isOwnPlayablePiece(selectedPiece);
+      const pressedOwnPlayable = isOwnPlayablePiece(piece);
+      let pendingTapMoveFrom: string | null = null;
+
+      if (selectedOwnPlayable && selectedSquare !== square && !pressedOwnPlayable) {
+        const candidates =
+          selectedPiece && selectedSquare
+            ? getCandidateSquares(boardPosition, selectedSquare, selectedPiece)
+            : [];
+
+        if (candidates.includes(square)) {
+          pendingTapMoveFrom = selectedSquare;
+        }
+      }
+
+      if (selectedSquare === square) {
+        pendingTapMoveFromRef.current = null;
+        return false;
+      }
+
+      pendingTapMoveFromRef.current = pendingTapMoveFrom;
       setSelectedSquare(square);
+      return pendingTapMoveFrom === null;
     },
-    [setSelectedSquare]
+    [boardPosition, isOwnPlayablePiece, selectedSquare, setSelectedSquare]
+  );
+
+  const handleBoardTap = useCallback(
+    async (square: string) => {
+      const pendingTapMoveFrom = pendingTapMoveFromRef.current;
+      pendingTapMoveFromRef.current = null;
+
+      if (pendingTapMoveFrom) {
+        const pendingPiece = getPieceAtSquare(boardPosition, pendingTapMoveFrom);
+
+        if (pendingPiece && isOwnPlayablePiece(pendingPiece)) {
+          const candidates = getCandidateSquares(
+            boardPosition,
+            pendingTapMoveFrom,
+            pendingPiece
+          );
+
+          if (candidates.includes(square)) {
+            await handleMoveAttempt(pendingTapMoveFrom, square);
+            return;
+          }
+        }
+      }
+
+      const clickedPiece = getPieceAtSquare(boardPosition, square);
+      const selectedPiece = selectedSquare
+        ? getPieceAtSquare(boardPosition, selectedSquare)
+        : null;
+      const selectedOwnPlayable = isOwnPlayablePiece(selectedPiece);
+
+      if (selectedOwnPlayable && selectedSquare && selectedPiece) {
+        if (square === selectedSquare) {
+          setSelectedSquare(null);
+          return;
+        }
+
+        if (clickedPiece && isOwnPlayablePiece(clickedPiece)) {
+          setSelectedSquare(square);
+          return;
+        }
+
+        const candidates = getCandidateSquares(
+          boardPosition,
+          selectedSquare,
+          selectedPiece
+        );
+
+        if (candidates.includes(square)) {
+          await handleMoveAttempt(selectedSquare, square);
+          return;
+        }
+
+        setSelectedSquare(null);
+        return;
+      }
+
+      if (clickedPiece) {
+        setSelectedSquare(selectedSquare === square ? null : square);
+        return;
+      }
+
+      setSelectedSquare(null);
+    },
+    [
+      boardPosition,
+      handleMoveAttempt,
+      isOwnPlayablePiece,
+      selectedSquare,
+      setSelectedSquare,
+    ]
+  );
+
+  const handleBoardDragEnd = useCallback(
+    async (from: string, releasedOn: string | null) => {
+      pendingTapMoveFromRef.current = null;
+      const sourcePiece = getPieceAtSquare(boardPosition, from);
+
+      if (!sourcePiece) {
+        setSelectedSquare(null);
+        return;
+      }
+
+      if (!isOwnPlayablePiece(sourcePiece)) {
+        setSelectedSquare(from);
+        return;
+      }
+
+      if (!releasedOn || releasedOn === from) {
+        setSelectedSquare(from);
+        return;
+      }
+
+      const candidates = getCandidateSquares(boardPosition, from, sourcePiece);
+
+      if (!candidates.includes(releasedOn)) {
+        setSelectedSquare(from);
+        return;
+      }
+
+      await handleMoveAttempt(from, releasedOn);
+    },
+    [boardPosition, handleMoveAttempt, isOwnPlayablePiece, setSelectedSquare]
   );
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
   const canTakeBlackSeat = canJoinAsBlack && !session;
   const isWhiteTurn = game?.status === "active" && game.whoseTurn === "white";
   const isBlackTurn = game?.status === "active" && game.whoseTurn === "black";
-
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for player 2";
   const whitePlayerName = game?.whitePlayer.displayName ?? "Waiting for player 1";
 
@@ -131,8 +263,8 @@ export default function GameDetailsPage() {
     <main className="min-h-dvh bg-slate-950/97 text-white">
       <Navbar />
       <section className="min-h-[calc(100dvh-4.5rem)]">
-        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] w-full max-w-6xl gap-4 px-2 py-2 sm:px-6 lg:grid-cols-[minmax(0,820px)_210px] lg:items-start lg:gap-5 lg:px-8 lg:py-4">
-          <div className="mx-auto w-full max-w-[min(98vw,82dvh,820px)] space-y-1.5 sm:space-y-2 lg:mx-0 lg:max-w-[min(92vw,78dvh,820px)]">
+        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] w-full max-w-6xl gap-5 px-4 py-3 sm:px-6 lg:grid-cols-[minmax(0,820px)_210px] lg:items-start lg:px-8 lg:py-4">
+          <div className="mx-auto w-full max-w-[min(92vw,78dvh,820px)] space-y-2 lg:mx-0">
             {isLoading ? (
               <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
                 <LoadingSpinner />
@@ -176,12 +308,9 @@ export default function GameDetailsPage() {
                   candidateSquares={candidateSquares}
                   lastMoveFrom={lastMoveFrom}
                   lastMoveTo={lastMoveTo}
-                  onSquareClick={handleSquareClick}
-                  onMoveAttempt={handleMoveAttempt}
-                  onSelectionClear={handleSelectionClear}
-                  onVisualSelect={handleVisualSelect}
-                  draggableColor={session?.color ?? null}
-                  allowPieceDrag={!!game}
+                  onPiecePress={handleBoardPiecePress}
+                  onSquareTap={handleBoardTap}
+                  onDragEnd={handleBoardDragEnd}
                 />
 
                 <GamePlayerBar

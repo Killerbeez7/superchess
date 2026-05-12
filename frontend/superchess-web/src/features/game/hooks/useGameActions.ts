@@ -85,15 +85,7 @@ export function useGameActions({
         setIsJoining(false);
       }
     },
-    [
-      gameId,
-      session,
-      saveSession,
-      setGame,
-      setError,
-      setOptimisticFen,
-      setSelectedSquare,
-    ]
+    [gameId, session, saveSession, setGame, setError, setOptimisticFen, setSelectedSquare]
   );
 
   const handleMoveAttempt = useCallback(
@@ -117,8 +109,8 @@ export function useGameActions({
         return;
       }
 
-      const candidateSquares = getCandidateSquares(boardPosition, from, movingPiece);
-      if (!candidateSquares.includes(to)) {
+      const candidates = getCandidateSquares(boardPosition, from, movingPiece);
+      if (!candidates.includes(to)) {
         setSelectedSquare(null);
         return;
       }
@@ -128,7 +120,6 @@ export function useGameActions({
         setIsMakingMove(true);
 
         const optimisticNextFen = applyOptimisticMoveToFen(game.currentFen, from, to);
-
         setOptimisticFen(optimisticNextFen);
         setSelectedSquare(null);
 

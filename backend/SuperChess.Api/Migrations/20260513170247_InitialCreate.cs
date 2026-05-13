@@ -35,6 +35,13 @@ namespace SuperChess.Api.Migrations
                     Status = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
                     CurrentFen = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     WhoseTurn = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
+                    InitialClockMs = table.Column<int>(type: "integer", nullable: false),
+                    IncrementMs = table.Column<int>(type: "integer", nullable: false),
+                    WhiteTimeRemainingMs = table.Column<int>(type: "integer", nullable: false),
+                    BlackTimeRemainingMs = table.Column<int>(type: "integer", nullable: false),
+                    TurnStartedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    EndReason = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: true),
+                    WinnerColor = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: true),
                     CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },

@@ -12,7 +12,7 @@ using SuperChess.Api.Data;
 namespace SuperChess.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260511163848_InitialCreate")]
+    [Migration("20260513170247_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -34,6 +34,9 @@ namespace SuperChess.Api.Migrations
                     b.Property<Guid?>("BlackPlayerId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("BlackTimeRemainingMs")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -42,10 +45,23 @@ namespace SuperChess.Api.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("IncrementMs")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InitialClockMs")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("TurnStartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -53,8 +69,15 @@ namespace SuperChess.Api.Migrations
                     b.Property<Guid>("WhitePlayerId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("WhiteTimeRemainingMs")
+                        .HasColumnType("integer");
+
                     b.Property<string>("WhoseTurn")
                         .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("WinnerColor")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 

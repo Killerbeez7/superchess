@@ -9,9 +9,9 @@ import {
   getPieceAtSquare,
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
-import type { GameResponse, PieceColor } from "@/types/game";
+import type { GameResponse, PieceColor, PromotionPiece } from "@/types/game";
 import type { LocalGameSession } from "@/lib/storage/gameSession";
-import type { BoardPosition } from "@/utils/board/position";
+import type { BoardPiece, BoardPosition } from "@/utils/board/position";
 
 type UseGameActionsArgs = {
   gameId: string | undefined;
@@ -26,6 +26,20 @@ type UseGameActionsArgs = {
   boardPosition: BoardPosition;
   enPassantSquare: string | null;
 };
+
+type PendingPromotionMove = {
+  from: string;
+  to: string;
+  color: PieceColor;
+};
+
+function isPromotionMove(piece: BoardPiece, to: string) {
+  return (
+    piece.type === "pawn" &&
+    ((piece.color === "white" && to.endsWith("8")) ||
+      (piece.color === "black" && to.endsWith("1")))
+  );
+}
 
 export function useGameActions({
   gameId,
@@ -42,6 +56,8 @@ export function useGameActions({
 }: UseGameActionsArgs) {
   const [isJoining, setIsJoining] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
+  const [pendingPromotionMove, setPendingPromotionMove] =
+    useState<PendingPromotionMove | null>(null);
 
   const isLocalPlayersTurn = !!session && !!game && session.color === game.whoseTurn;
 
@@ -50,7 +66,8 @@ export function useGameActions({
     !!session &&
     game.status === "active" &&
     isLocalPlayersTurn &&
-    !isMakingMove;
+    !isMakingMove &&
+    !pendingPromotionMove;
 
   const handleJoin = useCallback(
     async (playerName: string) => {
@@ -80,6 +97,7 @@ export function useGameActions({
 
         setGame(result.game);
         setOptimisticFen(null);
+        setPendingPromotionMove(null);
         setSelectedSquare(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to join game.");
@@ -88,6 +106,55 @@ export function useGameActions({
       }
     },
     [gameId, session, saveSession, setGame, setError, setOptimisticFen, setSelectedSquare]
+  );
+
+  const submitMove = useCallback(
+    async (from: string, to: string, promotion?: PromotionPiece) => {
+      if (!gameId || !game || !session) return;
+
+      try {
+        setError(null);
+        setIsMakingMove(true);
+
+        const optimisticNextFen = applyOptimisticMoveToFen(
+          game.currentFen,
+          from,
+          to,
+          promotion
+        );
+        setOptimisticFen(optimisticNextFen);
+        setSelectedSquare(null);
+
+        const updatedGame = await makeMove(gameId, {
+          from,
+          to,
+          promotion,
+          playerId: session.playerId,
+          sessionToken: session.sessionToken,
+        });
+
+        setGame(updatedGame);
+        setOptimisticFen(null);
+      } catch (err) {
+        setOptimisticFen(null);
+        setSelectedSquare(null);
+
+        if (!(err instanceof ApiError && err.kind === "validation")) {
+          setError(err instanceof Error ? err.message : "Failed to make move.");
+        }
+      } finally {
+        setIsMakingMove(false);
+      }
+    },
+    [
+      gameId,
+      game,
+      session,
+      setGame,
+      setError,
+      setOptimisticFen,
+      setSelectedSquare,
+    ]
   );
 
   const handleMoveAttempt = useCallback(
@@ -122,33 +189,14 @@ export function useGameActions({
         return;
       }
 
-      try {
+      if (isPromotionMove(movingPiece, to)) {
         setError(null);
-        setIsMakingMove(true);
-
-        const optimisticNextFen = applyOptimisticMoveToFen(game.currentFen, from, to);
-        setOptimisticFen(optimisticNextFen);
+        setPendingPromotionMove({ from, to, color: movingPiece.color });
         setSelectedSquare(null);
-
-        const updatedGame = await makeMove(gameId, {
-          from,
-          to,
-          playerId: session.playerId,
-          sessionToken: session.sessionToken,
-        });
-
-        setGame(updatedGame);
-        setOptimisticFen(null);
-      } catch (err) {
-        setOptimisticFen(null);
-        setSelectedSquare(null);
-
-        if (!(err instanceof ApiError && err.kind === "validation")) {
-          setError(err instanceof Error ? err.message : "Failed to make move.");
-        }
-      } finally {
-        setIsMakingMove(false);
+        return;
       }
+
+      await submitMove(from, to);
     },
     [
       gameId,
@@ -157,12 +205,27 @@ export function useGameActions({
       canInteractWithBoard,
       boardPosition,
       enPassantSquare,
-      setGame,
       setError,
-      setOptimisticFen,
       setSelectedSquare,
+      submitMove,
     ]
   );
+
+  const handlePromotionSelect = useCallback(
+    async (promotion: PromotionPiece) => {
+      const move = pendingPromotionMove;
+      if (!move || isMakingMove) return;
+
+      setPendingPromotionMove(null);
+      await submitMove(move.from, move.to, promotion);
+    },
+    [isMakingMove, pendingPromotionMove, submitMove]
+  );
+
+  const handlePromotionCancel = useCallback(() => {
+    setPendingPromotionMove(null);
+    setSelectedSquare(null);
+  }, [setSelectedSquare]);
 
   const handleSquareClick = useCallback(
     async (square: string) => {
@@ -207,6 +270,9 @@ export function useGameActions({
     handleJoin,
     handleSquareClick,
     handleMoveAttempt,
+    handlePromotionSelect,
+    handlePromotionCancel,
+    pendingPromotionMove,
     isJoining,
     isMakingMove,
     canInteractWithBoard,

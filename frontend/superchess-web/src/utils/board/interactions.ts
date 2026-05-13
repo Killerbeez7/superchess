@@ -1,6 +1,6 @@
 import type { BoardPosition, BoardPiece } from "./position";
 import { getBoardPositionFromGameState } from "./position";
-import type { PieceColor } from "@/types/game";
+import type { PieceColor, PromotionPiece } from "@/types/game";
 
 export type LastMove = {
   from: string;
@@ -178,7 +178,21 @@ export function getCandidateSquares(
     for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
       for (let colOffset = -1; colOffset <= 1; colOffset++) {
         if (rowOffset === 0 && colOffset === 0) continue;
-        pushIfValid(fromCoords.row + rowOffset, fromCoords.col + colOffset);
+
+        const square = coordsToSquare(
+          fromCoords.row + rowOffset,
+          fromCoords.col + colOffset
+        );
+        if (!square) continue;
+
+        const targetPiece = position[square] ?? null;
+        if (targetPiece?.color === piece.color || targetPiece?.type === "king") {
+          continue;
+        }
+
+        if (isKingMoveSafe(position, from, square, piece)) {
+          results.push(square);
+        }
       }
     }
 
@@ -239,7 +253,8 @@ export function inferLastMoveFromFens(previousFen?: string, nextFen?: string): L
 export function applyOptimisticMoveToFen(
   currentFen: string,
   from: string,
-  to: string
+  to: string,
+  promotion?: PromotionPiece | null
 ): string {
   try {
     const parts = currentFen.trim().split(/\s+/);
@@ -264,9 +279,12 @@ export function applyOptimisticMoveToFen(
       fromCoords.col !== toCoords.col &&
       !targetPiece &&
       getEnPassantSquareFromFen(currentFen) === to.trim().toLowerCase();
+    const promotionPiece = isPawn
+      ? getPromotionPiece(piece, toCoords.row, promotion)
+      : null;
 
     board[fromCoords.row][fromCoords.col] = null;
-    board[toCoords.row][toCoords.col] = piece;
+    board[toCoords.row][toCoords.col] = promotionPiece ?? piece;
 
     if (isEnPassantCapture) {
       board[fromCoords.row][toCoords.col] = null;
@@ -345,4 +363,131 @@ function compressFenBoard(board: (string | null)[][]) {
 
 function isInsideBoard(row: number, col: number) {
   return row >= 0 && row <= 7 && col >= 0 && col <= 7;
+}
+
+function oppositeColor(color: PieceColor): PieceColor {
+  return color === "white" ? "black" : "white";
+}
+
+function isKingMoveSafe(
+  position: BoardPosition,
+  from: string,
+  to: string,
+  king: BoardPiece
+) {
+  const nextPosition = { ...position };
+  delete nextPosition[from];
+  nextPosition[to] = king;
+
+  return !isSquareAttackedBy(nextPosition, to, oppositeColor(king.color));
+}
+
+function isSquareAttackedBy(
+  position: BoardPosition,
+  square: string,
+  attackingColor: PieceColor
+) {
+  const targetCoords = squareToCoords(square);
+
+  for (const [from, piece] of Object.entries(position)) {
+    if (piece.color !== attackingColor) continue;
+
+    const fromCoords = squareToCoords(from);
+    const rowDelta = targetCoords.row - fromCoords.row;
+    const colDelta = targetCoords.col - fromCoords.col;
+    const absRowDelta = Math.abs(rowDelta);
+    const absColDelta = Math.abs(colDelta);
+
+    if (piece.type === "pawn") {
+      const direction = piece.color === "white" ? -1 : 1;
+      if (rowDelta === direction && absColDelta === 1) return true;
+      continue;
+    }
+
+    if (piece.type === "knight") {
+      if (
+        (absRowDelta === 2 && absColDelta === 1) ||
+        (absRowDelta === 1 && absColDelta === 2)
+      ) {
+        return true;
+      }
+      continue;
+    }
+
+    if (piece.type === "king") {
+      if (absRowDelta <= 1 && absColDelta <= 1) return true;
+      continue;
+    }
+
+    if (
+      piece.type === "bishop" &&
+      absRowDelta === absColDelta &&
+      isPathClearBetween(position, fromCoords, targetCoords)
+    ) {
+      return true;
+    }
+
+    if (
+      piece.type === "rook" &&
+      (rowDelta === 0 || colDelta === 0) &&
+      isPathClearBetween(position, fromCoords, targetCoords)
+    ) {
+      return true;
+    }
+
+    if (
+      piece.type === "queen" &&
+      (rowDelta === 0 ||
+        colDelta === 0 ||
+        absRowDelta === absColDelta) &&
+      isPathClearBetween(position, fromCoords, targetCoords)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isPathClearBetween(
+  position: BoardPosition,
+  fromCoords: { row: number; col: number },
+  toCoords: { row: number; col: number }
+) {
+  const rowStep = Math.sign(toCoords.row - fromCoords.row);
+  const colStep = Math.sign(toCoords.col - fromCoords.col);
+  let row = fromCoords.row + rowStep;
+  let col = fromCoords.col + colStep;
+
+  while (row !== toCoords.row || col !== toCoords.col) {
+    const square = coordsToSquare(row, col);
+    if (square && position[square]) return false;
+
+    row += rowStep;
+    col += colStep;
+  }
+
+  return true;
+}
+
+function getPromotionPiece(
+  pawn: string,
+  targetRow: number,
+  promotion?: PromotionPiece | null
+) {
+  const promotionPieces: Record<PromotionPiece, string> = {
+    q: "q",
+    r: "r",
+    b: "b",
+    n: "n",
+  };
+  const isWhite = pawn === "P";
+  const promotionRow = isWhite ? 0 : 7;
+
+  if (targetRow !== promotionRow || !promotion) {
+    return null;
+  }
+
+  const piece = promotionPieces[promotion];
+  return isWhite ? piece.toUpperCase() : piece;
 }

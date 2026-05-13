@@ -1,6 +1,7 @@
 export type PieceColor = "white" | "black";
 export type GameStatus = "waiting" | "active" | "completed" | "abandoned";
 export type PieceType = "pawn" | "knight" | "bishop" | "rook" | "queen" | "king";
+export type PromotionPiece = "q" | "r" | "b" | "n";
 
 export type PlayerSummary = {
   id: string;

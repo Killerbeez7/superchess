@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createStartPosition, getBoardPositionFromGameState } from "./position";
+import {
+  createStartPosition,
+  getBoardPositionFromGameState,
+  type BoardPosition,
+} from "./position";
 import {
   applyOptimisticMoveToFen,
   getCandidateSquares,
@@ -120,7 +124,33 @@ describe("board interactions", () => {
   });
   // describe("knights", () => {});
   // describe("bishops", () => {});
-  // describe("kings", () => {});
+  describe("kings", () => {
+    it("does not show moves onto squares attacked by enemy pieces", () => {
+      const position = {
+        e1: { type: "king", color: "white" },
+        e3: { type: "rook", color: "black" },
+        a8: { type: "king", color: "black" },
+      } satisfies BoardPosition;
+
+      expect(getCandidateSquares(position, "e1", position.e1)).toEqual([
+        "d2",
+        "f2",
+        "d1",
+        "f1",
+      ]);
+    });
+
+    it("does not show protected enemy pieces as king captures", () => {
+      const position = {
+        e1: { type: "king", color: "white" },
+        d2: { type: "rook", color: "black" },
+        h6: { type: "bishop", color: "black" },
+        a8: { type: "king", color: "black" },
+      } satisfies BoardPosition;
+
+      expect(getCandidateSquares(position, "e1", position.e1)).not.toContain("d2");
+    });
+  });
   // describe("queens", () => {});
   // describe("board position", () => {});
 });
@@ -138,5 +168,13 @@ it("applies an optimistic en passant capture to FEN", () => {
 
   expect(applyOptimisticMoveToFen(fen, "e5", "d6")).toBe(
     "8/8/3P4/8/8/8/8/8 b - - 0 2"
+  );
+});
+
+it("applies an optimistic promotion capture to FEN", () => {
+  const fen = "3rk3/4P3/8/8/8/8/8/4K3 w - - 0 1";
+
+  expect(applyOptimisticMoveToFen(fen, "e7", "d8", "q")).toBe(
+    "3Qk3/8/8/8/8/8/8/4K3 b - - 0 1"
   );
 });

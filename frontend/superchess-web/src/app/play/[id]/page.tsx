@@ -8,6 +8,7 @@ import { ChessBoard } from "@/features/game/components/ChessBoard";
 import { GamePlayerBar } from "@/features/game/components/GamePlayerBar";
 import { GameUtilityRail } from "@/features/game/components/GameUtilityRail";
 import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
+import { PromotionPicker } from "@/features/game/components/PromotionPicker";
 import { useGame } from "@/features/game/hooks/useGame";
 import { useGameSession } from "@/features/game/hooks/useGameSession";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
@@ -75,6 +76,9 @@ export default function GameDetailsPage() {
   const {
     handleJoin,
     handleMoveAttempt,
+    handlePromotionSelect,
+    handlePromotionCancel,
+    pendingPromotionMove,
     isJoining,
     canInteractWithBoard,
   } = useGameActions({
@@ -347,6 +351,14 @@ export default function GameDetailsPage() {
                   onSquareTap={handleBoardTap}
                   onDragEnd={handleBoardDragEnd}
                 />
+
+                {pendingPromotionMove && (
+                  <PromotionPicker
+                    color={pendingPromotionMove.color}
+                    onSelect={handlePromotionSelect}
+                    onCancel={handlePromotionCancel}
+                  />
+                )}
 
                 <GamePlayerBar
                   name={whitePlayerName}

@@ -5,12 +5,16 @@ public sealed record MoveResult(
     string? NewFen,
     string? Error,
     bool IsCheck = false,
-    bool IsCheckmate = false)
+    bool IsCheckmate = false,
+    bool IsStalemate = false)
 {
-    public static MoveResult Legal(string newFen, bool isCheck = false, bool isCheckmate = false) =>
-        new(true, newFen, null, isCheck, isCheckmate);
+    public static MoveResult Legal(
+        string newFen,
+        bool isCheck = false,
+        bool isCheckmate = false,
+        bool isStalemate = false) =>
+        new(true, newFen, null, isCheck, isCheckmate, isStalemate);
 
     public static MoveResult Illegal(string reason) =>
         new(false, null, reason);
 }
- 

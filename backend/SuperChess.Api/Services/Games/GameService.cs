@@ -203,6 +203,11 @@ public class GameService : IGameService
         var nextTurn = game.WhoseTurn == PieceColor.White ? PieceColor.Black : PieceColor.White;
 
         game.WhoseTurn = nextTurn;
+        if (moveResult.IsCheckmate || moveResult.IsStalemate)
+        {
+            game.Status = GameStatus.Completed;
+        }
+
         game.UpdatedAtUtc = DateTime.UtcNow;
 
         await _repo.SaveChangesAsync(ct);

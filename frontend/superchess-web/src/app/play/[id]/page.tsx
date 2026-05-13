@@ -111,7 +111,7 @@ export default function GameDetailsPage() {
 
   const handleJoinWithIdentity = useCallback(async () => {
     if (!identity) {
-      setError("Player name is required.");
+      setError("Player name is required!");
       return;
     }
 

@@ -1,6 +1,6 @@
 import type { BoardPosition, BoardPiece } from "./position";
 import { getBoardPositionFromGameState } from "./position";
-import type { PieceColor, GameStatus } from "@/types/game";
+import type { PieceColor } from "@/types/game";
 
 export type LastMove = {
   from: string;
@@ -30,10 +30,17 @@ export function coordsToSquare(row: number, col: number) {
   return `${String.fromCharCode(97 + col)}${8 - row}`;
 }
 
+export function getEnPassantSquareFromFen(currentFen?: string | null) {
+  const square = currentFen?.trim().split(/\s+/)[3];
+
+  return square && /^[a-h][36]$/.test(square) ? square : null;
+}
+
 export function getCandidateSquares(
   position: BoardPosition | undefined,
   from: string,
-  piece: BoardPiece
+  piece: BoardPiece,
+  enPassantSquare?: string | null
 ): string[] {
   if (!position) return [];
 
@@ -98,6 +105,21 @@ export function getCandidateSquares(
 
       const targetPiece = position[captureSquare] ?? null;
       if (targetPiece && targetPiece.color !== piece.color) {
+        results.push(captureSquare);
+        continue;
+      }
+
+      const capturedPawnSquare = coordsToSquare(
+        fromCoords.row,
+        fromCoords.col + colOffset
+      );
+      const capturedPawn = capturedPawnSquare ? position[capturedPawnSquare] : null;
+
+      if (
+        captureSquare === enPassantSquare &&
+        capturedPawn?.type === "pawn" &&
+        capturedPawn.color !== piece.color
+      ) {
         results.push(captureSquare);
       }
     }
@@ -235,8 +257,20 @@ export function applyOptimisticMoveToFen(
     const piece = board[fromCoords.row][fromCoords.col];
     if (!piece) return currentFen;
 
+    const isPawn = piece.toLowerCase() === "p";
+    const targetPiece = board[toCoords.row][toCoords.col];
+    const isEnPassantCapture =
+      isPawn &&
+      fromCoords.col !== toCoords.col &&
+      !targetPiece &&
+      getEnPassantSquareFromFen(currentFen) === to.trim().toLowerCase();
+
     board[fromCoords.row][fromCoords.col] = null;
     board[toCoords.row][toCoords.col] = piece;
+
+    if (isEnPassantCapture) {
+      board[fromCoords.row][toCoords.col] = null;
+    }
 
     const nextParts = [...parts];
     nextParts[0] = compressFenBoard(board);
@@ -245,6 +279,17 @@ export function applyOptimisticMoveToFen(
       nextParts[1] = "b";
     } else if (nextParts[1] === "b") {
       nextParts[1] = "w";
+    }
+
+    if (nextParts.length >= 4) {
+      const enPassantTarget =
+        isPawn &&
+        fromCoords.col === toCoords.col &&
+        Math.abs(fromCoords.row - toCoords.row) === 2
+          ? coordsToSquare((fromCoords.row + toCoords.row) / 2, fromCoords.col)
+          : null;
+
+      nextParts[3] = enPassantTarget ?? "-";
     }
 
     return nextParts.join(" ");

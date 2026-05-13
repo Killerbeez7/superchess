@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   getCandidateSquares,
+  getEnPassantSquareFromFen,
   getPieceAtSquare,
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
@@ -16,10 +17,16 @@ export function useBoardSelection(
   displayedFen?: string | null
 ) {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const activeFen = displayedFen ?? game?.currentFen;
 
   const boardPosition = useMemo(
-    () => getBoardPositionFromGameState(displayedFen ?? game?.currentFen),
-    [displayedFen, game?.currentFen]
+    () => getBoardPositionFromGameState(activeFen),
+    [activeFen]
+  );
+
+  const enPassantSquare = useMemo(
+    () => getEnPassantSquareFromFen(activeFen),
+    [activeFen]
   );
 
   const selectedPiece = useMemo(
@@ -30,8 +37,13 @@ export function useBoardSelection(
   const candidateSquares = useMemo(() => {
     if (!selectedSquare || !selectedPiece || !session) return [];
     if (!pieceBelongsToColor(selectedPiece, session.color)) return [];
-    return getCandidateSquares(boardPosition, selectedSquare, selectedPiece);
-  }, [boardPosition, selectedSquare, selectedPiece, session]);
+    return getCandidateSquares(
+      boardPosition,
+      selectedSquare,
+      selectedPiece,
+      enPassantSquare
+    );
+  }, [boardPosition, enPassantSquare, selectedSquare, selectedPiece, session]);
 
   const latestMove = game?.moves?.length ? game.moves[game.moves.length - 1] : null;
 
@@ -39,6 +51,7 @@ export function useBoardSelection(
     selectedSquare,
     setSelectedSquare,
     boardPosition,
+    enPassantSquare,
     candidateSquares,
     lastMoveFrom: latestMove?.from ?? null,
     lastMoveTo: latestMove?.to ?? null,

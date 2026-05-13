@@ -24,6 +24,7 @@ type UseGameActionsArgs = {
   setSelectedSquare: (sq: string | null) => void;
   setOptimisticFen: (fen: string | null) => void;
   boardPosition: BoardPosition;
+  enPassantSquare: string | null;
 };
 
 export function useGameActions({
@@ -37,6 +38,7 @@ export function useGameActions({
   setSelectedSquare,
   setOptimisticFen,
   boardPosition,
+  enPassantSquare,
 }: UseGameActionsArgs) {
   const [isJoining, setIsJoining] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
@@ -109,7 +111,12 @@ export function useGameActions({
         return;
       }
 
-      const candidates = getCandidateSquares(boardPosition, from, movingPiece);
+      const candidates = getCandidateSquares(
+        boardPosition,
+        from,
+        movingPiece,
+        enPassantSquare
+      );
       if (!candidates.includes(to)) {
         setSelectedSquare(null);
         return;
@@ -149,6 +156,7 @@ export function useGameActions({
       session,
       canInteractWithBoard,
       boardPosition,
+      enPassantSquare,
       setGame,
       setError,
       setOptimisticFen,

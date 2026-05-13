@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createStartPosition } from "./position";
-import { applyOptimisticMoveToFen, getCandidateSquares } from "./interactions";
+import { createStartPosition, getBoardPositionFromGameState } from "./position";
+import {
+  applyOptimisticMoveToFen,
+  getCandidateSquares,
+  getEnPassantSquareFromFen,
+} from "./interactions";
 
 describe("board position", () => {
   describe("createStartPosition", () => {
@@ -62,7 +66,33 @@ describe("board interactions", () => {
       ]);
     });
 
-    // it("allows white pawn to capture enemy en pessant", () => {});
+    it("allows white pawn to capture en passant", () => {
+      const fen = "8/8/8/3pP3/8/8/8/8 w - d6 0 2";
+      const position = getBoardPositionFromGameState(fen);
+
+      expect(
+        getCandidateSquares(
+          position,
+          "e5",
+          position.e5,
+          getEnPassantSquareFromFen(fen)
+        )
+      ).toEqual(["e6", "d6"]);
+    });
+
+    it("allows black pawn to capture en passant", () => {
+      const fen = "8/8/8/8/3Pp3/8/8/8 b - d3 0 2";
+      const position = getBoardPositionFromGameState(fen);
+
+      expect(
+        getCandidateSquares(
+          position,
+          "e4",
+          position.e4,
+          getEnPassantSquareFromFen(fen)
+        )
+      ).toEqual(["e3", "d3"]);
+    });
   });
 
   describe("rooks", () => {
@@ -99,6 +129,14 @@ it("applies an optimistic pawn move to FEN", () => {
   const startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
   expect(applyOptimisticMoveToFen(startFen, "e2", "e4")).toBe(
-    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+  );
+});
+
+it("applies an optimistic en passant capture to FEN", () => {
+  const fen = "8/8/8/3pP3/8/8/8/8 w - d6 0 2";
+
+  expect(applyOptimisticMoveToFen(fen, "e5", "d6")).toBe(
+    "8/8/3P4/8/8/8/8/8 b - - 0 2"
   );
 });

@@ -43,6 +43,7 @@ export default function GameDetailsPage() {
     selectedSquare,
     setSelectedSquare,
     boardPosition,
+    enPassantSquare,
     candidateSquares,
     lastMoveFrom,
     lastMoveTo,
@@ -87,6 +88,7 @@ export default function GameDetailsPage() {
     setSelectedSquare,
     setOptimisticFen,
     boardPosition,
+    enPassantSquare,
   });
 
   const handleSaveIdentity = useCallback(
@@ -137,7 +139,12 @@ export default function GameDetailsPage() {
       if (selectedOwnPlayable && selectedSquare !== square && !pressedOwnPlayable) {
         const candidates =
           selectedPiece && selectedSquare
-            ? getCandidateSquares(boardPosition, selectedSquare, selectedPiece)
+            ? getCandidateSquares(
+                boardPosition,
+                selectedSquare,
+                selectedPiece,
+                enPassantSquare
+              )
             : [];
 
         if (candidates.includes(square)) {
@@ -154,7 +161,13 @@ export default function GameDetailsPage() {
       setSelectedSquare(square);
       return pendingTapMoveFrom === null;
     },
-    [boardPosition, isOwnPlayablePiece, selectedSquare, setSelectedSquare]
+    [
+      boardPosition,
+      enPassantSquare,
+      isOwnPlayablePiece,
+      selectedSquare,
+      setSelectedSquare,
+    ]
   );
 
   const handleBoardTap = useCallback(
@@ -169,7 +182,8 @@ export default function GameDetailsPage() {
           const candidates = getCandidateSquares(
             boardPosition,
             pendingTapMoveFrom,
-            pendingPiece
+            pendingPiece,
+            enPassantSquare
           );
 
           if (candidates.includes(square)) {
@@ -199,7 +213,8 @@ export default function GameDetailsPage() {
         const candidates = getCandidateSquares(
           boardPosition,
           selectedSquare,
-          selectedPiece
+          selectedPiece,
+          enPassantSquare
         );
 
         if (candidates.includes(square)) {
@@ -224,6 +239,7 @@ export default function GameDetailsPage() {
       isOwnPlayablePiece,
       selectedSquare,
       setSelectedSquare,
+      enPassantSquare,
     ]
   );
 
@@ -247,7 +263,12 @@ export default function GameDetailsPage() {
         return;
       }
 
-      const candidates = getCandidateSquares(boardPosition, from, sourcePiece);
+      const candidates = getCandidateSquares(
+        boardPosition,
+        from,
+        sourcePiece,
+        enPassantSquare
+      );
 
       if (!candidates.includes(releasedOn)) {
         setSelectedSquare(from);
@@ -256,7 +277,13 @@ export default function GameDetailsPage() {
 
       await handleMoveAttempt(from, releasedOn);
     },
-    [boardPosition, handleMoveAttempt, isOwnPlayablePiece, setSelectedSquare]
+    [
+      boardPosition,
+      enPassantSquare,
+      handleMoveAttempt,
+      isOwnPlayablePiece,
+      setSelectedSquare,
+    ]
   );
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";

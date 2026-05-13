@@ -46,7 +46,6 @@ export function useGameClocks(game: GameResponse | null) {
       return;
     }
 
-    setNow(Date.now());
     const timerId = window.setInterval(() => setNow(Date.now()), TICK_MS);
     return () => window.clearInterval(timerId);
   }, [game?.status, game?.turnStartedAtUtc, game?.whoseTurn]);

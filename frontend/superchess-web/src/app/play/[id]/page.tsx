@@ -32,7 +32,12 @@ export default function GameDetailsPage() {
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
   const { identity, isReady: isIdentityReady, setDisplayName } = usePlayerIdentity();
-  const { whiteTimer, blackTimer } = useGameClocks(game);
+  const {
+    whiteTimer,
+    blackTimer,
+    whiteTimeRemainingMs,
+    blackTimeRemainingMs,
+  } = useGameClocks(game);
   const displayedFen = optimisticFen ?? game?.currentFen;
   const {
     selectedSquare,
@@ -277,6 +282,7 @@ export default function GameDetailsPage() {
                   name={blackPlayerName}
                   color="black"
                   timer={game.blackPlayer ? blackTimer : "--:--"}
+                  timeRemainingMs={game.blackPlayer ? blackTimeRemainingMs : undefined}
                   isActive={isBlackTurn}
                   action={
                     canTakeBlackSeat && identity ? (
@@ -319,6 +325,7 @@ export default function GameDetailsPage() {
                   name={whitePlayerName}
                   color="white"
                   timer={whiteTimer}
+                  timeRemainingMs={whiteTimeRemainingMs}
                   isActive={isWhiteTurn}
                 />
               </>

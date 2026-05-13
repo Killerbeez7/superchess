@@ -31,6 +31,7 @@ function getSquareKey(row: number, col: number) {
 export function ChessBoard({
   variant = "app",
   position,
+  interactive = false,
   selectedSquare = null,
   candidateSquares = [],
   lastMoveFrom = null,
@@ -43,7 +44,7 @@ export function ChessBoard({
 
   const { boardRef, pointerHandlers, dragOverlay, draggingFrom, hoveredSquare } =
     usePieceDrag({
-      enabled: !!onSquareTap || !!onPiecePress || !!onDragEnd,
+      enabled: interactive && (!!onSquareTap || !!onPiecePress || !!onDragEnd),
       position,
       onPiecePress,
       onTap: (square) => onSquareTap?.(square),
@@ -69,6 +70,11 @@ export function ChessBoard({
           ref={boardRef}
           {...pointerHandlers}
           className="grid touch-none select-none grid-cols-8 overflow-hidden rounded-xl border border-white/10"
+          style={{
+            touchAction: "none",
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none",
+          }}
         >
           {Array.from({ length: 64 }).map((_, index) => {
             const row = Math.floor(index / 8);

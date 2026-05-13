@@ -378,7 +378,7 @@ export default function GameDetailsPage() {
                   </div>
                 )}
 
-                <div className="relative">
+                <div className="relative select-none">
                   <ChessBoard
                     variant="app"
                     position={boardPosition}

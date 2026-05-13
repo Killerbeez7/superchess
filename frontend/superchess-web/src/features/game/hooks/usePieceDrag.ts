@@ -89,6 +89,8 @@ export function usePieceDrag({
       if (event.pointerType === "mouse" && event.button !== 0) return;
       if (stateRef.current.kind !== "idle") return;
 
+      event.preventDefault();
+
       const rect = boardRef.current.getBoundingClientRect();
       const square = squareFromCoords(rect, event.clientX, event.clientY);
       if (!square) return;
@@ -112,7 +114,7 @@ export function usePieceDrag({
         pointerId: event.pointerId,
       });
 
-      boardRef.current.setPointerCapture(event.pointerId);
+      event.currentTarget.setPointerCapture(event.pointerId);
     },
     [enabled, position, onPiecePress, setBoth]
   );
@@ -122,6 +124,8 @@ export function usePieceDrag({
       const current = stateRef.current;
       if (current.kind === "idle") return;
       if (event.pointerId !== current.pointerId) return;
+
+      event.preventDefault();
 
       if (current.kind === "pressing") {
         const rect = boardRef.current?.getBoundingClientRect();
@@ -163,6 +167,7 @@ export function usePieceDrag({
       const point = rect
         ? clampDragPoint(rect, event.clientX, event.clientY)
         : { x: event.clientX, y: event.clientY };
+
       setBoth({
         ...current,
         hoveredSquare: rect ? squareFromCoords(rect, event.clientX, event.clientY) : null,
@@ -179,8 +184,10 @@ export function usePieceDrag({
       if (current.kind === "idle") return;
       if (event.pointerId !== current.pointerId) return;
 
-      if (boardRef.current?.hasPointerCapture(event.pointerId)) {
-        boardRef.current.releasePointerCapture(event.pointerId);
+      event.preventDefault();
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
       }
 
       const rect = boardRef.current?.getBoundingClientRect();
@@ -209,8 +216,10 @@ export function usePieceDrag({
       if (current.kind === "idle") return;
       if (event.pointerId !== current.pointerId) return;
 
-      if (boardRef.current?.hasPointerCapture(event.pointerId)) {
-        boardRef.current.releasePointerCapture(event.pointerId);
+      event.preventDefault();
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
       }
 
       if (current.kind === "dragging" || current.piece) {

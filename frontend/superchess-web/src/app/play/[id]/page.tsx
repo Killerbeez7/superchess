@@ -13,6 +13,7 @@ import { useGameSession } from "@/features/game/hooks/useGameSession";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
 import { useGameActions } from "@/features/game/hooks/useGameActions";
+import { useGameClocks } from "@/features/game/hooks/useGameClocks";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import {
   getCandidateSquares,
@@ -31,6 +32,7 @@ export default function GameDetailsPage() {
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
   const { identity, isReady: isIdentityReady, setDisplayName } = usePlayerIdentity();
+  const { whiteTimer, blackTimer } = useGameClocks(game);
   const displayedFen = optimisticFen ?? game?.currentFen;
   const {
     selectedSquare,
@@ -274,7 +276,7 @@ export default function GameDetailsPage() {
                 <GamePlayerBar
                   name={blackPlayerName}
                   color="black"
-                  timer={game.blackPlayer ? "10:00" : "--:--"}
+                  timer={game.blackPlayer ? blackTimer : "--:--"}
                   isActive={isBlackTurn}
                   action={
                     canTakeBlackSeat && identity ? (
@@ -316,7 +318,7 @@ export default function GameDetailsPage() {
                 <GamePlayerBar
                   name={whitePlayerName}
                   color="white"
-                  timer={game.whitePlayer ? "10:00" : "--:--"}
+                  timer={whiteTimer}
                   isActive={isWhiteTurn}
                 />
               </>

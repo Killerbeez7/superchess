@@ -6,6 +6,11 @@ public class GameResponse
     public string Status { get; set; } = string.Empty;
     public string CurrentFen { get; set; } = string.Empty;
     public string WhoseTurn { get; set; } = string.Empty;
+    public int InitialClockMs { get; set; }
+    public int IncrementMs { get; set; }
+    public int WhiteTimeRemainingMs { get; set; }
+    public int BlackTimeRemainingMs { get; set; }
+    public DateTime? TurnStartedAtUtc { get; set; }
 
     public PlayerSummary WhitePlayer { get; set; } = null!;
     public PlayerSummary? BlackPlayer { get; set; }

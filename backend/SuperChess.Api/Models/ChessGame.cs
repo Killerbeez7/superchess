@@ -5,6 +5,8 @@ namespace SuperChess.Api.Models;
 
 public class ChessGame
 {
+    public const int DefaultInitialClockMs = 10 * 60 * 1000;
+
     public Guid Id { get; set; }
 
     public Guid WhitePlayerId { get; set; }
@@ -16,6 +18,11 @@ public class ChessGame
     public GameStatus Status { get; set; }
     public string CurrentFen { get; set; } = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     public PieceColor WhoseTurn { get; set; }
+    public int InitialClockMs { get; set; } = DefaultInitialClockMs;
+    public int IncrementMs { get; set; }
+    public int WhiteTimeRemainingMs { get; set; } = DefaultInitialClockMs;
+    public int BlackTimeRemainingMs { get; set; } = DefaultInitialClockMs;
+    public DateTime? TurnStartedAtUtc { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;

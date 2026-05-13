@@ -20,6 +20,11 @@ export type GameResponse = {
   status: GameStatus;
   currentFen: string;
   whoseTurn: PieceColor;
+  initialClockMs: number;
+  incrementMs: number;
+  whiteTimeRemainingMs: number;
+  blackTimeRemainingMs: number;
+  turnStartedAtUtc: string | null;
   whitePlayer: PlayerSummary;
   blackPlayer: PlayerSummary | null;
   createdAtUtc: string;

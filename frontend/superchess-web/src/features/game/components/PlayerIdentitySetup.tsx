@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 
 type PlayerIdentitySetupProps = {
   onSave: (displayName: string) => void;
@@ -14,7 +14,7 @@ export function PlayerIdentitySetup({
 }: PlayerIdentitySetupProps) {
   const [displayName, setDisplayName] = useState("");
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const trimmed = displayName.trim();

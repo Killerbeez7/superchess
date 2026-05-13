@@ -19,6 +19,7 @@ import { useGameActions } from "@/features/game/hooks/useGameActions";
 import { useGameClocks } from "@/features/game/hooks/useGameClocks";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import { useGameAutoJoin } from "@/features/game/hooks/useGameAutoJoin";
+import { useGameSounds } from "@/features/game/hooks/useGameSounds";
 
 import {
   getCandidateSquares,
@@ -60,13 +61,15 @@ export default function GameDetailsPage() {
     [setGame]
   );
 
+  const { playSound } = useGameSounds();
   const handleMovePlayed = useCallback(
     (updated: GameResponse) => {
       setGame(updated);
       setOptimisticFen(null);
       setSelectedSquare(null);
+      void playSound("move");
     },
-    [setGame, setSelectedSquare]
+    [playSound, setGame, setSelectedSquare]
   );
 
   const { isConnected } = useGameRealtime({

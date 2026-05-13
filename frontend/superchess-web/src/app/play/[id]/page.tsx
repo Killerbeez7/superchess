@@ -10,6 +10,7 @@ import { GamePlayerBar } from "@/features/game/components/GamePlayerBar";
 import { GameUtilityRail } from "@/features/game/components/GameUtilityRail";
 import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
 import { PromotionPicker } from "@/features/game/components/PromotionPicker";
+// hooks
 import { useGame } from "@/features/game/hooks/useGame";
 import { useGameSession } from "@/features/game/hooks/useGameSession";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
@@ -17,6 +18,8 @@ import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
 import { useGameActions } from "@/features/game/hooks/useGameActions";
 import { useGameClocks } from "@/features/game/hooks/useGameClocks";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
+import { useGameAutoJoin } from "@/features/game/hooks/useGameAutoJoin";
+
 import {
   getCandidateSquares,
   getPieceAtSquare,
@@ -36,12 +39,8 @@ export default function GameDetailsPage() {
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
   const { identity, isReady: isIdentityReady, setDisplayName } = usePlayerIdentity();
-  const {
-    whiteTimer,
-    blackTimer,
-    whiteTimeRemainingMs,
-    blackTimeRemainingMs,
-  } = useGameClocks(game);
+  const { whiteTimer, blackTimer, whiteTimeRemainingMs, blackTimeRemainingMs } =
+    useGameClocks(game);
   const displayedFen = optimisticFen ?? game?.currentFen;
   const {
     selectedSquare,
@@ -119,6 +118,15 @@ export default function GameDetailsPage() {
     await handleJoin(identity.displayName);
   }, [handleJoin, identity, setError]);
 
+  useGameAutoJoin({
+    gameId,
+    game,
+    identity,
+    isIdentityReady,
+    session,
+    handleJoin,
+  });
+
   const handleRefresh = useCallback(async () => {
     await refresh();
     setOptimisticFen(null);
@@ -128,9 +136,7 @@ export default function GameDetailsPage() {
   const currentTurnTimeRemainingMs =
     game?.whoseTurn === "white" ? whiteTimeRemainingMs : blackTimeRemainingMs;
   const timedOutColor =
-    game?.status === "active" && currentTurnTimeRemainingMs <= 0
-      ? game.whoseTurn
-      : null;
+    game?.status === "active" && currentTurnTimeRemainingMs <= 0 ? game.whoseTurn : null;
   const timeoutRefreshKey =
     game && timedOutColor
       ? `${game.id}:${timedOutColor}:${game.turnStartedAtUtc ?? game.updatedAtUtc}`
@@ -147,22 +153,21 @@ export default function GameDetailsPage() {
 
   const canUseBoard = canInteractWithBoard && !timedOutColor;
   const showEndModal =
-    !!game &&
-    (game.status === "completed" || !!timedOutColor) &&
-    !isEndModalDismissed;
+    !!game && (game.status === "completed" || !!timedOutColor) && !isEndModalDismissed;
 
   useEffect(() => {
-    if (game?.status === "active" && !timedOutColor) {
-      setIsEndModalDismissed(false);
-    }
+    const handleGameStatus = async () => {
+      if (game?.status === "active" && !timedOutColor) {
+        setIsEndModalDismissed(false);
+      }
+    };
+
+    handleGameStatus();
   }, [game?.status, timedOutColor]);
 
   const isOwnPlayablePiece = useCallback(
     (piece: BoardPiece | null) =>
-      !!piece &&
-      canUseBoard &&
-      !!session &&
-      pieceBelongsToColor(piece, session.color),
+      !!piece && canUseBoard && !!session && pieceBelongsToColor(piece, session.color),
     [canUseBoard, session]
   );
 

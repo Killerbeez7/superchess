@@ -42,6 +42,10 @@ namespace SuperChess.Api.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<int>("IncrementMs")
                         .HasColumnType("integer");
 
@@ -67,6 +71,10 @@ namespace SuperChess.Api.Migrations
 
                     b.Property<string>("WhoseTurn")
                         .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("WinnerColor")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 

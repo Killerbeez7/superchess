@@ -123,7 +123,30 @@ describe("board interactions", () => {
     });
   });
   // describe("knights", () => {});
-  // describe("bishops", () => {});
+  describe("legal safety", () => {
+    it("hides moves that do not resolve check", () => {
+      const position = {
+        e1: { type: "king", color: "white" },
+        a1: { type: "rook", color: "white" },
+        e8: { type: "rook", color: "black" },
+        a8: { type: "king", color: "black" },
+      } satisfies BoardPosition;
+
+      expect(getCandidateSquares(position, "a1", position.a1)).toEqual([]);
+    });
+
+    it("keeps moves that block check", () => {
+      const position = {
+        e1: { type: "king", color: "white" },
+        c1: { type: "bishop", color: "white" },
+        e8: { type: "rook", color: "black" },
+        a8: { type: "king", color: "black" },
+      } satisfies BoardPosition;
+
+      expect(getCandidateSquares(position, "c1", position.c1)).toEqual(["e3"]);
+    });
+  });
+
   describe("kings", () => {
     it("does not show moves onto squares attacked by enemy pieces", () => {
       const position = {

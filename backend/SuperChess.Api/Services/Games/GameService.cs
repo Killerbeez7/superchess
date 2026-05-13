@@ -50,6 +50,8 @@ public class GameService : IGameService
             WhiteTimeRemainingMs = ChessGame.DefaultInitialClockMs,
             BlackTimeRemainingMs = ChessGame.DefaultInitialClockMs,
             TurnStartedAtUtc = null,
+            EndReason = null,
+            WinnerColor = null,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -66,10 +68,23 @@ public class GameService : IGameService
     public async Task<Result<GameResponse>> GetGameAsync(Guid gameId, CancellationToken ct = default)
     {
         var game = await _repo.GetByIdWithDetailsAsync(gameId, ct);
+        if (game is null)
+        {
+            return Result<GameResponse>.NotFound("Game not found.");
+        }
 
-        return game is null
-            ? Result<GameResponse>.NotFound("Game not found.")
-            : Result<GameResponse>.Success(GameMapper.ToResponse(game));
+        var now = DateTime.UtcNow;
+        if (ExpireGameByClockIfNeeded(game, now))
+        {
+            await _repo.SaveChangesAsync(ct);
+
+            var timeoutResponse = GameMapper.ToResponse(game);
+            await _notifier.NotifyMovePlayedAsync(game.Id, timeoutResponse);
+
+            return Result<GameResponse>.Success(timeoutResponse);
+        }
+
+        return Result<GameResponse>.Success(GameMapper.ToResponse(game));
     }
 
     public async Task<List<GameResponse>> GetGamesAsync(CancellationToken ct = default)
@@ -113,6 +128,8 @@ public class GameService : IGameService
         game.BlackPlayer = black;
         game.Status = GameStatus.Active;
         game.TurnStartedAtUtc = now;
+        game.EndReason = null;
+        game.WinnerColor = null;
         game.UpdatedAtUtc = now;
 
         _repo.AddPlayer(black);
@@ -137,6 +154,11 @@ public class GameService : IGameService
         if (game is null)
         {
             return Result<GameResponse>.NotFound("Game not found.");
+        }
+
+        if (game.Status == GameStatus.Completed)
+        {
+            return Result<GameResponse>.Conflict("The game is over.");
         }
 
         if (game.Status != GameStatus.Active || game.BlackPlayer is null)
@@ -176,16 +198,18 @@ public class GameService : IGameService
         var now = DateTime.UtcNow;
         if (!ApplyClockSpend(game, now, game.WhoseTurn))
         {
-            game.Status = GameStatus.Completed;
-            game.TurnStartedAtUtc = null;
-            game.UpdatedAtUtc = now;
+            CompleteGame(
+                game,
+                GameEndReason.Timeout,
+                OppositeColor(game.WhoseTurn),
+                now);
 
             await _repo.SaveChangesAsync(ct);
 
             var timeoutResponse = GameMapper.ToResponse(game);
             await _notifier.NotifyMovePlayedAsync(game.Id, timeoutResponse);
 
-            return Result<GameResponse>.Conflict("Time expired.");
+            return Result<GameResponse>.Success(timeoutResponse);
         }
 
         var from = request.From.Trim().ToLowerInvariant();
@@ -229,8 +253,11 @@ public class GameService : IGameService
         game.WhoseTurn = nextTurn;
         if (moveResult.IsCheckmate || moveResult.IsStalemate)
         {
-            game.Status = GameStatus.Completed;
-            game.TurnStartedAtUtc = null;
+            CompleteGame(
+                game,
+                moveResult.IsCheckmate ? GameEndReason.Checkmate : GameEndReason.Stalemate,
+                moveResult.IsCheckmate ? movingColor : null,
+                now);
         }
         else
         {
@@ -263,6 +290,51 @@ public class GameService : IGameService
         await _notifier.NotifyOpenGamesChangedAsync(responses);
     }
 
+    private static bool ExpireGameByClockIfNeeded(ChessGame game, DateTime now)
+    {
+        if (
+            game.Status != GameStatus.Active ||
+            game.BlackPlayer is null ||
+            game.TurnStartedAtUtc is null)
+        {
+            return false;
+        }
+
+        var remainingMs = GetRemainingAfterElapsed(
+            game.WhoseTurn == PieceColor.White
+                ? game.WhiteTimeRemainingMs
+                : game.BlackTimeRemainingMs,
+            game.TurnStartedAtUtc.Value,
+            now);
+
+        if (remainingMs > 0)
+        {
+            return false;
+        }
+
+        SetRemainingTime(game, game.WhoseTurn, 0);
+        CompleteGame(
+            game,
+            GameEndReason.Timeout,
+            OppositeColor(game.WhoseTurn),
+            now);
+
+        return true;
+    }
+
+    private static void CompleteGame(
+        ChessGame game,
+        GameEndReason reason,
+        PieceColor? winnerColor,
+        DateTime now)
+    {
+        game.Status = GameStatus.Completed;
+        game.EndReason = reason;
+        game.WinnerColor = winnerColor;
+        game.TurnStartedAtUtc = null;
+        game.UpdatedAtUtc = now;
+    }
+
     private static bool ApplyClockSpend(ChessGame game, DateTime now, PieceColor color)
     {
         if (game.TurnStartedAtUtc is null)
@@ -287,6 +359,32 @@ public class GameService : IGameService
 
     private static int DeductElapsed(int remainingMs, long elapsedMs) =>
         (int)Math.Max(0, remainingMs - elapsedMs);
+
+    private static int GetRemainingAfterElapsed(
+        int remainingMs,
+        DateTime turnStartedAtUtc,
+        DateTime now)
+    {
+        var elapsedMs = Math.Max(
+            0,
+            (long)Math.Floor((now - turnStartedAtUtc).TotalMilliseconds));
+
+        return DeductElapsed(remainingMs, elapsedMs);
+    }
+
+    private static void SetRemainingTime(ChessGame game, PieceColor color, int remainingMs)
+    {
+        if (color == PieceColor.White)
+        {
+            game.WhiteTimeRemainingMs = remainingMs;
+            return;
+        }
+
+        game.BlackTimeRemainingMs = remainingMs;
+    }
+
+    private static PieceColor OppositeColor(PieceColor color) =>
+        color == PieceColor.White ? PieceColor.Black : PieceColor.White;
 
     private static void ApplyIncrement(ChessGame game, PieceColor color)
     {

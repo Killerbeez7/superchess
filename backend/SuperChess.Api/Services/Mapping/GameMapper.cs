@@ -17,6 +17,12 @@ public static class GameMapper
         WhiteTimeRemainingMs = game.WhiteTimeRemainingMs,
         BlackTimeRemainingMs = game.BlackTimeRemainingMs,
         TurnStartedAtUtc = game.TurnStartedAtUtc,
+        EndReason = game.EndReason is null
+            ? null
+            : game.EndReason.Value.ToString().ToLowerInvariant(),
+        WinnerColor = game.WinnerColor is null
+            ? null
+            : game.WinnerColor.Value.ToString().ToLowerInvariant(),
         CreatedAtUtc = game.CreatedAtUtc,
         UpdatedAtUtc = game.UpdatedAtUtc,
         WhitePlayer = ToSummary(game.WhitePlayer),

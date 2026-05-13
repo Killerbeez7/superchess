@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
 import { ChessBoard } from "@/features/game/components/ChessBoard";
+import { GameEndBanner } from "@/features/game/components/GameEndBanner";
 import { GamePlayerBar } from "@/features/game/components/GamePlayerBar";
 import { GameUtilityRail } from "@/features/game/components/GameUtilityRail";
 import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
@@ -28,7 +29,9 @@ export default function GameDetailsPage() {
   const params = useParams();
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [optimisticFen, setOptimisticFen] = useState<string | null>(null);
+  const [isEndModalDismissed, setIsEndModalDismissed] = useState(false);
   const pendingTapMoveFromRef = useRef<string | null>(null);
+  const timeoutRefreshKeyRef = useRef<string | null>(null);
 
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
@@ -122,13 +125,45 @@ export default function GameDetailsPage() {
     setSelectedSquare(null);
   }, [refresh, setSelectedSquare]);
 
+  const currentTurnTimeRemainingMs =
+    game?.whoseTurn === "white" ? whiteTimeRemainingMs : blackTimeRemainingMs;
+  const timedOutColor =
+    game?.status === "active" && currentTurnTimeRemainingMs <= 0
+      ? game.whoseTurn
+      : null;
+  const timeoutRefreshKey =
+    game && timedOutColor
+      ? `${game.id}:${timedOutColor}:${game.turnStartedAtUtc ?? game.updatedAtUtc}`
+      : null;
+
+  useEffect(() => {
+    if (!timeoutRefreshKey || timeoutRefreshKeyRef.current === timeoutRefreshKey) {
+      return;
+    }
+
+    timeoutRefreshKeyRef.current = timeoutRefreshKey;
+    void refresh({ silent: true });
+  }, [refresh, timeoutRefreshKey]);
+
+  const canUseBoard = canInteractWithBoard && !timedOutColor;
+  const showEndModal =
+    !!game &&
+    (game.status === "completed" || !!timedOutColor) &&
+    !isEndModalDismissed;
+
+  useEffect(() => {
+    if (game?.status === "active" && !timedOutColor) {
+      setIsEndModalDismissed(false);
+    }
+  }, [game?.status, timedOutColor]);
+
   const isOwnPlayablePiece = useCallback(
     (piece: BoardPiece | null) =>
       !!piece &&
-      canInteractWithBoard &&
+      canUseBoard &&
       !!session &&
       pieceBelongsToColor(piece, session.color),
-    [canInteractWithBoard, session]
+    [canUseBoard, session]
   );
 
   const handleBoardPiecePress = useCallback(
@@ -339,18 +374,28 @@ export default function GameDetailsPage() {
                   <PlayerIdentitySetup onSave={handleSaveIdentity} />
                 )}
 
-                <ChessBoard
-                  variant="app"
-                  position={boardPosition}
-                  interactive={canInteractWithBoard}
-                  selectedSquare={selectedSquare}
-                  candidateSquares={candidateSquares}
-                  lastMoveFrom={lastMoveFrom}
-                  lastMoveTo={lastMoveTo}
-                  onPiecePress={handleBoardPiecePress}
-                  onSquareTap={handleBoardTap}
-                  onDragEnd={handleBoardDragEnd}
-                />
+                <div className="relative">
+                  <ChessBoard
+                    variant="app"
+                    position={boardPosition}
+                    interactive={canUseBoard}
+                    selectedSquare={selectedSquare}
+                    candidateSquares={candidateSquares}
+                    lastMoveFrom={lastMoveFrom}
+                    lastMoveTo={lastMoveTo}
+                    onPiecePress={handleBoardPiecePress}
+                    onSquareTap={handleBoardTap}
+                    onDragEnd={handleBoardDragEnd}
+                  />
+
+                  {showEndModal && (
+                    <GameEndBanner
+                      game={game}
+                      timedOutColor={timedOutColor}
+                      onDismiss={() => setIsEndModalDismissed(true)}
+                    />
+                  )}
+                </div>
 
                 {pendingPromotionMove && (
                   <PromotionPicker

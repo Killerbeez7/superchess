@@ -11,6 +11,8 @@ public class GameResponse
     public int WhiteTimeRemainingMs { get; set; }
     public int BlackTimeRemainingMs { get; set; }
     public DateTime? TurnStartedAtUtc { get; set; }
+    public string? EndReason { get; set; }
+    public string? WinnerColor { get; set; }
 
     public PlayerSummary WhitePlayer { get; set; } = null!;
     public PlayerSummary? BlackPlayer { get; set; }

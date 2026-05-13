@@ -58,7 +58,7 @@ export function getCandidateSquares(
       return true;
     }
 
-    if (targetPiece.color !== piece.color) {
+    if (targetPiece.color !== piece.color && targetPiece.type !== "king") {
       results.push(square);
     }
 
@@ -124,7 +124,7 @@ export function getCandidateSquares(
       }
     }
 
-    return results;
+    return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
   }
 
   if (piece.type === "knight") {
@@ -143,7 +143,7 @@ export function getCandidateSquares(
       pushIfValid(fromCoords.row + rowOffset, fromCoords.col + colOffset);
     }
 
-    return results;
+    return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
   }
 
   if (piece.type === "bishop") {
@@ -151,7 +151,7 @@ export function getCandidateSquares(
     pushRay(-1, 1);
     pushRay(1, -1);
     pushRay(1, 1);
-    return results;
+    return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
   }
 
   if (piece.type === "rook") {
@@ -159,7 +159,7 @@ export function getCandidateSquares(
     pushRay(1, 0);
     pushRay(0, -1);
     pushRay(0, 1);
-    return results;
+    return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
   }
 
   if (piece.type === "queen") {
@@ -171,7 +171,7 @@ export function getCandidateSquares(
     pushRay(1, 0);
     pushRay(0, -1);
     pushRay(0, 1);
-    return results;
+    return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
   }
 
   if (piece.type === "king") {
@@ -196,10 +196,10 @@ export function getCandidateSquares(
       }
     }
 
-    return results;
+    return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
   }
 
-  return results;
+  return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
 }
 
 export function inferLastMoveFromFens(previousFen?: string, nextFen?: string): LastMove {
@@ -367,6 +367,69 @@ function isInsideBoard(row: number, col: number) {
 
 function oppositeColor(color: PieceColor): PieceColor {
   return color === "white" ? "black" : "white";
+}
+
+function filterKingSafeMoves(
+  position: BoardPosition,
+  from: string,
+  piece: BoardPiece,
+  candidateSquares: string[],
+  enPassantSquare?: string | null
+) {
+  if (piece.type !== "king" && !findKingSquare(position, piece.color)) {
+    return candidateSquares;
+  }
+
+  return candidateSquares.filter((to) =>
+    doesMoveKeepKingSafe(position, from, to, piece, enPassantSquare)
+  );
+}
+
+function findKingSquare(position: BoardPosition, color: PieceColor) {
+  return Object.entries(position).find(
+    ([, piece]) => piece.type === "king" && piece.color === color
+  )?.[0] ?? null;
+}
+
+function doesMoveKeepKingSafe(
+  position: BoardPosition,
+  from: string,
+  to: string,
+  piece: BoardPiece,
+  enPassantSquare?: string | null
+) {
+  const targetPiece = position[to] ?? null;
+  if (targetPiece?.type === "king") {
+    return false;
+  }
+
+  const nextPosition = { ...position };
+  const fromCoords = squareToCoords(from);
+  const toCoords = squareToCoords(to);
+  const isEnPassantCapture =
+    piece.type === "pawn" &&
+    fromCoords.col !== toCoords.col &&
+    !targetPiece &&
+    to === enPassantSquare;
+
+  delete nextPosition[from];
+  nextPosition[to] = piece;
+
+  if (isEnPassantCapture) {
+    const capturedPawnSquare = coordsToSquare(fromCoords.row, toCoords.col);
+    if (capturedPawnSquare) {
+      delete nextPosition[capturedPawnSquare];
+    }
+  }
+
+  const kingSquare =
+    piece.type === "king" ? to : findKingSquare(nextPosition, piece.color);
+
+  if (!kingSquare) {
+    return true;
+  }
+
+  return !isSquareAttackedBy(nextPosition, kingSquare, oppositeColor(piece.color));
 }
 
 function isKingMoveSafe(

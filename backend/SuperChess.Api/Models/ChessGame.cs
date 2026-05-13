@@ -23,6 +23,8 @@ public class ChessGame
     public int WhiteTimeRemainingMs { get; set; } = DefaultInitialClockMs;
     public int BlackTimeRemainingMs { get; set; } = DefaultInitialClockMs;
     public DateTime? TurnStartedAtUtc { get; set; }
+    public GameEndReason? EndReason { get; set; }
+    public PieceColor? WinnerColor { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;

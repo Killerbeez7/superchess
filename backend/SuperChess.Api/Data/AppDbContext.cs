@@ -30,6 +30,8 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
             entity.Property(x => x.CurrentFen).HasMaxLength(200).IsRequired();
             entity.Property(x => x.WhoseTurn).HasConversion<string>().HasMaxLength(10).IsRequired();
+            entity.Property(x => x.EndReason).HasConversion<string>().HasMaxLength(30);
+            entity.Property(x => x.WinnerColor).HasConversion<string>().HasMaxLength(10);
 
             entity.HasOne(x => x.WhitePlayer)
                 .WithMany()

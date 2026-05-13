@@ -1,5 +1,6 @@
 export type PieceColor = "white" | "black";
 export type GameStatus = "waiting" | "active" | "completed" | "abandoned";
+export type GameEndReason = "checkmate" | "stalemate" | "timeout";
 export type PieceType = "pawn" | "knight" | "bishop" | "rook" | "queen" | "king";
 export type PromotionPiece = "q" | "r" | "b" | "n";
 
@@ -26,6 +27,8 @@ export type GameResponse = {
   whiteTimeRemainingMs: number;
   blackTimeRemainingMs: number;
   turnStartedAtUtc: string | null;
+  endReason: GameEndReason | null;
+  winnerColor: PieceColor | null;
   whitePlayer: PlayerSummary;
   blackPlayer: PlayerSummary | null;
   createdAtUtc: string;

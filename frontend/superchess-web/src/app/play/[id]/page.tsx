@@ -375,10 +375,6 @@ export default function GameDetailsPage() {
                   </div>
                 )}
 
-                {canTakeBlackSeat && isIdentityReady && !identity && (
-                  <PlayerIdentitySetup onSave={handleSaveIdentity} />
-                )}
-
                 <div className="relative">
                   <ChessBoard
                     variant="app"
@@ -399,6 +395,10 @@ export default function GameDetailsPage() {
                       timedOutColor={timedOutColor}
                       onDismiss={() => setIsEndModalDismissed(true)}
                     />
+                  )}
+
+                  {canTakeBlackSeat && isIdentityReady && !identity && (
+                    <PlayerIdentitySetup onSave={handleSaveIdentity} />
                   )}
                 </div>
 

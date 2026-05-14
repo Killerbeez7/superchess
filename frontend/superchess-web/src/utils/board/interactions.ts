@@ -391,6 +391,15 @@ function findKingSquare(position: BoardPosition, color: PieceColor) {
   )?.[0] ?? null;
 }
 
+export function isKingInCheck(position: BoardPosition | undefined, color: PieceColor) {
+  if (!position) return false;
+
+  const kingSquare = findKingSquare(position, color);
+  if (!kingSquare) return false;
+
+  return isSquareAttackedBy(position, kingSquare, oppositeColor(color));
+}
+
 function doesMoveKeepKingSafe(
   position: BoardPosition,
   from: string,

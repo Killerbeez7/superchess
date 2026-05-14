@@ -22,12 +22,81 @@ import { useGameAutoJoin } from "@/features/game/hooks/useGameAutoJoin";
 import { useGameSounds } from "@/features/game/hooks/useGameSounds";
 
 import {
+  getEnPassantSquareFromFen,
   getCandidateSquares,
   getPieceAtSquare,
+  isKingInCheck,
   pieceBelongsToColor,
+  squareToCoords,
 } from "@/utils/board/interactions";
-import type { GameResponse } from "@/types/game";
+import type { GameResponse, PieceColor } from "@/types/game";
+import { getBoardPositionFromGameState } from "@/utils/board/position";
 import type { BoardPiece } from "@/utils/board/position";
+import type { GameSoundName } from "@/features/game/hooks/useGameSounds";
+
+function getMoveSounds(
+  previousGame: GameResponse | null,
+  updatedGame: GameResponse,
+  localColor?: PieceColor
+): GameSoundName[] {
+  if (updatedGame.status === "completed") {
+    return updatedGame.endReason === "checkmate"
+      ? ["check", "game_end"]
+      : ["game_end"];
+  }
+
+  const latestMove = updatedGame.moves[updatedGame.moves.length - 1];
+  if (!previousGame || !latestMove) return ["move"];
+
+  const previousPosition = getBoardPositionFromGameState(previousGame.currentFen);
+  const updatedPosition = getBoardPositionFromGameState(updatedGame.currentFen);
+  const movingPiece = getPieceAtSquare(previousPosition, latestMove.from);
+
+  if (!movingPiece) return ["move"];
+
+  const fromCoords = squareToCoords(latestMove.from);
+  const toCoords = squareToCoords(latestMove.to);
+  const targetPiece = getPieceAtSquare(previousPosition, latestMove.to);
+
+  const isCastle =
+    movingPiece.type === "king" && Math.abs(toCoords.col - fromCoords.col) === 2;
+  if (isCastle) return ["castle"];
+
+  const isPromotion =
+    movingPiece.type === "pawn" &&
+    (latestMove.to.endsWith("8") || latestMove.to.endsWith("1"));
+  if (isPromotion) return ["promote"];
+
+  if (isKingInCheck(updatedPosition, updatedGame.whoseTurn)) return ["check"];
+
+  const isEnPassantCapture =
+    movingPiece.type === "pawn" &&
+    fromCoords.col !== toCoords.col &&
+    !targetPiece &&
+    getEnPassantSquareFromFen(previousGame.currentFen) === latestMove.to;
+  const isCapture =
+    (targetPiece && targetPiece.color !== movingPiece.color) || isEnPassantCapture;
+
+  if (isCapture) return ["capture"];
+
+  return localColor && latestMove.playerColor !== localColor
+    ? ["move_opponent"]
+    : ["move"];
+}
+
+function playSounds(
+  playSound: (name: GameSoundName) => void,
+  sounds: GameSoundName[]
+) {
+  sounds.forEach((sound, index) => {
+    if (index === 0) {
+      playSound(sound);
+      return;
+    }
+
+    window.setTimeout(() => playSound(sound), 180 * index);
+  });
+}
 
 export default function GameDetailsPage() {
   const params = useParams();
@@ -53,23 +122,35 @@ export default function GameDetailsPage() {
     lastMoveTo,
   } = useBoardSelection(game, session, displayedFen);
 
+  const { playSound, unlockSound } = useGameSounds();
+  const handleIllegalMoveSound = useCallback(() => {
+    playSound("illegal");
+  }, [playSound]);
+
   const handlePlayerJoined = useCallback(
     (updated: GameResponse) => {
+      const startedGame = game?.status === "waiting" && updated.status === "active";
+
       setGame(updated);
       setOptimisticFen(null);
+
+      if (startedGame) {
+        playSound("game_start");
+      }
     },
-    [setGame]
+    [game?.status, playSound, setGame]
   );
 
-  const { playSound } = useGameSounds();
   const handleMovePlayed = useCallback(
     (updated: GameResponse) => {
+      const sounds = getMoveSounds(game, updated, session?.color);
+
       setGame(updated);
       setOptimisticFen(null);
       setSelectedSquare(null);
-      void playSound("move");
+      playSounds(playSound, sounds);
     },
-    [playSound, setGame, setSelectedSquare]
+    [game, playSound, session?.color, setGame, setSelectedSquare]
   );
 
   const { isConnected } = useGameRealtime({
@@ -98,6 +179,7 @@ export default function GameDetailsPage() {
     setOptimisticFen,
     boardPosition,
     enPassantSquare,
+    onIllegalMove: handleIllegalMoveSound,
   });
 
   const handleSaveIdentity = useCallback(
@@ -113,13 +195,15 @@ export default function GameDetailsPage() {
   );
 
   const handleJoinWithIdentity = useCallback(async () => {
+    void unlockSound();
+
     if (!identity) {
       setError("Player name is required.");
       return;
     }
 
     await handleJoin(identity.displayName);
-  }, [handleJoin, identity, setError]);
+  }, [handleJoin, identity, setError, unlockSound]);
 
   useGameAutoJoin({
     gameId,
@@ -183,6 +267,8 @@ export default function GameDetailsPage() {
 
   const handleBoardPiecePress = useCallback(
     (square: string, piece: BoardPiece) => {
+      void unlockSound();
+
       const selectedPiece = selectedSquare
         ? getPieceAtSquare(boardPosition, selectedSquare)
         : null;
@@ -221,11 +307,14 @@ export default function GameDetailsPage() {
       isOwnPlayablePiece,
       selectedSquare,
       setSelectedSquare,
+      unlockSound,
     ]
   );
 
   const handleBoardTap = useCallback(
     async (square: string) => {
+      void unlockSound();
+
       const pendingTapMoveFrom = pendingTapMoveFromRef.current;
       pendingTapMoveFromRef.current = null;
 
@@ -294,11 +383,14 @@ export default function GameDetailsPage() {
       selectedSquare,
       setSelectedSquare,
       enPassantSquare,
+      unlockSound,
     ]
   );
 
   const handleBoardDragEnd = useCallback(
     async (from: string, releasedOn: string | null) => {
+      void unlockSound();
+
       pendingTapMoveFromRef.current = null;
       const sourcePiece = getPieceAtSquare(boardPosition, from);
 
@@ -325,6 +417,7 @@ export default function GameDetailsPage() {
       );
 
       if (!candidates.includes(releasedOn)) {
+        handleIllegalMoveSound();
         setSelectedSquare(from);
         return;
       }
@@ -335,8 +428,10 @@ export default function GameDetailsPage() {
       boardPosition,
       enPassantSquare,
       handleMoveAttempt,
+      handleIllegalMoveSound,
       isOwnPlayablePiece,
       setSelectedSquare,
+      unlockSound,
     ]
   );
 
@@ -439,7 +534,10 @@ export default function GameDetailsPage() {
                 {pendingPromotionMove && (
                   <PromotionPicker
                     color={pendingPromotionMove.color}
-                    onSelect={handlePromotionSelect}
+                    onSelect={(promotion) => {
+                      void unlockSound();
+                      void handlePromotionSelect(promotion);
+                    }}
                     onCancel={handlePromotionCancel}
                   />
                 )}

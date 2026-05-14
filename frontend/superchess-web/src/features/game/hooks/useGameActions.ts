@@ -25,6 +25,7 @@ type UseGameActionsArgs = {
   setOptimisticFen: (fen: string | null) => void;
   boardPosition: BoardPosition;
   enPassantSquare: string | null;
+  onIllegalMove?: () => void;
 };
 
 type PendingPromotionMove = {
@@ -53,6 +54,7 @@ export function useGameActions({
   setOptimisticFen,
   boardPosition,
   enPassantSquare,
+  onIllegalMove,
 }: UseGameActionsArgs) {
   const [isJoining, setIsJoining] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
@@ -139,7 +141,9 @@ export function useGameActions({
         setOptimisticFen(null);
         setSelectedSquare(null);
 
-        if (!(err instanceof ApiError && err.kind === "validation")) {
+        if (err instanceof ApiError && err.kind === "validation") {
+          onIllegalMove?.();
+        } else {
           setError(err instanceof Error ? err.message : "Failed to make move.");
         }
       } finally {
@@ -154,6 +158,7 @@ export function useGameActions({
       setError,
       setOptimisticFen,
       setSelectedSquare,
+      onIllegalMove,
     ]
   );
 
@@ -169,11 +174,13 @@ export function useGameActions({
       const targetPiece = getPieceAtSquare(boardPosition, to);
 
       if (!movingPiece || !pieceBelongsToColor(movingPiece, session.color)) {
+        onIllegalMove?.();
         setSelectedSquare(null);
         return;
       }
 
       if (targetPiece && pieceBelongsToColor(targetPiece, session.color)) {
+        onIllegalMove?.();
         setSelectedSquare(null);
         return;
       }
@@ -185,6 +192,7 @@ export function useGameActions({
         enPassantSquare
       );
       if (!candidates.includes(to)) {
+        onIllegalMove?.();
         setSelectedSquare(null);
         return;
       }
@@ -208,6 +216,7 @@ export function useGameActions({
       setError,
       setSelectedSquare,
       submitMove,
+      onIllegalMove,
     ]
   );
 

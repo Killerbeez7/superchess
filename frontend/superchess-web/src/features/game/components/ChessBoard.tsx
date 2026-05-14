@@ -4,9 +4,12 @@ import Image from "next/image";
 import type { BoardPiece, BoardPosition } from "@/utils/board/position";
 import { usePieceDrag } from "@/features/game/hooks/usePieceDrag";
 
+export type BoardPerspective = "white" | "black";
+
 type ChessBoardProps = {
   variant?: "hero" | "app";
   position?: BoardPosition;
+  perspective?: BoardPerspective;
   interactive?: boolean;
   selectedSquare?: string | null;
   candidateSquares?: string[];
@@ -24,12 +27,16 @@ function getPieceSrc(piece: BoardPiece) {
   return `/pieces/${piece.type}-${c}.svg`;
 }
 
-function getSquareKey(row: number, col: number) {
-  return `${FILES[col]}${8 - row}`;
+function getSquareKey(row: number, col: number, perspective: BoardPerspective) {
+  const boardCol = perspective === "white" ? col : 7 - col;
+  const boardRow = perspective === "white" ? row : 7 - row;
+
+  return `${FILES[boardCol]}${8 - boardRow}`;
 }
 
 export function ChessBoard({
   variant = "app",
+  perspective = "white",
   position,
   interactive = false,
   selectedSquare = null,
@@ -45,6 +52,7 @@ export function ChessBoard({
   const { boardRef, pointerHandlers, dragOverlay, draggingFrom, hoveredSquare } =
     usePieceDrag({
       enabled: interactive && (!!onSquareTap || !!onPiecePress || !!onDragEnd),
+      perspective,
       position,
       onPiecePress,
       onTap: (square) => onSquareTap?.(square),
@@ -80,7 +88,7 @@ export function ChessBoard({
             const row = Math.floor(index / 8);
             const col = index % 8;
             const isDark = (row + col) % 2 === 1;
-            const square = getSquareKey(row, col);
+            const square = getSquareKey(row, col, perspective);
             const piece = position?.[square] ?? null;
 
             const isSelected = selectedSquare === square;
@@ -110,18 +118,18 @@ export function ChessBoard({
                 )}
 
                 {isHoveredDrop && (
-                  <span className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-white/80" />
+                  <span className="pointer-events-none absolute inset-0 ring-5 ring-inset ring-white/80" />
                 )}
 
                 {col === 0 && (
                   <span className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500/70 sm:left-2 sm:top-2 sm:text-[10px]">
-                    {8 - row}
+                    {perspective === "white" ? 8 - row : row + 1}
                   </span>
                 )}
 
                 {row === 7 && (
                   <span className="pointer-events-none absolute bottom-1.5 right-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500/70 sm:bottom-2 sm:right-2 sm:text-[10px]">
-                    {String.fromCharCode(97 + col)}
+                    {perspective === "white" ? FILES[col] : FILES[7 - col]}
                   </span>
                 )}
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { BoardPiece, BoardPosition } from "@/utils/board/position";
+import type { BoardPerspective } from "../components/ChessBoard";
 
 type PointerState =
   | { kind: "idle" }
@@ -31,6 +32,7 @@ type PointerState =
 
 type UsePieceDragArgs = {
   enabled?: boolean;
+  perspective?: BoardPerspective;
   position: BoardPosition | undefined;
   onPiecePress?: (square: string, piece: BoardPiece) => boolean | void;
   onTap: (square: string) => void;
@@ -40,14 +42,24 @@ type UsePieceDragArgs = {
 const DRAG_THRESHOLD_PX = 8;
 const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"] as const;
 
-function squareFromCoords(rect: DOMRect, clientX: number, clientY: number) {
+function squareFromCoords(
+  rect: DOMRect,
+  clientX: number,
+  clientY: number,
+  perspective: BoardPerspective
+) {
   const x = clientX - rect.left;
   const y = clientY - rect.top;
+
   if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
 
-  const col = Math.min(7, Math.max(0, Math.floor((x / rect.width) * 8)));
-  const row = Math.min(7, Math.max(0, Math.floor((y / rect.height) * 8)));
-  return `${FILES[col]}${8 - row}`;
+  const visualCol = Math.min(7, Math.max(0, Math.floor((x / rect.width) * 8)));
+  const visualRow = Math.min(7, Math.max(0, Math.floor((y / rect.height) * 8)));
+
+  const boardCol = perspective === "white" ? visualCol : 7 - visualCol;
+  const boardRow = perspective === "white" ? visualRow : 7 - visualRow;
+
+  return `${FILES[boardCol]}${8 - boardRow}`;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -64,6 +76,7 @@ function clampDragPoint(rect: DOMRect, clientX: number, clientY: number) {
 
 export function usePieceDrag({
   enabled = true,
+  perspective = "white",
   position,
   onPiecePress,
   onTap,
@@ -92,7 +105,7 @@ export function usePieceDrag({
       event.preventDefault();
 
       const rect = boardRef.current.getBoundingClientRect();
-      const square = squareFromCoords(rect, event.clientX, event.clientY);
+      const square = squareFromCoords(rect, event.clientX, event.clientY, perspective);
       if (!square) return;
 
       const piece = position?.[square] ?? null;
@@ -116,7 +129,7 @@ export function usePieceDrag({
 
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [enabled, position, onPiecePress, setBoth]
+    [enabled, perspective, position, onPiecePress, setBoth]
   );
 
   const handlePointerMove = useCallback(
@@ -133,7 +146,7 @@ export function usePieceDrag({
           ? clampDragPoint(rect, event.clientX, event.clientY)
           : { x: event.clientX, y: event.clientY };
         const hoveredSquare = rect
-          ? squareFromCoords(rect, event.clientX, event.clientY)
+          ? squareFromCoords(rect, event.clientX, event.clientY, perspective)
           : null;
         const distance = Math.hypot(
           event.clientX - current.startX,
@@ -170,12 +183,14 @@ export function usePieceDrag({
 
       setBoth({
         ...current,
-        hoveredSquare: rect ? squareFromCoords(rect, event.clientX, event.clientY) : null,
+        hoveredSquare: rect
+          ? squareFromCoords(rect, event.clientX, event.clientY, perspective)
+          : null,
         x: point.x,
         y: point.y,
       });
     },
-    [setBoth]
+    [perspective, setBoth]
   );
 
   const handlePointerUp = useCallback(
@@ -192,7 +207,7 @@ export function usePieceDrag({
 
       const rect = boardRef.current?.getBoundingClientRect();
       const releasedOn = rect
-        ? squareFromCoords(rect, event.clientX, event.clientY)
+        ? squareFromCoords(rect, event.clientX, event.clientY, perspective)
         : null;
 
       if (current.kind === "pressing") {
@@ -207,7 +222,7 @@ export function usePieceDrag({
 
       setBoth({ kind: "idle" });
     },
-    [onTap, onDragEnd, setBoth]
+    [onTap, onDragEnd, perspective, setBoth]
   );
 
   const handlePointerCancel = useCallback(

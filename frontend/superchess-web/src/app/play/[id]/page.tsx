@@ -154,7 +154,11 @@ export default function GameDetailsPage() {
     void refresh({ silent: true });
   }, [refresh, timeoutRefreshKey]);
 
-  const canUseBoard = canInteractWithBoard && !timedOutColor;
+  const canUseBoardInput =
+    !!game && !!session && game.status === "active" && !timedOutColor;
+
+  const canMoveOwnPieces = canInteractWithBoard && !timedOutColor;
+
   const showEndModal =
     !!game && (game.status === "completed" || !!timedOutColor) && !isEndModalDismissed;
 
@@ -170,8 +174,11 @@ export default function GameDetailsPage() {
 
   const isOwnPlayablePiece = useCallback(
     (piece: BoardPiece | null) =>
-      !!piece && canUseBoard && !!session && pieceBelongsToColor(piece, session.color),
-    [canUseBoard, session]
+      !!piece &&
+      canMoveOwnPieces &&
+      !!session &&
+      pieceBelongsToColor(piece, session.color),
+    [canMoveOwnPieces, session]
   );
 
   const handleBoardPiecePress = useCallback(
@@ -339,6 +346,40 @@ export default function GameDetailsPage() {
   const isBlackTurn = game?.status === "active" && game.whoseTurn === "black";
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for player 2";
   const whitePlayerName = game?.whitePlayer.displayName ?? "Waiting for player 1";
+  const boardPerspective = session?.color ?? "white";
+
+  const whitePlayerView = {
+    name: whitePlayerName,
+    color: "white" as const,
+    timer: whiteTimer,
+    timeRemainingMs: whiteTimeRemainingMs,
+    isActive: isWhiteTurn,
+    action: null,
+  };
+
+  const blackPlayerView = {
+    name: blackPlayerName,
+    color: "black" as const,
+    timer: game?.blackPlayer ? blackTimer : "--:--",
+    timeRemainingMs: game?.blackPlayer ? blackTimeRemainingMs : undefined,
+    isActive: isBlackTurn,
+    action:
+      canTakeBlackSeat && identity ? (
+        <button
+          type="button"
+          onClick={handleJoinWithIdentity}
+          disabled={isJoining}
+          className="rounded-md bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isJoining ? "Joining..." : "Join"}
+        </button>
+      ) : null,
+  };
+
+  const topPlayerView = boardPerspective === "white" ? blackPlayerView : whitePlayerView;
+
+  const bottomPlayerView =
+    boardPerspective === "white" ? whitePlayerView : blackPlayerView;
 
   return (
     <main className="min-h-dvh bg-slate-950/97 text-white">
@@ -353,23 +394,12 @@ export default function GameDetailsPage() {
             ) : game ? (
               <>
                 <GamePlayerBar
-                  name={blackPlayerName}
-                  color="black"
-                  timer={game.blackPlayer ? blackTimer : "--:--"}
-                  timeRemainingMs={game.blackPlayer ? blackTimeRemainingMs : undefined}
-                  isActive={isBlackTurn}
-                  action={
-                    canTakeBlackSeat && identity ? (
-                      <button
-                        type="button"
-                        onClick={handleJoinWithIdentity}
-                        disabled={isJoining}
-                        className="rounded-md bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isJoining ? "Joining..." : "Join"}
-                      </button>
-                    ) : null
-                  }
+                  name={topPlayerView.name}
+                  color={topPlayerView.color}
+                  timer={topPlayerView.timer}
+                  timeRemainingMs={topPlayerView.timeRemainingMs}
+                  isActive={topPlayerView.isActive}
+                  action={topPlayerView.action}
                 />
 
                 {canTakeBlackSeat && !isIdentityReady && (
@@ -381,8 +411,9 @@ export default function GameDetailsPage() {
                 <div className="relative select-none">
                   <ChessBoard
                     variant="app"
+                    perspective={boardPerspective}
                     position={boardPosition}
-                    interactive={canUseBoard}
+                    interactive={canUseBoardInput}
                     selectedSquare={selectedSquare}
                     candidateSquares={candidateSquares}
                     lastMoveFrom={lastMoveFrom}
@@ -414,11 +445,12 @@ export default function GameDetailsPage() {
                 )}
 
                 <GamePlayerBar
-                  name={whitePlayerName}
-                  color="white"
-                  timer={whiteTimer}
-                  timeRemainingMs={whiteTimeRemainingMs}
-                  isActive={isWhiteTurn}
+                  name={bottomPlayerView.name}
+                  color={bottomPlayerView.color}
+                  timer={bottomPlayerView.timer}
+                  timeRemainingMs={bottomPlayerView.timeRemainingMs}
+                  isActive={bottomPlayerView.isActive}
+                  action={bottomPlayerView.action}
                 />
               </>
             ) : (

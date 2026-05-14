@@ -26,6 +26,12 @@ type UseGameActionsArgs = {
   boardPosition: BoardPosition;
   enPassantSquare: string | null;
   onIllegalMove?: () => void;
+  onOptimisticMove?: (move: {
+    from: string;
+    to: string;
+    promotion?: PromotionPiece;
+    optimisticFen: string;
+  }) => void;
 };
 
 type PendingPromotionMove = {
@@ -55,6 +61,7 @@ export function useGameActions({
   boardPosition,
   enPassantSquare,
   onIllegalMove,
+  onOptimisticMove,
 }: UseGameActionsArgs) {
   const [isJoining, setIsJoining] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
@@ -126,6 +133,7 @@ export function useGameActions({
         );
         setOptimisticFen(optimisticNextFen);
         setSelectedSquare(null);
+        onOptimisticMove?.({ from, to, promotion, optimisticFen: optimisticNextFen });
 
         const updatedGame = await makeMove(gameId, {
           from,
@@ -159,6 +167,7 @@ export function useGameActions({
       setOptimisticFen,
       setSelectedSquare,
       onIllegalMove,
+      onOptimisticMove,
     ]
   );
 

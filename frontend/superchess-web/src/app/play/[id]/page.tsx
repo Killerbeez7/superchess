@@ -29,7 +29,7 @@ import {
   pieceBelongsToColor,
   squareToCoords,
 } from "@/utils/board/interactions";
-import type { GameResponse, PieceColor } from "@/types/game";
+import type { GameResponse, PieceColor, PromotionPiece } from "@/types/game";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import type { BoardPiece } from "@/utils/board/position";
 import type { GameSoundName } from "@/features/game/hooks/useGameSounds";
@@ -84,6 +84,59 @@ function getMoveSounds(
     : ["move"];
 }
 
+function getOptimisticMoveSounds({
+  currentFen,
+  optimisticFen,
+  from,
+  to,
+  promotion,
+}: {
+  currentFen?: string;
+  optimisticFen: string;
+  from: string;
+  to: string;
+  promotion?: PromotionPiece;
+}): GameSoundName[] {
+  if (!currentFen) return ["move"];
+
+  const previousPosition = getBoardPositionFromGameState(currentFen);
+  const updatedPosition = getBoardPositionFromGameState(optimisticFen);
+  const movingPiece = getPieceAtSquare(previousPosition, from);
+
+  if (!movingPiece) return ["move"];
+
+  const fromCoords = squareToCoords(from);
+  const toCoords = squareToCoords(to);
+  const targetPiece = getPieceAtSquare(previousPosition, to);
+
+  const isCastle =
+    movingPiece.type === "king" && Math.abs(toCoords.col - fromCoords.col) === 2;
+  if (isCastle) return ["castle"];
+
+  const isPromotion =
+    movingPiece.type === "pawn" &&
+    !!promotion &&
+    (to.endsWith("8") || to.endsWith("1"));
+  if (isPromotion) return ["promote"];
+
+  const checkedColor = movingPiece.color === "white" ? "black" : "white";
+  if (isKingInCheck(updatedPosition, checkedColor)) return ["check"];
+
+  const isEnPassantCapture =
+    movingPiece.type === "pawn" &&
+    fromCoords.col !== toCoords.col &&
+    !targetPiece &&
+    getEnPassantSquareFromFen(currentFen) === to;
+  const isCapture =
+    (targetPiece && targetPiece.color !== movingPiece.color) || isEnPassantCapture;
+
+  return isCapture ? ["capture"] : ["move"];
+}
+
+function moveKey(from: string, to: string, color?: PieceColor) {
+  return `${color ?? "unknown"}:${from}:${to}`;
+}
+
 function playSounds(
   playSound: (name: GameSoundName) => void,
   sounds: GameSoundName[]
@@ -105,6 +158,10 @@ export default function GameDetailsPage() {
   const [isEndModalDismissed, setIsEndModalDismissed] = useState(false);
   const pendingTapMoveFromRef = useRef<string | null>(null);
   const timeoutRefreshKeyRef = useRef<string | null>(null);
+  const optimisticSoundRef = useRef<{
+    key: string;
+    sounds: GameSoundName[];
+  } | null>(null);
 
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
@@ -124,8 +181,37 @@ export default function GameDetailsPage() {
 
   const { playSound, unlockSound } = useGameSounds();
   const handleIllegalMoveSound = useCallback(() => {
+    optimisticSoundRef.current = null;
     playSound("illegal");
   }, [playSound]);
+  const handleOptimisticMoveSound = useCallback(
+    ({
+      from,
+      to,
+      promotion,
+      optimisticFen,
+    }: {
+      from: string;
+      to: string;
+      promotion?: PromotionPiece;
+      optimisticFen: string;
+    }) => {
+      const sounds = getOptimisticMoveSounds({
+        currentFen: game?.currentFen,
+        optimisticFen,
+        from,
+        to,
+        promotion,
+      });
+
+      optimisticSoundRef.current = {
+        key: moveKey(from, to, session?.color),
+        sounds,
+      };
+      playSounds(playSound, sounds);
+    },
+    [game?.currentFen, playSound, session?.color]
+  );
 
   const handlePlayerJoined = useCallback(
     (updated: GameResponse) => {
@@ -143,11 +229,35 @@ export default function GameDetailsPage() {
 
   const handleMovePlayed = useCallback(
     (updated: GameResponse) => {
-      const sounds = getMoveSounds(game, updated, session?.color);
+      const latestMove = updated.moves[updated.moves.length - 1];
+      const optimisticSound = optimisticSoundRef.current;
+      const isOwnOptimisticConfirmation =
+        !!latestMove &&
+        !!session?.color &&
+        optimisticSound?.key ===
+          moveKey(latestMove.from, latestMove.to, session.color);
 
       setGame(updated);
       setOptimisticFen(null);
       setSelectedSquare(null);
+
+      if (isOwnOptimisticConfirmation) {
+        optimisticSoundRef.current = null;
+
+        if (updated.status === "completed") {
+          const sounds =
+            updated.endReason === "checkmate" &&
+            !optimisticSound.sounds.includes("check")
+              ? (["check", "game_end"] as GameSoundName[])
+              : (["game_end"] as GameSoundName[]);
+
+          playSounds(playSound, sounds);
+        }
+
+        return;
+      }
+
+      const sounds = getMoveSounds(game, updated, session?.color);
       playSounds(playSound, sounds);
     },
     [game, playSound, session?.color, setGame, setSelectedSquare]
@@ -180,6 +290,7 @@ export default function GameDetailsPage() {
     boardPosition,
     enPassantSquare,
     onIllegalMove: handleIllegalMoveSound,
+    onOptimisticMove: handleOptimisticMoveSound,
   });
 
   const handleSaveIdentity = useCallback(

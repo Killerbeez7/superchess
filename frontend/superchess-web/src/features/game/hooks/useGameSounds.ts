@@ -48,9 +48,7 @@ function getAudioContextConstructor() {
   if (typeof window === "undefined") return null;
 
   const webAudioWindow = window as WebAudioWindow;
-  return (
-    webAudioWindow.AudioContext ?? webAudioWindow.webkitAudioContext ?? null
-  );
+  return webAudioWindow.AudioContext ?? webAudioWindow.webkitAudioContext ?? null;
 }
 
 function decodeAudioData(

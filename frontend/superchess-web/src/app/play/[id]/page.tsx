@@ -61,7 +61,7 @@ export default function GameDetailsPage() {
     [setGame]
   );
 
-  const { playSound } = useGameSounds();
+  const { playSound, unlockSound } = useGameSounds();
   const handleMovePlayed = useCallback(
     (updated: GameResponse) => {
       setGame(updated);
@@ -113,13 +113,15 @@ export default function GameDetailsPage() {
   );
 
   const handleJoinWithIdentity = useCallback(async () => {
+    void unlockSound();
+
     if (!identity) {
       setError("Player name is required.");
       return;
     }
 
     await handleJoin(identity.displayName);
-  }, [handleJoin, identity, setError]);
+  }, [handleJoin, identity, setError, unlockSound]);
 
   useGameAutoJoin({
     gameId,
@@ -183,6 +185,8 @@ export default function GameDetailsPage() {
 
   const handleBoardPiecePress = useCallback(
     (square: string, piece: BoardPiece) => {
+      void unlockSound();
+
       const selectedPiece = selectedSquare
         ? getPieceAtSquare(boardPosition, selectedSquare)
         : null;
@@ -221,11 +225,14 @@ export default function GameDetailsPage() {
       isOwnPlayablePiece,
       selectedSquare,
       setSelectedSquare,
+      unlockSound,
     ]
   );
 
   const handleBoardTap = useCallback(
     async (square: string) => {
+      void unlockSound();
+
       const pendingTapMoveFrom = pendingTapMoveFromRef.current;
       pendingTapMoveFromRef.current = null;
 
@@ -294,11 +301,14 @@ export default function GameDetailsPage() {
       selectedSquare,
       setSelectedSquare,
       enPassantSquare,
+      unlockSound,
     ]
   );
 
   const handleBoardDragEnd = useCallback(
     async (from: string, releasedOn: string | null) => {
+      void unlockSound();
+
       pendingTapMoveFromRef.current = null;
       const sourcePiece = getPieceAtSquare(boardPosition, from);
 
@@ -337,6 +347,7 @@ export default function GameDetailsPage() {
       handleMoveAttempt,
       isOwnPlayablePiece,
       setSelectedSquare,
+      unlockSound,
     ]
   );
 
@@ -439,7 +450,10 @@ export default function GameDetailsPage() {
                 {pendingPromotionMove && (
                   <PromotionPicker
                     color={pendingPromotionMove.color}
-                    onSelect={handlePromotionSelect}
+                    onSelect={(promotion) => {
+                      void unlockSound();
+                      void handlePromotionSelect(promotion);
+                    }}
                     onCancel={handlePromotionCancel}
                   />
                 )}

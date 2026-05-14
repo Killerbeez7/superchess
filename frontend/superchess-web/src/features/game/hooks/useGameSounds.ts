@@ -18,15 +18,23 @@ const SOUND_SPRITES: Record<GameSoundName, SoundSprite> = {
   game_over: { start: 20.45, duration: 0.88 },
 };
 
+function createAudio() {
+  const audio = new Audio(AUDIO_FILE_PATH);
+  audio.preload = "auto";
+  audio.load();
+
+  return audio;
+}
+
 export function useGameSounds() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timeoutRef = useRef<number | null>(null);
+  const isUnlockedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const audio = new Audio(AUDIO_FILE_PATH);
-    audio.preload = "auto";
+    const audio = createAudio();
     audioRef.current = audio;
 
     return () => {
@@ -36,11 +44,49 @@ export function useGameSounds() {
 
       audio.pause();
       audioRef.current = null;
+      isUnlockedRef.current = false;
     };
   }, []);
 
+  const getAudio = useCallback(() => {
+    if (typeof window === "undefined") return null;
+
+    if (!audioRef.current) {
+      audioRef.current = createAudio();
+    }
+
+    return audioRef.current;
+  }, []);
+
+  const unlockSound = useCallback(async () => {
+    if (isUnlockedRef.current) return;
+
+    const audio = getAudio();
+    if (!audio) return;
+
+    const previousMuted = audio.muted;
+    const previousVolume = audio.volume;
+
+    try {
+      audio.muted = true;
+      audio.volume = 0;
+      audio.currentTime = 0;
+
+      await audio.play();
+      audio.pause();
+      audio.currentTime = 0;
+
+      isUnlockedRef.current = true;
+    } catch (error) {
+      console.warn("Failed to unlock game audio.", error);
+    } finally {
+      audio.muted = previousMuted;
+      audio.volume = previousVolume;
+    }
+  }, [getAudio]);
+
   const playSound = useCallback((name: GameSoundName) => {
-    const audio = audioRef.current;
+    const audio = getAudio();
     if (!audio) return;
 
     const sprite = SOUND_SPRITES[name];
@@ -58,13 +104,20 @@ export function useGameSounds() {
       return;
     }
 
-    void audio.play().catch(() => {});
+    void audio
+      .play()
+      .then(() => {
+        isUnlockedRef.current = true;
 
-    timeoutRef.current = window.setTimeout(() => {
-      audio.pause();
-      timeoutRef.current = null;
-    }, sprite.duration * 1000);
-  }, []);
+        timeoutRef.current = window.setTimeout(() => {
+          audio.pause();
+          timeoutRef.current = null;
+        }, sprite.duration * 1000);
+      })
+      .catch((error) => {
+        console.warn("Failed to play game sound.", error);
+      });
+  }, [getAudio]);
 
-  return { playSound };
+  return { playSound, unlockSound };
 }

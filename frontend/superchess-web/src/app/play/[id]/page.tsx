@@ -39,20 +39,26 @@ function getMoveSounds(
   updatedGame: GameResponse,
   localColor?: PieceColor
 ): GameSoundName[] {
+  const latestMove = updatedGame.moves[updatedGame.moves.length - 1];
+
   if (updatedGame.status === "completed") {
     return updatedGame.endReason === "checkmate"
-      ? ["check", "game_end"]
-      : ["game_end"];
+      ? ["move-check", "game-end"]
+      : ["game-end"];
   }
 
-  const latestMove = updatedGame.moves[updatedGame.moves.length - 1];
-  if (!previousGame || !latestMove) return ["move"];
+  const fallbackMoveSound =
+    latestMove && localColor && latestMove.playerColor !== localColor
+      ? "move-opponent"
+      : "move-self";
+
+  if (!previousGame || !latestMove) return [fallbackMoveSound];
 
   const previousPosition = getBoardPositionFromGameState(previousGame.currentFen);
   const updatedPosition = getBoardPositionFromGameState(updatedGame.currentFen);
   const movingPiece = getPieceAtSquare(previousPosition, latestMove.from);
 
-  if (!movingPiece) return ["move"];
+  if (!movingPiece) return [fallbackMoveSound];
 
   const fromCoords = squareToCoords(latestMove.from);
   const toCoords = squareToCoords(latestMove.to);
@@ -60,28 +66,31 @@ function getMoveSounds(
 
   const isCastle =
     movingPiece.type === "king" && Math.abs(toCoords.col - fromCoords.col) === 2;
+
   if (isCastle) return ["castle"];
 
   const isPromotion =
     movingPiece.type === "pawn" &&
     (latestMove.to.endsWith("8") || latestMove.to.endsWith("1"));
+
   if (isPromotion) return ["promote"];
 
-  if (isKingInCheck(updatedPosition, updatedGame.whoseTurn)) return ["check"];
+  if (isKingInCheck(updatedPosition, updatedGame.whoseTurn)) {
+    return ["move-check"];
+  }
 
   const isEnPassantCapture =
     movingPiece.type === "pawn" &&
     fromCoords.col !== toCoords.col &&
     !targetPiece &&
     getEnPassantSquareFromFen(previousGame.currentFen) === latestMove.to;
+
   const isCapture =
     (targetPiece && targetPiece.color !== movingPiece.color) || isEnPassantCapture;
 
   if (isCapture) return ["capture"];
 
-  return localColor && latestMove.playerColor !== localColor
-    ? ["move_opponent"]
-    : ["move"];
+  return [fallbackMoveSound];
 }
 
 function getOptimisticMoveSounds({
@@ -97,13 +106,13 @@ function getOptimisticMoveSounds({
   to: string;
   promotion?: PromotionPiece;
 }): GameSoundName[] {
-  if (!currentFen) return ["move"];
+  if (!currentFen) return ["move-self"];
 
   const previousPosition = getBoardPositionFromGameState(currentFen);
   const updatedPosition = getBoardPositionFromGameState(optimisticFen);
   const movingPiece = getPieceAtSquare(previousPosition, from);
 
-  if (!movingPiece) return ["move"];
+  if (!movingPiece) return ["move-self"];
 
   const fromCoords = squareToCoords(from);
   const toCoords = squareToCoords(to);
@@ -111,36 +120,37 @@ function getOptimisticMoveSounds({
 
   const isCastle =
     movingPiece.type === "king" && Math.abs(toCoords.col - fromCoords.col) === 2;
+
   if (isCastle) return ["castle"];
 
   const isPromotion =
-    movingPiece.type === "pawn" &&
-    !!promotion &&
-    (to.endsWith("8") || to.endsWith("1"));
+    movingPiece.type === "pawn" && !!promotion && (to.endsWith("8") || to.endsWith("1"));
+
   if (isPromotion) return ["promote"];
 
   const checkedColor = movingPiece.color === "white" ? "black" : "white";
-  if (isKingInCheck(updatedPosition, checkedColor)) return ["check"];
+
+  if (isKingInCheck(updatedPosition, checkedColor)) {
+    return ["move-check"];
+  }
 
   const isEnPassantCapture =
     movingPiece.type === "pawn" &&
     fromCoords.col !== toCoords.col &&
     !targetPiece &&
     getEnPassantSquareFromFen(currentFen) === to;
+
   const isCapture =
     (targetPiece && targetPiece.color !== movingPiece.color) || isEnPassantCapture;
 
-  return isCapture ? ["capture"] : ["move"];
+  return isCapture ? ["capture"] : ["move-self"];
 }
 
 function moveKey(from: string, to: string, color?: PieceColor) {
   return `${color ?? "unknown"}:${from}:${to}`;
 }
 
-function playSounds(
-  playSound: (name: GameSoundName) => void,
-  sounds: GameSoundName[]
-) {
+function playSounds(playSound: (name: GameSoundName) => void, sounds: GameSoundName[]) {
   sounds.forEach((sound, index) => {
     if (index === 0) {
       playSound(sound);
@@ -165,6 +175,7 @@ export default function GameDetailsPage() {
 
   const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
+  const localPlayerColor = session?.color;
   const { identity, isReady: isIdentityReady, setDisplayName } = usePlayerIdentity();
   const { whiteTimer, blackTimer, whiteTimeRemainingMs, blackTimeRemainingMs } =
     useGameClocks(game);
@@ -179,7 +190,7 @@ export default function GameDetailsPage() {
     lastMoveTo,
   } = useBoardSelection(game, session, displayedFen);
 
-  const { playSound, unlockSound } = useGameSounds();
+  const { playSound } = useGameSounds();
   const handleIllegalMoveSound = useCallback(() => {
     optimisticSoundRef.current = null;
     playSound("illegal");
@@ -205,12 +216,12 @@ export default function GameDetailsPage() {
       });
 
       optimisticSoundRef.current = {
-        key: moveKey(from, to, session?.color),
+        key: moveKey(from, to, localPlayerColor),
         sounds,
       };
       playSounds(playSound, sounds);
     },
-    [game?.currentFen, playSound, session?.color]
+    [game?.currentFen, localPlayerColor, playSound]
   );
 
   const handlePlayerJoined = useCallback(
@@ -221,7 +232,7 @@ export default function GameDetailsPage() {
       setOptimisticFen(null);
 
       if (startedGame) {
-        playSound("game_start");
+        playSound("game-start");
       }
     },
     [game?.status, playSound, setGame]
@@ -233,9 +244,8 @@ export default function GameDetailsPage() {
       const optimisticSound = optimisticSoundRef.current;
       const isOwnOptimisticConfirmation =
         !!latestMove &&
-        !!session?.color &&
-        optimisticSound?.key ===
-          moveKey(latestMove.from, latestMove.to, session.color);
+        !!localPlayerColor &&
+        optimisticSound?.key === moveKey(latestMove.from, latestMove.to, localPlayerColor);
 
       setGame(updated);
       setOptimisticFen(null);
@@ -247,9 +257,9 @@ export default function GameDetailsPage() {
         if (updated.status === "completed") {
           const sounds =
             updated.endReason === "checkmate" &&
-            !optimisticSound.sounds.includes("check")
-              ? (["check", "game_end"] as GameSoundName[])
-              : (["game_end"] as GameSoundName[]);
+            !optimisticSound.sounds.includes("move-check")
+              ? (["move-check", "game-end"] as GameSoundName[])
+              : (["game-end"] as GameSoundName[]);
 
           playSounds(playSound, sounds);
         }
@@ -257,10 +267,10 @@ export default function GameDetailsPage() {
         return;
       }
 
-      const sounds = getMoveSounds(game, updated, session?.color);
+      const sounds = getMoveSounds(game, updated, localPlayerColor);
       playSounds(playSound, sounds);
     },
-    [game, playSound, session?.color, setGame, setSelectedSquare]
+    [game, localPlayerColor, playSound, setGame, setSelectedSquare]
   );
 
   const { isConnected } = useGameRealtime({
@@ -306,15 +316,13 @@ export default function GameDetailsPage() {
   );
 
   const handleJoinWithIdentity = useCallback(async () => {
-    void unlockSound();
-
     if (!identity) {
       setError("Player name is required.");
       return;
     }
 
     await handleJoin(identity.displayName);
-  }, [handleJoin, identity, setError, unlockSound]);
+  }, [handleJoin, identity, setError]);
 
   useGameAutoJoin({
     gameId,
@@ -371,15 +379,13 @@ export default function GameDetailsPage() {
     (piece: BoardPiece | null) =>
       !!piece &&
       canMoveOwnPieces &&
-      !!session &&
-      pieceBelongsToColor(piece, session.color),
-    [canMoveOwnPieces, session]
+      !!localPlayerColor &&
+      pieceBelongsToColor(piece, localPlayerColor),
+    [canMoveOwnPieces, localPlayerColor]
   );
 
   const handleBoardPiecePress = useCallback(
     (square: string, piece: BoardPiece) => {
-      void unlockSound();
-
       const selectedPiece = selectedSquare
         ? getPieceAtSquare(boardPosition, selectedSquare)
         : null;
@@ -418,14 +424,11 @@ export default function GameDetailsPage() {
       isOwnPlayablePiece,
       selectedSquare,
       setSelectedSquare,
-      unlockSound,
     ]
   );
 
   const handleBoardTap = useCallback(
     async (square: string) => {
-      void unlockSound();
-
       const pendingTapMoveFrom = pendingTapMoveFromRef.current;
       pendingTapMoveFromRef.current = null;
 
@@ -494,14 +497,11 @@ export default function GameDetailsPage() {
       selectedSquare,
       setSelectedSquare,
       enPassantSquare,
-      unlockSound,
     ]
   );
 
   const handleBoardDragEnd = useCallback(
     async (from: string, releasedOn: string | null) => {
-      void unlockSound();
-
       pendingTapMoveFromRef.current = null;
       const sourcePiece = getPieceAtSquare(boardPosition, from);
 
@@ -542,7 +542,6 @@ export default function GameDetailsPage() {
       handleIllegalMoveSound,
       isOwnPlayablePiece,
       setSelectedSquare,
-      unlockSound,
     ]
   );
 
@@ -552,7 +551,7 @@ export default function GameDetailsPage() {
   const isBlackTurn = game?.status === "active" && game.whoseTurn === "black";
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for player 2";
   const whitePlayerName = game?.whitePlayer.displayName ?? "Waiting for player 1";
-  const boardPerspective = session?.color ?? "white";
+  const boardPerspective = localPlayerColor ?? "white";
 
   const whitePlayerView = {
     name: whitePlayerName,
@@ -646,7 +645,6 @@ export default function GameDetailsPage() {
                   <PromotionPicker
                     color={pendingPromotionMove.color}
                     onSelect={(promotion) => {
-                      void unlockSound();
                       void handlePromotionSelect(promotion);
                     }}
                     onCancel={handlePromotionCancel}

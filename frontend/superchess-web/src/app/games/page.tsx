@@ -1,10 +1,6 @@
-import { Navbar } from "@/components/layout/Navbar";
-
 export default function GamesPage() {
   return (
     <main className="min-h-screen bg-slate-950/97 text-white lg:pl-56">
-      <Navbar />
-
       <section className="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-7xl items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-violet-400">

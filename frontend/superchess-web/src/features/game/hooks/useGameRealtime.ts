@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createGameHubConnection } from "@/lib/realtime/gameHub";
+import { normalizeGameResponse, normalizeGameResponses } from "@/lib/api/games";
 import type { GameResponse } from "@/types/game";
 
 type Handler = (game: GameResponse) => void;
@@ -30,15 +31,21 @@ export function useGameRealtime({
     let didJoinRoom = false;
 
     if (onPlayerJoined) {
-      connection.on("PlayerJoined", onPlayerJoined);
+      connection.on("PlayerJoined", (game: GameResponse) => {
+        onPlayerJoined(normalizeGameResponse(game));
+      });
     }
 
     if (onMovePlayed) {
-      connection.on("MovePlayed", onMovePlayed);
+      connection.on("MovePlayed", (game: GameResponse) => {
+        onMovePlayed(normalizeGameResponse(game));
+      });
     }
 
     if (onOpenGamesChanged) {
-      connection.on("OpenGamesChanged", onOpenGamesChanged);
+      connection.on("OpenGamesChanged", (games: GameResponse[]) => {
+        onOpenGamesChanged(normalizeGameResponses(games));
+      });
     }
 
     (async () => {

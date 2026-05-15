@@ -34,7 +34,7 @@ function LogoMark() {
 
 export function AppSidebar() {
   return (
-    <aside className="hidden h-dvh w-[220px] shrink-0 border-r border-app-border bg-sidebar px-4 py-4 lg:flex lg:flex-col">
+    <aside className="fixed left-0 top-0 z-50 hidden h-dvh w-[220px] shrink-0 border-r border-app-border bg-sidebar px-4 py-4 lg:flex lg:flex-col">
       <LogoMark />
 
       <nav className="mt-8 flex flex-1 flex-col gap-2">

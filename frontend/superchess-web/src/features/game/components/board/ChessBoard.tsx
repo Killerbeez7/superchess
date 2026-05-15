@@ -60,24 +60,20 @@ export function ChessBoard({
     });
 
   return (
-    <div
-      className={
-        isHero
-          ? "mx-auto w-full max-w-[560px] touch-none"
-          : "mx-auto w-full max-w-[min(92vw,78dvh,820px)] touch-none"
-      }
-    >
+    <div className="h-full w-full touch-none select-none">
       <div
         className={
           isHero
-            ? "aspect-square rounded-2xl border border-white/10 bg-slate-950/60 p-4 shadow-2xl sm:p-5"
-            : "aspect-square rounded-[1.2rem] border border-white/10 bg-slate-950 p-1.5 shadow-2xl sm:p-5 lg:p-6"
+            ? "aspect-square rounded-2xl border border-app-border bg-panel p-4 shadow-2xl sm:p-5"
+            : // : "h-full w-full rounded-xl bg-panel p-1.5 shadow-2xl sm:p-2"
+              "h-full w-full rounded-xl shadow-2xl"
         }
       >
         <div
           ref={boardRef}
           {...pointerHandlers}
-          className="grid touch-none select-none grid-cols-8 overflow-hidden rounded-xl border border-white/10"
+          // className="grid touch-none select-none grid-cols-8 overflow-hidden rounded-xl border border-white/10"
+          className="grid touch-none select-none grid-cols-8 overflow-hidden rounded-sm border border-white/10"
           style={{
             touchAction: "none",
             WebkitUserSelect: "none",
@@ -106,39 +102,39 @@ export function ChessBoard({
                   cursor: piece ? (isDraggingSource ? "grabbing" : "grab") : "default",
                 }}
                 className={`relative flex aspect-square items-center justify-center ${
-                  isDark ? "bg-slate-700" : "bg-slate-300"
+                  isDark ? "bg-board-dark" : "bg-board-light"
                 }`}
               >
                 {isLastMove && (
-                  <span className="pointer-events-none absolute inset-0 bg-emerald-400/15" />
+                  <span className="pointer-events-none absolute inset-0 bg-board-last-move" />
                 )}
 
                 {isSelected && (
-                  <span className="pointer-events-none absolute inset-0 bg-emerald-400/25" />
+                  <span className="pointer-events-none absolute inset-0 bg-board-selected" />
                 )}
 
                 {isHoveredDrop && (
-                  <span className="pointer-events-none absolute inset-0 ring-5 ring-inset ring-white/80" />
+                  <span className="pointer-events-none absolute inset-0 ring-5 ring-inset ring-white/70" />
                 )}
 
                 {col === 0 && (
-                  <span className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500/70 sm:left-2 sm:top-2 sm:text-[10px]">
+                  <span className="pointer-events-none absolute left-1.5 top-1.5 text-[9px] font-semibold uppercase tracking-wide text-board-coordinate sm:left-2 sm:top-2 sm:text-[10px]">
                     {perspective === "white" ? 8 - row : row + 1}
                   </span>
                 )}
 
                 {row === 7 && (
-                  <span className="pointer-events-none absolute bottom-1.5 right-1.5 text-[9px] font-semibold uppercase tracking-wide text-slate-500/70 sm:bottom-2 sm:right-2 sm:text-[10px]">
+                  <span className="pointer-events-none absolute bottom-1.5 right-1.5 text-[9px] font-semibold uppercase tracking-wide text-board-coordinate sm:bottom-2 sm:right-2 sm:text-[10px]">
                     {perspective === "white" ? FILES[col] : FILES[7 - col]}
                   </span>
                 )}
 
                 {isCandidate && !isCaptureCandidate && (
-                  <span className="pointer-events-none absolute h-3 w-3 rounded-full bg-white/45" />
+                  <span className="pointer-events-none absolute h-3 w-3 rounded-full bg-board-candidate" />
                 )}
 
                 {isCaptureCandidate && (
-                  <span className="pointer-events-none absolute inset-[10%] rounded-full ring-2 ring-white/35" />
+                  <span className="pointer-events-none absolute inset-[10%] rounded-full ring-2 ring-board-capture" />
                 )}
 
                 {piece && (

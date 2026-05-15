@@ -216,6 +216,10 @@ export default function GameDetailsPage() {
     [game?.currentFen, localPlayerColor, playSounds]
   );
 
+  const handleGameStartedSound = useCallback(() => {
+    playSound("game-start");
+  }, [playSound]);
+
   const handlePlayerJoined = useCallback(
     (updated: GameResponse) => {
       const startedGame = game?.status === "waiting" && updated.status === "active";
@@ -305,6 +309,7 @@ export default function GameDetailsPage() {
     enPassantSquare,
     onIllegalMove: handleIllegalMoveSound,
     onOptimisticMove: handleOptimisticMoveSound,
+    onGameStarted: handleGameStartedSound,
   });
 
   const handleSaveIdentity = useCallback(

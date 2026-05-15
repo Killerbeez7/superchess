@@ -31,7 +31,7 @@ export default function PlayPage() {
   const { isConnected: isRealtimeConnected } = useGameRealtime({
     onOpenGamesChanged: setGames,
   });
-  const { unlockSounds, preloadSounds } = useGameSounds();
+  const { unlockSounds, preloadSounds, playSound } = useGameSounds();
 
   const prepareGameAudio = useCallback(() => {
     unlockSounds();
@@ -154,6 +154,11 @@ export default function PlayPage() {
       });
 
       setJoinGameId("");
+
+      if (result.game.status === "active") {
+        playSound("game-start");
+      }
+
       router.push(`/play/${result.game.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game.");

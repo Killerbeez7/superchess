@@ -32,6 +32,7 @@ type UseGameActionsArgs = {
     promotion?: PromotionPiece;
     optimisticFen: string;
   }) => void;
+  onGameStarted?: () => void;
 };
 
 type PendingPromotionMove = {
@@ -62,6 +63,7 @@ export function useGameActions({
   enPassantSquare,
   onIllegalMove,
   onOptimisticMove,
+  onGameStarted,
 }: UseGameActionsArgs) {
   const [isJoining, setIsJoining] = useState(false);
   const [isMakingMove, setIsMakingMove] = useState(false);
@@ -108,13 +110,27 @@ export function useGameActions({
         setOptimisticFen(null);
         setPendingPromotionMove(null);
         setSelectedSquare(null);
+
+        if (game?.status === "waiting" && result.game.status === "active") {
+          onGameStarted?.();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to join game.");
       } finally {
         setIsJoining(false);
       }
     },
-    [gameId, session, saveSession, setGame, setError, setOptimisticFen, setSelectedSquare]
+    [
+      gameId,
+      game?.status,
+      session,
+      saveSession,
+      setGame,
+      setError,
+      setOptimisticFen,
+      setSelectedSquare,
+      onGameStarted,
+    ]
   );
 
   const submitMove = useCallback(

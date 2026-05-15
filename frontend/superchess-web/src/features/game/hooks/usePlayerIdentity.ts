@@ -8,6 +8,7 @@ import {
   getPlayerIdentity,
   savePlayerIdentity,
   clearPlayerIdentity,
+  PLAYER_IDENTITY_CHANGED_EVENT,
 } from "@/lib/storage/playerIdentity";
 
 export function usePlayerIdentity() {
@@ -15,13 +16,33 @@ export function usePlayerIdentity() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const initPlayer = async () => {
-      const identity = await getPlayerIdentity();
+    let isAlive = true;
+
+    const syncIdentity = () => {
+      if (!isAlive) return;
+
+      const identity = getPlayerIdentity();
       setIdentityState(identity);
       setIsReady(true);
     };
 
-    initPlayer();
+    const initId = window.setTimeout(syncIdentity, 0);
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "superchess.playerIdentity") {
+        syncIdentity();
+      }
+    };
+
+    window.addEventListener(PLAYER_IDENTITY_CHANGED_EVENT, syncIdentity);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      isAlive = false;
+      window.clearTimeout(initId);
+      window.removeEventListener(PLAYER_IDENTITY_CHANGED_EVENT, syncIdentity);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   function setDisplayName(displayName: string) {

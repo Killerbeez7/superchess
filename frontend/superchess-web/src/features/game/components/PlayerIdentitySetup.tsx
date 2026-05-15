@@ -24,15 +24,15 @@ export function PlayerIdentitySetup({
   }
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-4">
-      <section className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/95 p-5 shadow-2xl sm:p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
+      <section className="w-full max-w-md rounded-3xl border border-app-border bg-panel p-5 shadow-2xl sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
           Player
         </p>
 
-        <h2 className="mt-1 text-lg font-semibold text-white">Choose your name</h2>
+        <h2 className="mt-1 text-lg font-semibold text-text-primary">Choose your name</h2>
 
-        <p className="mt-2 text-sm leading-6 text-slate-400">
+        <p className="mt-2 text-sm leading-6 text-text-muted">
           Set your player name once. You can change it later.
         </p>
 
@@ -43,13 +43,13 @@ export function PlayerIdentitySetup({
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Enter your player name"
             autoFocus
-            className="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
+            className="w-full rounded-2xl border border-app-border bg-sidebar px-4 py-3 text-text-primary outline-none transition placeholder:text-text-muted focus:border-primary-green"
           />
 
           <button
             type="submit"
             disabled={isSaving}
-            className="w-full rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-full bg-primary-green px-5 py-3 text-sm font-semibold text-panel transition hover:bg-primary-green-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? "Saving..." : "Save name"}
           </button>

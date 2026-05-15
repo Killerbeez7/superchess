@@ -42,7 +42,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-[560px] lg:ml-auto">
+          <div className="mx-auto aspect-square w-full max-w-[560px]">
             <ChessBoard variant="hero" position={createStartPosition()} />
           </div>
         </Container>

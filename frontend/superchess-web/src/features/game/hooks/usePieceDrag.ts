@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { BoardPiece, BoardPosition } from "@/utils/board/position";
-import type { BoardPerspective } from "../components/ChessBoard";
+import type { BoardPerspective } from "../components/board/ChessBoard";
 
 type PointerState =
   | { kind: "idle" }

@@ -1,12 +1,12 @@
 "use client";
 
-import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import type { GameResponse, MoveSummary } from "@/types/game";
 import type { LocalGameSession } from "@/lib/storage/gameSession";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { PlayerPanel } from "./PlayerPanel";
 import { JoinGameForm } from "./JoinGameForm";
-import { MoveHistory } from "./MoveHistory";
+import { MoveHistory } from "./history/MoveHistory";
 import { RoomActions } from "./RoomActions";
 import { PlayerIdentitySetup } from "./PlayerIdentitySetup";
 

@@ -23,7 +23,10 @@ import {
   useGameSounds,
   type GameSoundName,
 } from "@/features/game/sounds/GameSoundProvider";
-import { ACTIVE_GAME_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
+import {
+  ACTIVE_GAME_PRELOAD_SOUNDS,
+  JOIN_PRELOAD_SOUNDS,
+} from "@/features/game/sounds/gameSounds";
 
 import {
   getEnPassantSquareFromFen,
@@ -182,7 +185,8 @@ export default function GameDetailsPage() {
     lastMoveTo,
   } = useBoardSelection(game, session, displayedFen);
 
-  const { playSound, playSounds, preloadSounds, unlockSounds } = useGameSounds();
+  const { playSound, playSounds, preloadSounds, prepareSounds, unlockSounds } =
+    useGameSounds();
   const handleIllegalMoveSound = useCallback(() => {
     optimisticSoundRef.current = null;
     playSound("illegal");
@@ -217,8 +221,10 @@ export default function GameDetailsPage() {
   );
 
   const handleGameStartedSound = useCallback(() => {
-    playSound("game-start");
-  }, [playSound]);
+    void prepareSounds(["game-start"]).then(() => {
+      playSound("game-start");
+    });
+  }, [playSound, prepareSounds]);
 
   const handlePlayerJoined = useCallback(
     (updated: GameResponse) => {
@@ -332,8 +338,9 @@ export default function GameDetailsPage() {
       return;
     }
 
+    void prepareSounds(JOIN_PRELOAD_SOUNDS);
     await handleJoin(identity.displayName);
-  }, [handleJoin, identity, setError, unlockSounds]);
+  }, [handleJoin, identity, prepareSounds, setError, unlockSounds]);
 
   useGameAutoJoin({
     gameId,

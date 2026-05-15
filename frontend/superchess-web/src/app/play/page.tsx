@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SubmitEvent } from "react";
@@ -31,12 +30,14 @@ export default function PlayPage() {
   const { isConnected: isRealtimeConnected } = useGameRealtime({
     onOpenGamesChanged: setGames,
   });
-  const { unlockSounds, preloadSounds, playSound } = useGameSounds();
+  const { prepareSounds, playSound } = useGameSounds();
 
-  const prepareGameAudio = useCallback(() => {
-    unlockSounds();
-    preloadSounds(JOIN_PRELOAD_SOUNDS);
-  }, [preloadSounds, unlockSounds]);
+  const prepareGameAudio = useCallback(
+    () => {
+      void prepareSounds(JOIN_PRELOAD_SOUNDS);
+    },
+    [prepareSounds]
+  );
 
   const waitingGames = useMemo(
     () => games.filter((game) => game.status === "waiting"),
@@ -101,11 +102,10 @@ export default function PlayPage() {
       return;
     }
 
-    prepareGameAudio();
-
     try {
       setError(null);
       setIsCreatingGame(true);
+      prepareGameAudio();
 
       const result = await createGame(identity.displayName);
 
@@ -131,11 +131,10 @@ export default function PlayPage() {
       return;
     }
 
-    prepareGameAudio();
-
     try {
       setError(null);
       setIsJoiningGame(true);
+      prepareGameAudio();
 
       const existingSession = getGameSession(gameIdToJoin);
 
@@ -179,6 +178,14 @@ export default function PlayPage() {
 
     await joinExistingGame(trimmedGameId);
   }
+
+  const handleOpenRoom = useCallback(
+    (gameIdToOpen: string) => {
+      prepareGameAudio();
+      router.push(`/play/${gameIdToOpen}`);
+    },
+    [prepareGameAudio, router]
+  );
 
   return (
     <main className="min-h-screen bg-slate-950/97 text-white">
@@ -406,13 +413,15 @@ export default function PlayPage() {
                           Use code
                         </button>
 
-                        <Link
-                          href={`/play/${game.id}`}
-                          onClick={prepareGameAudio}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleOpenRoom(game.id);
+                          }}
                           className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
                         >
                           Open room
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   ))

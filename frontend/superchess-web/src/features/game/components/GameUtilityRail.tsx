@@ -27,35 +27,35 @@ export function GameUtilityRail({
           <ConnectionBadge isConnected={isConnected} />
         </section>
 
-        <section className="space-y-2 border-t border-white/10 pt-4">
+        <section className="space-y-2 border-t border-app-border pt-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">
               Room
             </p>
             <button
               type="button"
               onClick={handleCopyRoomCode}
-              className="rounded-md px-2 py-1 text-[11px] font-semibold text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+              className="rounded-md px-2 py-1 text-[11px] font-semibold text-text-muted transition hover:bg-white/5 hover:text-text-primary"
             >
               Copy
             </button>
           </div>
-          <p className="break-all rounded-md border border-white/10 bg-slate-950/30 p-2 font-mono text-[11px] leading-5 text-slate-500">
+          <p className="break-all rounded-md border border-app-border bg-panel p-2 font-mono text-[11px] leading-5 text-text-muted">
             {roomCode || "Loading"}
           </p>
         </section>
 
-        <section className="grid grid-cols-2 gap-2 border-t border-white/10 pt-4 lg:grid-cols-1">
+        <section className="grid grid-cols-2 gap-2 border-t border-app-border pt-4 lg:grid-cols-1">
           <button
             type="button"
             onClick={onRefresh}
-            className="rounded-md border border-white/10 px-3 py-2 text-center text-[11px] font-semibold text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+            className="rounded-md border border-app-border px-3 py-2 text-center text-[11px] font-semibold text-text-muted transition hover:bg-white/5 hover:text-text-primary"
           >
             Refresh
           </button>
           <Link
             href="/play"
-            className="rounded-md border border-white/10 px-3 py-2 text-center text-[11px] font-semibold text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+            className="rounded-md border border-app-border px-3 py-2 text-center text-[11px] font-semibold text-text-muted transition hover:bg-white/5 hover:text-text-primary"
           >
             Rooms
           </Link>

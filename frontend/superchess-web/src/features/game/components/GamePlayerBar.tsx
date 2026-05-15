@@ -3,6 +3,14 @@ import clsx from "clsx";
 
 import type { PieceColor } from "@/types/game";
 
+const timerStateClasses = {
+  active: "bg-[#f5f5f4] text-[#1f1e1b] ring-1 ring-white/10",
+  inactive: "bg-[#1f1e1b] text-[#b8b8b8] ring-1 ring-white/[0.08]",
+  low: "bg-[#d97706] text-white ring-1 ring-orange-300/30",
+  critical: "bg-[#b91c1c] text-white ring-1 ring-red-300/30",
+  expired: "bg-[#3f1d1d] text-red-100 ring-1 ring-red-500/35",
+};
+
 type GamePlayerBarProps = {
   name: string;
   color: PieceColor;
@@ -12,6 +20,28 @@ type GamePlayerBarProps = {
   action?: ReactNode;
 };
 
+function getTimerStateClass({
+  isActive,
+  timeRemainingMs,
+}: {
+  isActive: boolean;
+  timeRemainingMs?: number;
+}) {
+  if (typeof timeRemainingMs === "number" && timeRemainingMs <= 0) {
+    return timerStateClasses.expired;
+  }
+
+  if (typeof timeRemainingMs === "number" && timeRemainingMs <= 10_000) {
+    return timerStateClasses.critical;
+  }
+
+  if (typeof timeRemainingMs === "number" && timeRemainingMs <= 30_000) {
+    return timerStateClasses.low;
+  }
+
+  return isActive ? timerStateClasses.active : timerStateClasses.inactive;
+}
+
 export function GamePlayerBar({
   name,
   color,
@@ -20,43 +50,35 @@ export function GamePlayerBar({
   isActive,
   action,
 }: GamePlayerBarProps) {
-  const isExpired = typeof timeRemainingMs === "number" && timeRemainingMs <= 0;
-  const isLowTime =
-    typeof timeRemainingMs === "number" && timeRemainingMs > 0 && timeRemainingMs <= 30_000;
   const timerClassName = clsx(
-    "box-border flex h-8 min-w-16 items-center justify-center rounded-md border px-2.5 text-center font-mono text-base font-bold tabular-nums transition",
-    isExpired
-      ? "border-red-400/30 bg-red-500/15 text-red-200"
-      : isLowTime
-        ? "border-red-400/30 bg-red-400/10 text-red-200"
-        : isActive
-          ? "border-transparent bg-slate-100 text-slate-950 shadow-[0_0_18px_rgba(226,232,240,0.18)]"
-          : "border-white/10 bg-transparent text-slate-600"
+    "box-border flex h-10 min-w-[88px] items-center justify-center rounded-sm px-3 text-center font-mono text-lg font-bold tabular-nums transition",
+    getTimerStateClass({ isActive, timeRemainingMs })
   );
 
   return (
-    <section className="flex min-h-10 items-center justify-between gap-3 px-1 py-1">
+    <section className="flex h-12 w-full items-center justify-between gap-3 py-1">
       <div className="flex min-w-0 items-center gap-2">
         <span
-          className={`grid h-7 w-7 shrink-0 place-items-center rounded-md border text-[10px] font-bold ${
+          className={clsx(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-sm text-[11px] font-bold ring-1 ring-white/8",
             color === "white"
-              ? "border-slate-300/70 bg-slate-100 text-slate-950"
-              : "border-slate-700 bg-slate-950/80 text-slate-200"
-          }`}
+              ? "bg-[#f5f5f4] text-[#1f1e1b]"
+              : "bg-[#1f1e1b] text-[#f5f5f4]"
+          )}
         >
           {color === "white" ? "W" : "B"}
         </span>
 
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold leading-5 text-white">{name}</p>
+          <p className="truncate text-sm font-semibold leading-5 text-[#f5f5f4]">
+            {name}
+          </p>
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
         {action}
-        <div className={timerClassName}>
-          {timer}
-        </div>
+        <div className={timerClassName}>{timer}</div>
       </div>
     </section>
   );

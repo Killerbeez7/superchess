@@ -31,9 +31,9 @@ export function PromotionPicker({
   onCancel,
 }: PromotionPickerProps) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4">
-      <div className="rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-2xl">
-        <p className="px-2 pb-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4">
+      <div className="rounded-2xl border border-app-border bg-panel p-3 shadow-2xl">
+        <p className="px-2 pb-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
           Promote pawn
         </p>
         <div className="grid grid-cols-4 gap-2">
@@ -42,7 +42,7 @@ export function PromotionPicker({
               key={choice.value}
               type="button"
               onClick={() => onSelect(choice.value)}
-              className="group grid h-16 w-16 place-items-center rounded-xl border border-white/10 bg-slate-900 transition hover:border-white/30 hover:bg-slate-800"
+              className="group grid h-16 w-16 place-items-center rounded-xl border border-app-border bg-sidebar transition hover:border-primary-green/50 hover:bg-white/5"
               aria-label={`Promote to ${choice.label}`}
             >
               <span className="relative h-10 w-10 transition group-hover:scale-105">
@@ -61,7 +61,7 @@ export function PromotionPicker({
         <button
           type="button"
           onClick={onCancel}
-          className="mt-3 w-full rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white"
+          className="mt-3 w-full rounded-lg border border-app-border px-3 py-2 text-xs font-semibold text-text-muted transition hover:bg-white/5 hover:text-text-primary"
         >
           Cancel
         </button>

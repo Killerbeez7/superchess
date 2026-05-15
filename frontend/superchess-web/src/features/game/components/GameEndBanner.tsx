@@ -51,18 +51,18 @@ export function GameEndBanner({
       aria-modal="true"
       aria-labelledby="game-end-title"
     >
-      <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950/95 p-5 text-center shadow-2xl">
+      <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-app-border bg-panel p-5 text-center shadow-2xl">
         <p
           id="game-end-title"
-          className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200/80"
+          className="text-xs font-semibold uppercase tracking-[0.18em] text-primary-green"
         >
           {title}
         </p>
-        <p className="mt-2 text-lg font-bold text-white">{description}</p>
+        <p className="mt-2 text-lg font-bold text-text-primary">{description}</p>
         <button
           type="button"
           onClick={onDismiss}
-          className="mt-5 w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white"
+          className="mt-5 w-full rounded-lg bg-primary-green px-4 py-2 text-sm font-semibold text-panel transition hover:bg-primary-green-hover"
         >
           Review board
         </button>

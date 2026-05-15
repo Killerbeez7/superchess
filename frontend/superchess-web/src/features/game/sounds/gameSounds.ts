@@ -30,18 +30,18 @@ export const SOUND_PATHS: Record<GameSoundName, string> = {
 };
 
 export const SOUND_VOLUME: Record<GameSoundName, number> = {
-  "game-start": 0.5,
-  "game-end": 0.4,
-  capture: 0.5,
-  castle: 0.5,
-  premove: 0.45,
-  "move-self": 0.55,
-  "move-opponent": 0.5,
-  "move-check": 0.42,
-  promote: 0.5,
-  notify: 0.45,
-  illegal: 0.25,
-  tenseconds: 0.45,
+  "game-start": 0.72,
+  "game-end": 0.62,
+  capture: 0.7,
+  castle: 0.68,
+  premove: 0.62,
+  "move-self": 0.75,
+  "move-opponent": 0.7,
+  "move-check": 0.62,
+  promote: 0.68,
+  notify: 0.62,
+  illegal: 0.42,
+  tenseconds: 0.65,
 };
 
 export const CORE_PRELOAD_SOUNDS: GameSoundName[] = [

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SubmitEvent } from "react";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -13,6 +13,8 @@ import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
 import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
+import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
+import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
 
 export default function PlayPage() {
   const router = useRouter();
@@ -29,6 +31,12 @@ export default function PlayPage() {
   const { isConnected: isRealtimeConnected } = useGameRealtime({
     onOpenGamesChanged: setGames,
   });
+  const { unlockSounds, preloadSounds } = useGameSounds();
+
+  const prepareGameAudio = useCallback(() => {
+    unlockSounds();
+    preloadSounds(JOIN_PRELOAD_SOUNDS);
+  }, [preloadSounds, unlockSounds]);
 
   const waitingGames = useMemo(
     () => games.filter((game) => game.status === "waiting"),
@@ -93,6 +101,8 @@ export default function PlayPage() {
       return;
     }
 
+    prepareGameAudio();
+
     try {
       setError(null);
       setIsCreatingGame(true);
@@ -120,6 +130,8 @@ export default function PlayPage() {
       setError("Player name is required.");
       return;
     }
+
+    prepareGameAudio();
 
     try {
       setError(null);
@@ -391,6 +403,7 @@ export default function PlayPage() {
 
                         <Link
                           href={`/play/${game.id}`}
+                          onClick={prepareGameAudio}
                           className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
                         >
                           Open room

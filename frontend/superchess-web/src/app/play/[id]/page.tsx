@@ -19,7 +19,11 @@ import { useGameActions } from "@/features/game/hooks/useGameActions";
 import { useGameClocks } from "@/features/game/hooks/useGameClocks";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import { useGameAutoJoin } from "@/features/game/hooks/useGameAutoJoin";
-import { useGameSounds } from "@/features/game/hooks/useGameSounds";
+import {
+  useGameSounds,
+  type GameSoundName,
+} from "@/features/game/sounds/GameSoundProvider";
+import { ACTIVE_GAME_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
 
 import {
   getEnPassantSquareFromFen,
@@ -32,7 +36,6 @@ import {
 import type { GameResponse, PieceColor, PromotionPiece } from "@/types/game";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import type { BoardPiece } from "@/utils/board/position";
-import type { GameSoundName } from "@/features/game/hooks/useGameSounds";
 
 function getMoveSounds(
   previousGame: GameResponse | null,
@@ -150,17 +153,6 @@ function moveKey(from: string, to: string, color?: PieceColor) {
   return `${color ?? "unknown"}:${from}:${to}`;
 }
 
-function playSounds(playSound: (name: GameSoundName) => void, sounds: GameSoundName[]) {
-  sounds.forEach((sound, index) => {
-    if (index === 0) {
-      playSound(sound);
-      return;
-    }
-
-    window.setTimeout(() => playSound(sound), 180 * index);
-  });
-}
-
 export default function GameDetailsPage() {
   const params = useParams();
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -190,7 +182,7 @@ export default function GameDetailsPage() {
     lastMoveTo,
   } = useBoardSelection(game, session, displayedFen);
 
-  const { playSound } = useGameSounds();
+  const { playSound, playSounds, preloadSounds, unlockSounds } = useGameSounds();
   const handleIllegalMoveSound = useCallback(() => {
     optimisticSoundRef.current = null;
     playSound("illegal");
@@ -219,9 +211,9 @@ export default function GameDetailsPage() {
         key: moveKey(from, to, localPlayerColor),
         sounds,
       };
-      playSounds(playSound, sounds);
+      playSounds(sounds);
     },
-    [game?.currentFen, localPlayerColor, playSound]
+    [game?.currentFen, localPlayerColor, playSounds]
   );
 
   const handlePlayerJoined = useCallback(
@@ -261,16 +253,16 @@ export default function GameDetailsPage() {
               ? (["move-check", "game-end"] as GameSoundName[])
               : (["game-end"] as GameSoundName[]);
 
-          playSounds(playSound, sounds);
+          playSounds(sounds, 280);
         }
 
         return;
       }
 
       const sounds = getMoveSounds(game, updated, localPlayerColor);
-      playSounds(playSound, sounds);
+      playSounds(sounds);
     },
-    [game, localPlayerColor, playSound, setGame, setSelectedSquare]
+    [game, localPlayerColor, playSounds, setGame, setSelectedSquare]
   );
 
   const { isConnected } = useGameRealtime({
@@ -278,6 +270,18 @@ export default function GameDetailsPage() {
     onPlayerJoined: handlePlayerJoined,
     onMovePlayed: handleMovePlayed,
   });
+
+  useEffect(() => {
+    if (game?.status !== "active") return;
+
+    const id = window.setTimeout(() => {
+      preloadSounds(ACTIVE_GAME_PRELOAD_SOUNDS);
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(id);
+    };
+  }, [game?.status, preloadSounds]);
 
   const {
     handleJoin,
@@ -316,13 +320,15 @@ export default function GameDetailsPage() {
   );
 
   const handleJoinWithIdentity = useCallback(async () => {
+    unlockSounds();
+
     if (!identity) {
       setError("Player name is required.");
       return;
     }
 
     await handleJoin(identity.displayName);
-  }, [handleJoin, identity, setError]);
+  }, [handleJoin, identity, setError, unlockSounds]);
 
   useGameAutoJoin({
     gameId,
@@ -386,6 +392,8 @@ export default function GameDetailsPage() {
 
   const handleBoardPiecePress = useCallback(
     (square: string, piece: BoardPiece) => {
+      unlockSounds();
+
       const selectedPiece = selectedSquare
         ? getPieceAtSquare(boardPosition, selectedSquare)
         : null;
@@ -424,11 +432,14 @@ export default function GameDetailsPage() {
       isOwnPlayablePiece,
       selectedSquare,
       setSelectedSquare,
+      unlockSounds,
     ]
   );
 
   const handleBoardTap = useCallback(
     async (square: string) => {
+      unlockSounds();
+
       const pendingTapMoveFrom = pendingTapMoveFromRef.current;
       pendingTapMoveFromRef.current = null;
 
@@ -497,11 +508,14 @@ export default function GameDetailsPage() {
       selectedSquare,
       setSelectedSquare,
       enPassantSquare,
+      unlockSounds,
     ]
   );
 
   const handleBoardDragEnd = useCallback(
     async (from: string, releasedOn: string | null) => {
+      unlockSounds();
+
       pendingTapMoveFromRef.current = null;
       const sourcePiece = getPieceAtSquare(boardPosition, from);
 
@@ -542,6 +556,7 @@ export default function GameDetailsPage() {
       handleIllegalMoveSound,
       isOwnPlayablePiece,
       setSelectedSquare,
+      unlockSounds,
     ]
   );
 
@@ -645,6 +660,7 @@ export default function GameDetailsPage() {
                   <PromotionPicker
                     color={pendingPromotionMove.color}
                     onSelect={(promotion) => {
+                      unlockSounds();
                       void handlePromotionSelect(promotion);
                     }}
                     onCancel={handlePromotionCancel}

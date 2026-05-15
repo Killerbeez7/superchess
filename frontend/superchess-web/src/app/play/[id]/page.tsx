@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Navbar } from "@/components/layout/Navbar";
-import { LoadingSpinner } from "@/components/layout/LoadingSpinner";
-import { ChessBoard } from "@/features/game/components/ChessBoard";
+
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
+import { ChessBoard } from "@/features/game/components/board/ChessBoard";
 import { GameEndBanner } from "@/features/game/components/GameEndBanner";
 import { GamePlayerBar } from "@/features/game/components/GamePlayerBar";
-import { GameUtilityRail } from "@/features/game/components/GameUtilityRail";
+import { GameStartOverlay } from "@/features/game/components/GameStartOverlay";
 import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
 import { PromotionPicker } from "@/features/game/components/PromotionPicker";
+// components
+import { GameRoomShell } from "@/features/game/components/room/GameRoomShell";
+import { GameTable } from "@/features/game/components/room/GameTable";
+import { GameRightSidebar } from "@/features/game/components/room/GameRightSidebar";
 // hooks
 import { useGame } from "@/features/game/hooks/useGame";
 import { useGameSession } from "@/features/game/hooks/useGameSession";
@@ -161,14 +165,17 @@ export default function GameDetailsPage() {
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
   const [optimisticFen, setOptimisticFen] = useState<string | null>(null);
   const [isEndModalDismissed, setIsEndModalDismissed] = useState(false);
+  const [showStartOverlay, setShowStartOverlay] = useState(false);
+  const [startOverlayKey, setStartOverlayKey] = useState(0);
   const pendingTapMoveFromRef = useRef<string | null>(null);
   const timeoutRefreshKeyRef = useRef<string | null>(null);
+  const startOverlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const optimisticSoundRef = useRef<{
     key: string;
     sounds: GameSoundName[];
   } | null>(null);
 
-  const { game, setGame, isLoading, error, setError, refresh } = useGame(gameId);
+  const { game, setGame, isLoading, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
   const localPlayerColor = session?.color;
   const { identity, isReady: isIdentityReady, setDisplayName } = usePlayerIdentity();
@@ -187,6 +194,44 @@ export default function GameDetailsPage() {
 
   const { playSound, playSounds, preloadSounds, prepareSounds, unlockSounds } =
     useGameSounds();
+
+  const markStartOverlaySeen = useCallback((id: string) => {
+    try {
+      window.sessionStorage.setItem(`superchess.start-overlay.${id}`, "1");
+    } catch {
+      // Session storage can be unavailable in strict privacy modes.
+    }
+  }, []);
+
+  const hasSeenStartOverlay = useCallback((id: string) => {
+    try {
+      return window.sessionStorage.getItem(`superchess.start-overlay.${id}`) === "1";
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const triggerStartOverlay = useCallback(() => {
+    if (startOverlayTimeoutRef.current) {
+      clearTimeout(startOverlayTimeoutRef.current);
+    }
+
+    setStartOverlayKey((key) => key + 1);
+    setShowStartOverlay(true);
+    startOverlayTimeoutRef.current = setTimeout(() => {
+      setShowStartOverlay(false);
+      startOverlayTimeoutRef.current = null;
+    }, 1550);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (startOverlayTimeoutRef.current) {
+        clearTimeout(startOverlayTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleIllegalMoveSound = useCallback(() => {
     optimisticSoundRef.current = null;
     playSound("illegal");
@@ -221,10 +266,15 @@ export default function GameDetailsPage() {
   );
 
   const handleGameStartedSound = useCallback(() => {
+    if (gameId) {
+      markStartOverlaySeen(gameId);
+    }
+
+    triggerStartOverlay();
     void prepareSounds(["game-start"]).then(() => {
       playSound("game-start");
     });
-  }, [playSound, prepareSounds]);
+  }, [gameId, markStartOverlaySeen, playSound, prepareSounds, triggerStartOverlay]);
 
   const handlePlayerJoined = useCallback(
     (updated: GameResponse) => {
@@ -234,10 +284,12 @@ export default function GameDetailsPage() {
       setOptimisticFen(null);
 
       if (startedGame) {
+        markStartOverlaySeen(updated.id);
+        triggerStartOverlay();
         playSound("game-start");
       }
     },
-    [game?.status, playSound, setGame]
+    [game?.status, markStartOverlaySeen, playSound, setGame, triggerStartOverlay]
   );
 
   const handleMovePlayed = useCallback(
@@ -247,7 +299,8 @@ export default function GameDetailsPage() {
       const isOwnOptimisticConfirmation =
         !!latestMove &&
         !!localPlayerColor &&
-        optimisticSound?.key === moveKey(latestMove.from, latestMove.to, localPlayerColor);
+        optimisticSound?.key ===
+          moveKey(latestMove.from, latestMove.to, localPlayerColor);
 
       setGame(updated);
       setOptimisticFen(null);
@@ -293,6 +346,29 @@ export default function GameDetailsPage() {
     };
   }, [game?.status, preloadSounds]);
 
+  const activeZeroMoveGameId =
+    game?.status === "active" && game.moves.length === 0 ? game.id : null;
+
+  useEffect(() => {
+    if (!activeZeroMoveGameId) return;
+    if (hasSeenStartOverlay(activeZeroMoveGameId)) return;
+
+    markStartOverlaySeen(activeZeroMoveGameId);
+
+    const id = window.setTimeout(() => {
+      triggerStartOverlay();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(id);
+    };
+  }, [
+    activeZeroMoveGameId,
+    hasSeenStartOverlay,
+    markStartOverlaySeen,
+    triggerStartOverlay,
+  ]);
+
   const {
     handleJoin,
     handleMoveAttempt,
@@ -328,6 +404,14 @@ export default function GameDetailsPage() {
       }
     },
     [setDisplayName, setError]
+  );
+
+  const handleSaveIdentityAndJoin = useCallback(
+    (displayName: string) => {
+      handleSaveIdentity(displayName);
+      void handleJoin(displayName);
+    },
+    [handleJoin, handleSaveIdentity]
   );
 
   const handleJoinWithIdentity = useCallback(async () => {
@@ -601,7 +685,7 @@ export default function GameDetailsPage() {
           type="button"
           onClick={handleJoinWithIdentity}
           disabled={isJoining}
-          className="rounded-md bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-primary-green px-3 py-1 text-[11px] font-semibold text-panel transition hover:bg-primary-green-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isJoining ? "Joining..." : "Join"}
         </button>
@@ -613,101 +697,132 @@ export default function GameDetailsPage() {
   const bottomPlayerView =
     boardPerspective === "white" ? whitePlayerView : blackPlayerView;
 
-  return (
-    <main className="min-h-dvh bg-slate-950/97 text-white">
-      <Navbar />
-      <section className="min-h-[calc(100dvh-4.5rem)]">
-        <div className="mx-auto grid min-h-[calc(100dvh-6rem)] w-full max-w-6xl gap-5 px-4 py-3 sm:px-6 lg:grid-cols-[minmax(0,820px)_210px] lg:items-start lg:px-8 lg:py-4">
-          <div className="mx-auto w-full max-w-[min(92vw,78dvh,820px)] space-y-2 lg:mx-0">
-            {isLoading ? (
-              <section className="flex min-h-[520px] items-center justify-center rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
-                <LoadingSpinner />
-              </section>
-            ) : game ? (
-              <>
-                <GamePlayerBar
-                  name={topPlayerView.name}
-                  color={topPlayerView.color}
-                  timer={topPlayerView.timer}
-                  timeRemainingMs={topPlayerView.timeRemainingMs}
-                  isActive={topPlayerView.isActive}
-                  action={topPlayerView.action}
-                />
-
-                {canTakeBlackSeat && !isIdentityReady && (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/70 p-6">
-                    <LoadingSpinner />
-                  </div>
-                )}
-
-                <div className="relative select-none">
-                  <ChessBoard
-                    variant="app"
-                    perspective={boardPerspective}
-                    position={boardPosition}
-                    interactive={canUseBoardInput}
-                    selectedSquare={selectedSquare}
-                    candidateSquares={candidateSquares}
-                    lastMoveFrom={lastMoveFrom}
-                    lastMoveTo={lastMoveTo}
-                    onPiecePress={handleBoardPiecePress}
-                    onSquareTap={handleBoardTap}
-                    onDragEnd={handleBoardDragEnd}
-                  />
-
-                  {showEndModal && (
-                    <GameEndBanner
-                      game={game}
-                      timedOutColor={timedOutColor}
-                      onDismiss={() => setIsEndModalDismissed(true)}
-                    />
-                  )}
-
-                  {canTakeBlackSeat && isIdentityReady && !identity && (
-                    <PlayerIdentitySetup onSave={handleSaveIdentity} />
-                  )}
-                </div>
-
-                {pendingPromotionMove && (
-                  <PromotionPicker
-                    color={pendingPromotionMove.color}
-                    onSelect={(promotion) => {
-                      unlockSounds();
-                      void handlePromotionSelect(promotion);
-                    }}
-                    onCancel={handlePromotionCancel}
-                  />
-                )}
-
-                <GamePlayerBar
-                  name={bottomPlayerView.name}
-                  color={bottomPlayerView.color}
-                  timer={bottomPlayerView.timer}
-                  timeRemainingMs={bottomPlayerView.timeRemainingMs}
-                  isActive={bottomPlayerView.isActive}
-                  action={bottomPlayerView.action}
-                />
-              </>
-            ) : (
-              <section className="rounded-3xl border border-red-500/20 bg-red-500/10 p-8 text-sm text-red-200">
-                Game not found.
-              </section>
-            )}
-
-            {error && (
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
-                {error}
-              </div>
-            )}
-          </div>
-
-          <GameUtilityRail
-            roomCode={game?.id ?? gameId ?? ""}
+  if (isLoading) {
+    return (
+      <GameRoomShell
+        table={
+          <section className="flex h-full w-full items-center justify-center rounded-2xl border border-app-border bg-sidebar">
+            <LoadingSpinner />
+          </section>
+        }
+        sidebar={
+          <GameRightSidebar
+            game={game}
+            gameId={gameId ?? ""}
             isConnected={isConnected}
             onRefresh={handleRefresh}
           />
-        </div>
-      </section>
-    </main>
+        }
+      />
+    );
+  }
+
+  if (!game) {
+    return (
+      <GameRoomShell
+        table={
+          <section className="rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-sm text-red-200">
+            Game not found.
+          </section>
+        }
+        sidebar={
+          <GameRightSidebar
+            game={null}
+            gameId={gameId ?? ""}
+            isConnected={isConnected}
+            onRefresh={handleRefresh}
+          />
+        }
+      />
+    );
+  }
+
+  return (
+    <GameRoomShell
+      table={
+        <GameTable
+          topPlayer={
+            <GamePlayerBar
+              name={topPlayerView.name}
+              color={topPlayerView.color}
+              timer={topPlayerView.timer}
+              timeRemainingMs={topPlayerView.timeRemainingMs}
+              isActive={topPlayerView.isActive}
+              action={topPlayerView.action}
+            />
+          }
+          board={
+            <ChessBoard
+              variant="app"
+              perspective={boardPerspective}
+              position={boardPosition}
+              interactive={canUseBoardInput}
+              selectedSquare={selectedSquare}
+              candidateSquares={candidateSquares}
+              lastMoveFrom={lastMoveFrom}
+              lastMoveTo={lastMoveTo}
+              onPiecePress={handleBoardPiecePress}
+              onSquareTap={handleBoardTap}
+              onDragEnd={handleBoardDragEnd}
+            />
+          }
+          overlays={
+            <>
+              {showStartOverlay && (
+                <GameStartOverlay
+                  key={startOverlayKey}
+                  whitePlayerName={whitePlayerName}
+                  blackPlayerName={blackPlayerName}
+                />
+              )}
+
+              {showEndModal && game && (
+                <GameEndBanner
+                  game={game}
+                  timedOutColor={timedOutColor}
+                  onDismiss={() => setIsEndModalDismissed(true)}
+                />
+              )}
+
+              {canTakeBlackSeat && isIdentityReady && !identity && (
+                <PlayerIdentitySetup
+                  onSave={handleSaveIdentityAndJoin}
+                  isSaving={isJoining}
+                />
+              )}
+
+              {pendingPromotionMove && (
+                <PromotionPicker
+                  color={pendingPromotionMove.color}
+                  onSelect={(promotion) => {
+                    unlockSounds();
+                    void handlePromotionSelect(promotion);
+                  }}
+                  onCancel={handlePromotionCancel}
+                />
+              )}
+            </>
+          }
+          bottomPlayer={
+            <GamePlayerBar
+              name={bottomPlayerView.name}
+              color={bottomPlayerView.color}
+              timer={bottomPlayerView.timer}
+              timeRemainingMs={bottomPlayerView.timeRemainingMs}
+              isActive={bottomPlayerView.isActive}
+              action={bottomPlayerView.action}
+            />
+          }
+        />
+      }
+      sidebar={
+        <GameRightSidebar
+          game={game}
+          gameId={gameId ?? ""}
+          isConnected={isConnected}
+          onRefresh={handleRefresh}
+        />
+      }
+    />
   );
 }

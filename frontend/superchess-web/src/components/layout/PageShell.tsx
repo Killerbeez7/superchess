@@ -8,7 +8,7 @@ type PageShellProps = {
 
 export function PageShell({ children, className }: PageShellProps) {
   return (
-    <main className={clsx("min-h-dvh bg-[#312e2b] text-text-primary", className)}>
+    <main className={clsx("min-h-dvh bg-app text-text-primary", className)}>
       {children}
     </main>
   );

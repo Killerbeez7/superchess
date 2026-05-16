@@ -9,7 +9,7 @@ import { StatsPanel } from "@/features/home/components/StatsPanel";
 export default function HomePage() {
   return (
     <PageShell>
-      <Container className="pt-5 sm:pt-6 lg:pt-8">
+      <Container className="py-8 lg:py-12">
         <MainDashboardGrid>
           <HomeActionGrid />
           <RecentGamesPanel />

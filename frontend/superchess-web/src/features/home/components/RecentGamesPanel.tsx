@@ -17,16 +17,16 @@ export function RecentGamesPanel() {
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-border-light bg-card-muted">
-        <div className="grid grid-cols-[44px_1.5fr_0.7fr_0.7fr_0.9fr] border-b border-border-light bg-card-header px-4 py-3 text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">
-          <span />
+        <div className="grid grid-cols-[1fr_auto] border-b border-border-light bg-card-header px-4 py-3 text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted sm:grid-cols-[44px_1.5fr_0.7fr_0.7fr_0.9fr]">
+          <span className="hidden sm:block" />
           <span>Players</span>
           <span>Result</span>
-          <span>Moves</span>
-          <span>Date</span>
+          <span className="hidden sm:block">Moves</span>
+          <span className="hidden sm:block">Date</span>
         </div>
 
-        <div className="grid grid-cols-[44px_1.5fr_0.7fr_0.7fr_0.9fr] items-center px-4 py-4 text-sm">
-          <span className="text-xl text-accent">♟</span>
+        <div className="grid grid-cols-[1fr_auto] items-center px-4 py-4 text-sm sm:grid-cols-[44px_1.5fr_0.7fr_0.7fr_0.9fr]">
+          <span className="hidden text-xl text-accent sm:block">P</span>
 
           <div>
             <p className="font-semibold text-text-primary">No games yet</p>
@@ -36,8 +36,8 @@ export function RecentGamesPanel() {
           </div>
 
           <span className="text-text-subtle">—</span>
-          <span className="text-text-subtle">—</span>
-          <span className="text-text-subtle">—</span>
+          <span className="hidden text-text-subtle sm:block">—</span>
+          <span className="hidden text-text-subtle sm:block">—</span>
         </div>
       </div>
     </section>

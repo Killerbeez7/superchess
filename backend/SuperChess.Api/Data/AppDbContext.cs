@@ -1,14 +1,14 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Models;
+using SuperChess.Api.Entities;
 
 namespace SuperChess.Api.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-    {
-    }
-
     public DbSet<Player> Players => Set<Player>();
     public DbSet<ChessGame> Games => Set<ChessGame>();
     public DbSet<Move> Moves => Set<Move>();

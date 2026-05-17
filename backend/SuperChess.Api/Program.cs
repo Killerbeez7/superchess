@@ -1,9 +1,15 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Data;
 using SuperChess.Api.Data.Repositories;
+using SuperChess.Api.Entities;
 using SuperChess.Api.Realtime;
 using SuperChess.Api.Services.Games;
 using SuperChess.Core.Chess;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using SuperChess.Api.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +24,55 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(NormalizePostgresUrl(connectionString)));
+
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+
+        options.Password.RequireDigit = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+    })
+    .AddRoles<IdentityRole<Guid>>()
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddSignInManager();
+
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection("Jwt")
+);
+
+builder.Services.AddScoped<JwtTokenService>();
+
+var jwtOptions = builder.Configuration
+    .GetSection("Jwt")
+    .Get<JwtOptions>() ?? throw new InvalidOperationException("JWT options missing.");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = true;
+        options.SaveToken = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Secret)
+            ),
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // --- DI ---
 builder.Services.AddScoped<IGameRepository, GameRepository>();
@@ -61,6 +116,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors(frontendCorsPolicy);
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<GameHub>("/gamehub");

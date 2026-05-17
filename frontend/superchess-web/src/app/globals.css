@@ -152,15 +152,13 @@ body {
 }
 
 .game-start-overlay-top {
-  animation: game-start-overlay-top 1500ms cubic-bezier(0.22, 1, 0.36, 1)
-    forwards;
+  animation: game-start-overlay-top 1500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   transform-origin: bottom;
   will-change: opacity, transform;
 }
 
 .game-start-overlay-bottom {
-  animation: game-start-overlay-bottom 1500ms cubic-bezier(0.22, 1, 0.36, 1)
-    forwards;
+  animation: game-start-overlay-bottom 1500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   transform-origin: top;
   will-change: opacity, transform;
 }
@@ -190,4 +188,34 @@ body {
 
 .superchess-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
+}
+
+.sidebar-play-flyout {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-4px);
+  transform-origin: left top;
+  transition: opacity 140ms ease-out, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.sidebar-play-menu-row {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 130ms ease-out, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: 0ms;
+}
+
+.group\/play:hover .sidebar-play-flyout,
+.group\/play:focus-within .sidebar-play-flyout {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.group\/play:hover .sidebar-play-menu-row,
+.group\/play:focus-within .sidebar-play-menu-row {
+  opacity: 1;
+  transform: translateX(0);
+  transition-delay: var(--row-delay, 70ms);
 }

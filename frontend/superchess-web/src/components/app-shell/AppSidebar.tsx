@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { AppSidebarItem } from "./AppSidebarItem";
+import { AppSidebarPlayItem } from "./AppSidebarPlayItem";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import {
   FaHouse,
-  FaChessKnight,
   FaChessBoard,
   FaCircleInfo,
   FaGear,
@@ -70,7 +70,7 @@ export function AppSidebar() {
 
         <nav className="mt-8 flex flex-1 flex-col gap-2">
           <AppSidebarItem href="/" label="Home" exact icon={<FaHouse />} />
-          <AppSidebarItem href="/play" label="Play" icon={<FaChessKnight />} />
+          <AppSidebarPlayItem />
           <AppSidebarItem href="/games" label="Games" icon={<FaChessBoard />} />
           <AppSidebarItem href="/about" label="About" icon={<FaCircleInfo />} />
         </nav>

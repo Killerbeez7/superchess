@@ -5,9 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createGame, getGames, joinGame } from "@/lib/api/games";
 import { getGameSession, saveGameSession } from "@/lib/storage/gameSession";
+import type { CurrentUser } from "@/features/auth/api/auth";
+import { AuthModal } from "@/features/auth/components/AuthModal";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
-import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
 
 import type { GameResponse } from "@/types/game";
@@ -16,78 +18,14 @@ import type { SubmitEvent } from "react";
 import { LobbyPanel } from "@/features/game/components/lobby/LobbyPanel";
 import { LobbyShell } from "@/features/game/components/lobby/LobbyShell";
 
-type PendingIdentityAction = { type: "create" } | { type: "join"; gameId: string };
-
-type PlayerNamePromptProps = {
-  error: string | null;
-  isBusy: boolean;
-  onClose: () => void;
-  onSave: (displayName: string) => void;
-};
-
-function PlayerNamePrompt({ error, isBusy, onClose, onSave }: PlayerNamePromptProps) {
-  const [displayName, setDisplayName] = useState("");
-
-  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const trimmed = displayName.trim();
-    if (!trimmed) return;
-
-    onSave(trimmed);
-  }
-
-  return (
-    <div className="fixed inset-0 z-80 grid place-items-center bg-black/55 p-4">
-      <section className="w-full max-w-sm rounded-2xl border border-app-border bg-panel p-4 shadow-2xl">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-              Player
-            </p>
-            <h2 className="mt-1 text-lg font-bold text-text-primary">Enter your name</h2>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-app-border px-2 py-1 text-xs font-semibold text-text-muted transition hover:bg-white/6 hover:text-text-primary"
-          >
-            Close
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-3">
-          <input
-            type="text"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="Player name"
-            autoFocus
-            className="h-10 w-full rounded-lg border border-app-border bg-sidebar px-3 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-primary-green"
-          />
-
-          {error && (
-            <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isBusy}
-            className="h-9 w-full rounded-md bg-primary-green px-4 text-xs font-bold text-panel shadow-sm transition hover:bg-primary-green-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isBusy ? "Saving..." : "Continue"}
-          </button>
-        </form>
-      </section>
-    </div>
-  );
-}
+type PendingAuthAction =
+  | { type: "create" }
+  | { type: "join"; gameId: string }
+  | { type: "open"; gameId: string };
 
 export default function PlayPage() {
   const router = useRouter();
+  const { user, accessToken, isReady, isAuthenticated } = useAuth();
 
   const [joinGameId, setJoinGameId] = useState("");
 
@@ -97,10 +35,9 @@ export default function PlayPage() {
   const [isJoiningGame, setIsJoiningGame] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-  const [identityPromptError, setIdentityPromptError] = useState<string | null>(null);
-  const [pendingIdentityAction, setPendingIdentityAction] =
-    useState<PendingIdentityAction | null>(null);
-  const { identity, isReady, setDisplayName } = usePlayerIdentity();
+  const [pendingAuthAction, setPendingAuthAction] =
+    useState<PendingAuthAction | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { isConnected: isRealtimeConnected } = useGameRealtime({
     onOpenGamesChanged: setGames,
   });
@@ -158,20 +95,20 @@ export default function PlayPage() {
     }
   }
 
-  async function createGameWithName(playerName: string) {
+  async function createGameForUser(currentUser: CurrentUser, token: string | null) {
     try {
       setError(null);
       setIsCreatingGame(true);
       prepareGameAudio();
 
-      const result = await createGame(playerName);
+      const result = await createGame(currentUser.displayName, token ?? undefined);
 
       saveGameSession({
         gameId: result.game.id,
         playerId: result.session.playerId,
         sessionToken: result.session.sessionToken,
         color: result.session.color,
-        playerName,
+        playerName: currentUser.displayName,
       });
 
       router.push(`/game/${result.game.id}`);
@@ -185,16 +122,21 @@ export default function PlayPage() {
   async function handleCreateGame() {
     if (!isReady) return;
 
-    if (!identity) {
-      setIdentityPromptError(null);
-      setPendingIdentityAction({ type: "create" });
+    if (!isAuthenticated || !user) {
+      setError(null);
+      setPendingAuthAction({ type: "create" });
+      setIsAuthModalOpen(true);
       return;
     }
 
-    await createGameWithName(identity.displayName);
+    await createGameForUser(user, accessToken);
   }
 
-  async function joinExistingGameWithName(gameIdToJoin: string, playerName: string) {
+  async function joinExistingGameForUser(
+    gameIdToJoin: string,
+    currentUser: CurrentUser,
+    token: string | null
+  ) {
     try {
       setError(null);
       setIsJoiningGame(true);
@@ -204,8 +146,9 @@ export default function PlayPage() {
 
       const result = await joinGame(
         gameIdToJoin,
-        playerName,
-        existingSession?.sessionToken
+        currentUser.displayName,
+        existingSession?.sessionToken,
+        token ?? undefined
       );
 
       saveGameSession({
@@ -213,7 +156,7 @@ export default function PlayPage() {
         playerId: result.session.playerId,
         sessionToken: result.session.sessionToken,
         color: result.session.color,
-        playerName,
+        playerName: currentUser.displayName,
       });
 
       setJoinGameId("");
@@ -233,36 +176,14 @@ export default function PlayPage() {
   async function joinExistingGame(gameIdToJoin: string) {
     if (!isReady) return;
 
-    if (!identity) {
-      setIdentityPromptError(null);
-      setPendingIdentityAction({ type: "join", gameId: gameIdToJoin });
+    if (!isAuthenticated || !user) {
+      setError(null);
+      setPendingAuthAction({ type: "join", gameId: gameIdToJoin });
+      setIsAuthModalOpen(true);
       return;
     }
 
-    await joinExistingGameWithName(gameIdToJoin, identity.displayName);
-  }
-
-  function handleSaveIdentity(displayName: string) {
-    const action = pendingIdentityAction;
-
-    try {
-      setError(null);
-      setIdentityPromptError(null);
-      setDisplayName(displayName);
-      setPendingIdentityAction(null);
-
-      if (action?.type === "create") {
-        void createGameWithName(displayName);
-      }
-
-      if (action?.type === "join") {
-        void joinExistingGameWithName(action.gameId, displayName);
-      }
-    } catch (err) {
-      setIdentityPromptError(
-        err instanceof Error ? err.message : "Failed to save player name."
-      );
-    }
+    await joinExistingGameForUser(gameIdToJoin, user, accessToken);
   }
 
   async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
@@ -278,7 +199,7 @@ export default function PlayPage() {
     await joinExistingGame(trimmedGameId);
   }
 
-  const handleOpenRoom = useCallback(
+  const openRoom = useCallback(
     (gameIdToOpen: string) => {
       prepareGameAudio();
       router.push(`/game/${gameIdToOpen}`);
@@ -286,8 +207,54 @@ export default function PlayPage() {
     [prepareGameAudio, router]
   );
 
+  const handleOpenRoom = useCallback(
+    (gameIdToOpen: string) => {
+      if (!isReady) return;
+
+      if (!isAuthenticated || !user) {
+        setError(null);
+        setPendingAuthAction({ type: "open", gameId: gameIdToOpen });
+        setIsAuthModalOpen(true);
+        return;
+      }
+
+      openRoom(gameIdToOpen);
+    },
+    [isAuthenticated, isReady, openRoom, user]
+  );
+
+  useEffect(() => {
+    if (!pendingAuthAction || !isAuthenticated || !user) {
+      return;
+    }
+
+    const action = pendingAuthAction;
+    setIsAuthModalOpen(false);
+    setPendingAuthAction(null);
+
+    if (action.type === "create") {
+      void createGameForUser(user, accessToken);
+      return;
+    }
+
+    if (action.type === "join") {
+      void joinExistingGameForUser(action.gameId, user, accessToken);
+      return;
+    }
+
+    openRoom(action.gameId);
+  }, [
+    accessToken,
+    isAuthenticated,
+    joinExistingGameForUser,
+    createGameForUser,
+    openRoom,
+    pendingAuthAction,
+    user,
+  ]);
+
   return (
-    <LobbyShell playerName={identity?.displayName}>
+    <LobbyShell playerName={user?.displayName}>
       <LobbyPanel
         isIdentityReady={isReady}
         joinGameId={joinGameId}
@@ -309,17 +276,15 @@ export default function PlayPage() {
         onRefreshGames={handleRefreshGames}
       />
 
-      {pendingIdentityAction && (
-        <PlayerNamePrompt
-          error={identityPromptError}
-          isBusy={isCreatingGame || isJoiningGame}
-          onClose={() => {
-            setIdentityPromptError(null);
-            setPendingIdentityAction(null);
-          }}
-          onSave={handleSaveIdentity}
-        />
-      )}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setPendingAuthAction(null);
+        }}
+        onAuthenticated={() => setIsAuthModalOpen(false)}
+        reason="Sign in to create or join a SuperChess room."
+      />
     </LobbyShell>
   );
 }

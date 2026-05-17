@@ -81,7 +81,7 @@ export function useGameActions({
     !pendingPromotionMove;
 
   const handleJoin = useCallback(
-    async (playerName: string) => {
+    async (playerName: string, accessToken?: string) => {
       if (!gameId) {
         setError("Missing game id.");
         return;
@@ -96,7 +96,12 @@ export function useGameActions({
       try {
         setError(null);
         setIsJoining(true);
-        const result = await joinGame(gameId, trimmed, session?.sessionToken);
+        const result = await joinGame(
+          gameId,
+          trimmed,
+          session?.sessionToken,
+          accessToken
+        );
 
         saveSession({
           gameId: result.game.id,

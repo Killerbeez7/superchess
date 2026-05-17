@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
+import { AuthModal } from "@/features/auth/components/AuthModal";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ChessBoard } from "@/features/game/components/board/ChessBoard";
 import { GameEndBanner } from "@/features/game/components/GameEndBanner";
 import { GamePlayerBar } from "@/features/game/components/GamePlayerBar";
 import { GameStartOverlay } from "@/features/game/components/GameStartOverlay";
-import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
 import { PromotionPicker } from "@/features/game/components/PromotionPicker";
 // components
 import { GameRoomShell } from "@/features/game/components/room/GameRoomShell";
@@ -21,7 +22,6 @@ import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 import { useBoardSelection } from "@/features/game/hooks/useBoardSelection";
 import { useGameActions } from "@/features/game/hooks/useGameActions";
 import { useGameClocks } from "@/features/game/hooks/useGameClocks";
-import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import { useGameAutoJoin } from "@/features/game/hooks/useGameAutoJoin";
 import {
   useGameSounds,
@@ -167,9 +167,11 @@ export default function GameDetailsPage() {
   const [isEndModalDismissed, setIsEndModalDismissed] = useState(false);
   const [showStartOverlay, setShowStartOverlay] = useState(false);
   const [startOverlayKey, setStartOverlayKey] = useState(0);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const pendingTapMoveFromRef = useRef<string | null>(null);
   const timeoutRefreshKeyRef = useRef<string | null>(null);
   const startOverlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPromptedJoinAuthRef = useRef(false);
   const optimisticSoundRef = useRef<{
     key: string;
     sounds: GameSoundName[];
@@ -178,7 +180,7 @@ export default function GameDetailsPage() {
   const { game, setGame, isLoading, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
   const localPlayerColor = session?.color;
-  const { identity, isReady: isIdentityReady, setDisplayName } = usePlayerIdentity();
+  const { user, accessToken, isReady: isAuthReady, isAuthenticated } = useAuth();
   const { whiteTimer, blackTimer, whiteTimeRemainingMs, blackTimeRemainingMs } =
     useGameClocks(game);
   const displayedFen = optimisticFen ?? game?.currentFen;
@@ -394,45 +396,39 @@ export default function GameDetailsPage() {
     onGameStarted: handleGameStartedSound,
   });
 
-  const handleSaveIdentity = useCallback(
-    (displayName: string) => {
-      try {
-        setError(null);
-        setDisplayName(displayName);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save player name.");
-      }
-    },
-    [setDisplayName, setError]
-  );
-
-  const handleSaveIdentityAndJoin = useCallback(
-    (displayName: string) => {
-      handleSaveIdentity(displayName);
-      void handleJoin(displayName);
-    },
-    [handleJoin, handleSaveIdentity]
-  );
-
   const handleJoinWithIdentity = useCallback(async () => {
     unlockSounds();
 
-    if (!identity) {
-      setError("Player name is required.");
+    if (!isAuthenticated || !user) {
+      setError(null);
+      setIsAuthModalOpen(true);
       return;
     }
 
     void prepareSounds(JOIN_PRELOAD_SOUNDS);
-    await handleJoin(identity.displayName);
-  }, [handleJoin, identity, prepareSounds, setError, unlockSounds]);
+    await handleJoin(user.displayName, accessToken ?? undefined);
+  }, [
+    accessToken,
+    handleJoin,
+    isAuthenticated,
+    prepareSounds,
+    setError,
+    unlockSounds,
+    user,
+  ]);
+
+  const handleAutoJoin = useCallback(
+    (displayName: string) => handleJoin(displayName, accessToken ?? undefined),
+    [accessToken, handleJoin]
+  );
 
   useGameAutoJoin({
     gameId,
     game,
-    identity,
-    isIdentityReady,
+    identity: user,
+    isIdentityReady: isAuthReady,
     session,
-    handleJoin,
+    handleJoin: handleAutoJoin,
   });
 
   const handleRefresh = useCallback(async () => {
@@ -658,6 +654,21 @@ export default function GameDetailsPage() {
 
   const canJoinAsBlack = !!game && !game.blackPlayer && game.status === "waiting";
   const canTakeBlackSeat = canJoinAsBlack && !session;
+
+  useEffect(() => {
+    if (
+      !canTakeBlackSeat ||
+      !isAuthReady ||
+      isAuthenticated ||
+      hasPromptedJoinAuthRef.current
+    ) {
+      return;
+    }
+
+    hasPromptedJoinAuthRef.current = true;
+    setIsAuthModalOpen(true);
+  }, [canTakeBlackSeat, isAuthReady, isAuthenticated]);
+
   const isWhiteTurn = game?.status === "active" && game.whoseTurn === "white";
   const isBlackTurn = game?.status === "active" && game.whoseTurn === "black";
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for player 2";
@@ -680,7 +691,7 @@ export default function GameDetailsPage() {
     timeRemainingMs: game?.blackPlayer ? blackTimeRemainingMs : undefined,
     isActive: isBlackTurn,
     action:
-      canTakeBlackSeat && identity ? (
+      canTakeBlackSeat && isAuthReady ? (
         <button
           type="button"
           onClick={handleJoinWithIdentity}
@@ -784,12 +795,12 @@ export default function GameDetailsPage() {
                 />
               )}
 
-              {canTakeBlackSeat && isIdentityReady && !identity && (
-                <PlayerIdentitySetup
-                  onSave={handleSaveIdentityAndJoin}
-                  isSaving={isJoining}
-                />
-              )}
+              <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                onAuthenticated={() => setIsAuthModalOpen(false)}
+                reason="Sign in to join this SuperChess room."
+              />
 
               {pendingPromotionMove && (
                 <PromotionPicker

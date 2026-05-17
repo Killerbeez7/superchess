@@ -46,25 +46,32 @@ function normalizeGameSessionResponse(response: ApiGameSessionResponse): GameSes
   };
 }
 
+function authHeaders(accessToken?: string): HeadersInit | undefined {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+}
+
 export const getGames = async () =>
   normalizeGameResponses(await apiFetch<ApiGameResponse[]>("/games"));
 
 export const getGame = async (gameId: string) =>
   normalizeGameResponse(await apiFetch<ApiGameResponse>(`/games/${gameId}`));
 
-export const createGame = (playerName: string) =>
+export const createGame = (playerName: string, accessToken?: string) =>
   apiFetch<ApiGameSessionResponse>("/games", {
     method: "POST",
+    headers: authHeaders(accessToken),
     body: JSON.stringify({ playerName }),
   }).then(normalizeGameSessionResponse);
 
 export const joinGame = (
   gameId: string,
   playerName: string,
-  existingSessionToken?: string
+  existingSessionToken?: string,
+  accessToken?: string
 ) =>
   apiFetch<ApiGameSessionResponse>(`/games/${gameId}/join`, {
     method: "POST",
+    headers: authHeaders(accessToken),
     body: JSON.stringify({
       playerName,
       existingSessionToken: existingSessionToken ?? null,

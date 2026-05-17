@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { createGame } from "@/lib/api/games";
 import { saveGameSession } from "@/lib/storage/gameSession";
-import { PlayerIdentitySetup } from "@/features/game/components/PlayerIdentitySetup";
+import type { CurrentUser } from "@/features/auth/api/auth";
+import { AuthModal } from "@/features/auth/components/AuthModal";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { NewGameBoardPreview } from "@/features/game/components/setup/NewGameBoardPreview";
 import { NewGameSetupPanel } from "@/features/game/components/setup/NewGameSetupPanel";
 import { NewOnlineGameShell } from "@/features/game/components/setup/NewOnlineGameShell";
@@ -13,7 +15,6 @@ import {
   DEFAULT_TIME_CONTROL,
   type TimeControl,
 } from "@/features/game/components/setup/TimeControlPicker";
-import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
 
@@ -21,7 +22,7 @@ type PendingCreateAction = "start" | "friend";
 
 export default function NewOnlineGamePage() {
   const router = useRouter();
-  const { identity, isReady, setDisplayName } = usePlayerIdentity();
+  const { user, accessToken, isReady, isAuthenticated } = useAuth();
   const { prepareSounds } = useGameSounds();
 
   const [selectedTimeControl, setSelectedTimeControl] =
@@ -29,26 +30,27 @@ export default function NewOnlineGamePage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingCreateAction | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const prepareGameAudio = useCallback(() => {
     void prepareSounds(JOIN_PRELOAD_SOUNDS);
   }, [prepareSounds]);
 
-  const createRoomWithName = useCallback(
-    async (playerName: string) => {
+  const createRoomForUser = useCallback(
+    async (currentUser: CurrentUser, token: string | null) => {
       try {
         setError(null);
         setIsCreating(true);
         prepareGameAudio();
 
-        const result = await createGame(playerName);
+        const result = await createGame(currentUser.displayName, token ?? undefined);
 
         saveGameSession({
           gameId: result.game.id,
           playerId: result.session.playerId,
           sessionToken: result.session.sessionToken,
           color: result.session.color,
-          playerName,
+          playerName: currentUser.displayName,
         });
 
         router.push(`/game/${result.game.id}`);
@@ -65,38 +67,46 @@ export default function NewOnlineGamePage() {
     async (action: PendingCreateAction) => {
       if (!isReady) return;
 
-      if (!identity) {
+      if (!isAuthenticated || !user) {
         setError(null);
         setPendingAction(action);
+        setIsAuthModalOpen(true);
         return;
       }
 
-      await createRoomWithName(identity.displayName);
+      await createRoomForUser(user, accessToken);
     },
-    [createRoomWithName, identity, isReady]
+    [accessToken, createRoomForUser, isAuthenticated, isReady, user]
   );
 
-  function handleSaveIdentity(displayName: string) {
-    try {
-      setDisplayName(displayName);
-      setPendingAction(null);
-      void createRoomWithName(displayName);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save player name.");
+  useEffect(() => {
+    if (!pendingAction || !isAuthenticated || !user || isCreating) {
+      return;
     }
-  }
+
+    setIsAuthModalOpen(false);
+    setPendingAction(null);
+    void createRoomForUser(user, accessToken);
+  }, [
+    accessToken,
+    createRoomForUser,
+    isAuthenticated,
+    isCreating,
+    pendingAction,
+    user,
+  ]);
 
   return (
     <NewOnlineGameShell
       board={
         <NewGameBoardPreview
-          playerName={identity?.displayName}
+          playerName={user?.displayName}
           timeControl={selectedTimeControl}
         />
       }
       panel={
         <NewGameSetupPanel
-          playerName={identity?.displayName}
+          playerName={user?.displayName}
           isIdentityReady={isReady}
           selectedTimeControl={selectedTimeControl}
           isCreating={isCreating}
@@ -107,9 +117,15 @@ export default function NewOnlineGamePage() {
         />
       }
       overlays={
-        pendingAction ? (
-          <PlayerIdentitySetup isSaving={isCreating} onSave={handleSaveIdentity} />
-        ) : null
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => {
+            setIsAuthModalOpen(false);
+            setPendingAction(null);
+          }}
+          onAuthenticated={() => setIsAuthModalOpen(false)}
+          reason="Sign in to create a SuperChess room."
+        />
       }
     />
   );

@@ -8,7 +8,7 @@ export function HomeActionGrid() {
       <HomeActionCard
         title="Quick Play"
         description="Jump back into your latest setup."
-        href="/play/online/new"
+        href="/play"
         icon={<FaBolt />}
         featured
       />

@@ -106,7 +106,7 @@ export function GameRightSidebar({
   function handleCopyInviteLink() {
     if (!roomCode || typeof window === "undefined") return;
 
-    const inviteUrl = `${window.location.origin}/play/${roomCode}`;
+    const inviteUrl = `${window.location.origin}/game/${roomCode}`;
     void navigator.clipboard?.writeText(inviteUrl);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);

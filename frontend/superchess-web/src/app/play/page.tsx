@@ -174,7 +174,7 @@ export default function PlayPage() {
         playerName,
       });
 
-      router.push(`/play/${result.game.id}`);
+      router.push(`/game/${result.game.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create game.");
     } finally {
@@ -222,7 +222,7 @@ export default function PlayPage() {
         playSound("game-start");
       }
 
-      router.push(`/play/${result.game.id}`);
+      router.push(`/game/${result.game.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join game.");
     } finally {
@@ -281,7 +281,7 @@ export default function PlayPage() {
   const handleOpenRoom = useCallback(
     (gameIdToOpen: string) => {
       prepareGameAudio();
-      router.push(`/play/${gameIdToOpen}`);
+      router.push(`/game/${gameIdToOpen}`);
     },
     [prepareGameAudio, router]
   );

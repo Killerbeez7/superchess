@@ -51,7 +51,7 @@ export default function NewOnlineGamePage() {
           playerName,
         });
 
-        router.push(`/play/${result.game.id}`);
+        router.push(`/game/${result.game.id}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create game.");
       } finally {

@@ -8,20 +8,20 @@ export function HomeActionGrid() {
       <HomeActionCard
         title="Quick Play"
         description="Jump back into your latest setup."
-        href="/play"
+        href="/play/online/new"
         icon={<FaBolt />}
         featured
       />
       <HomeActionCard
         title="New Game"
         description="Create or join a room."
-        href="/play"
+        href="/play/online/new"
         icon={<FaChessKnight />}
       />
       <HomeActionCard
         title="Play Friend"
         description="Start a private room link."
-        href="/play"
+        href="/play/online/new"
         icon={<FaUserGroup />}
       />
       <HomeActionCard

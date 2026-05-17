@@ -95,14 +95,14 @@ function PlayMenuRow({ item, index }: { item: PlayMenuItem; index: number }) {
         className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-xs transition ${
           item.isPrimary
             ? "bg-primary-green text-panel"
-            : "bg-icon-muted text-text-muted group-hover/menu-row:bg-bg-light group-hover/menu-row:text-text-primary"
+            : "text-text-muted group-hover/menu-row:text-text-primary"
         }`}
       >
         {item.icon}
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-bold text-text-primary">
+        <span className="block truncate text-[13px] font-bold text-text-muted transition group-hover/menu-row:text-text-primary">
           {item.label}
         </span>
 
@@ -116,9 +116,7 @@ function PlayMenuRow({ item, index }: { item: PlayMenuItem; index: number }) {
   );
 
   const className = `sidebar-play-menu-row group/menu-row flex min-w-0 items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left transition ${
-    item.isDisabled
-      ? "cursor-not-allowed opacity-55"
-      : "hover:border-border-light hover:bg-white/6"
+    item.isDisabled ? "cursor-not-allowed opacity-55" : "hover:bg-bg-light"
   }`;
 
   if (item.isDisabled) {
@@ -153,7 +151,7 @@ export function AppSidebarPlayItem() {
         className={`group relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
           isActive
             ? "bg-bg-light text-text-primary"
-            : "text-text-muted hover:bg-white/[0.07] hover:text-text-primary"
+            : "text-text-muted hover:bg-bg-light hover:text-text-primary"
         }`}
       >
         {isActive && (
@@ -162,7 +160,9 @@ export function AppSidebarPlayItem() {
 
         <span
           className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-base leading-none transition ${
-            isActive ? "text-text-primary" : "bg-white/6 group-hover:bg-bg-light"
+            isActive
+              ? "bg-bg-light text-text-primary"
+              : "text-text-muted group-hover:bg-bg-light group-hover:text-text-primary"
           }`}
         >
           <FaChessKnight />
@@ -179,7 +179,7 @@ export function AppSidebarPlayItem() {
         role="menu"
         className="sidebar-play-flyout absolute left-[calc(100%+1rem)] top-0 z-60 hidden w-[218px] lg:block"
       >
-        <div className="relative rounded-r-2xl border-y border-r border-border-light bg-[#1f1e1b] p-1.5 shadow-2xl">
+        <div className="relative rounded-r-2xl border border-border-light bg-[#1f1e1b] p-1.5 shadow-2xl">
           <div className="grid gap-2">
             {playMenuGroups.map((group, groupIndex) => (
               <section key={group.label} className="grid gap-1">

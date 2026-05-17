@@ -6,20 +6,14 @@ import type { FormEvent } from "react";
 import { AppSidebarItem } from "./AppSidebarItem";
 import { AppSidebarPlayItem } from "./AppSidebarPlayItem";
 import { usePlayerIdentity } from "@/features/game/hooks/usePlayerIdentity";
-import {
-  FaHouse,
-  FaChessBoard,
-  FaCircleInfo,
-  FaGear,
-  FaUser,
-} from "react-icons/fa6";
+import { FaHouse, FaChessBoard, FaCircleInfo, FaGear, FaUser } from "react-icons/fa6";
 
 function LogoMark() {
   return (
     <Link
       href="/"
       aria-label="SuperChess home"
-      className="flex h-12 items-center gap-3 rounded-xl bg-panel px-3 text-text-primary ring-1 ring-app-border transition hover:bg-white/6"
+      className="flex h-12 items-center gap-3 rounded-xl bg-panel px-3 text-text-primary ring-1 ring-app-border transition hover:bg-bg-light"
     >
       <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary-green text-lg font-black text-panel">
         S
@@ -78,9 +72,10 @@ export function AppSidebar() {
         <div className="space-y-2 border-t border-app-border pt-4">
           <button
             type="button"
-            className="group flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold text-text-muted transition hover:bg-white/7 hover:text-text-primary"
+            className="group flex h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold text-text-muted transition hover:bg-bg-light hover:text-text-primary"
           >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-white/6 text-sm transition group-hover:bg-[#3a352d]">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm text-text-muted transition group-hover:bg-bg-light group-hover:text-text-primary">
+              {" "}
               <FaGear />
             </span>
             <span className="truncate">Settings</span>
@@ -90,9 +85,9 @@ export function AppSidebar() {
             type="button"
             onClick={openPlayerModal}
             disabled={!canEditPlayer}
-            className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition enabled:hover:bg-white/[0.07] disabled:cursor-default"
+            className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition enabled:hover:bg-bg-light disabled:cursor-default"
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white/6 text-sm text-text-muted transition group-enabled:group-hover:bg-[#3a352d] group-enabled:group-hover:text-text-primary">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-sm text-text-muted transition group-enabled:group-hover:bg-bg-light group-enabled:group-hover:text-text-primary">
               <FaUser />
             </span>
 
@@ -122,7 +117,7 @@ export function AppSidebar() {
               <button
                 type="button"
                 onClick={() => setIsPlayerModalOpen(false)}
-                className="rounded-md border border-app-border px-2 py-1 text-xs font-semibold text-text-muted transition hover:bg-white/6 hover:text-text-primary"
+                className="rounded-md border border-app-border px-2 py-1 text-xs font-semibold text-text-muted transition hover:bg-bg-light hover:text-text-primary"
               >
                 Close
               </button>

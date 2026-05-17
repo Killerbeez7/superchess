@@ -8,11 +8,16 @@
   --sidebar-background: #262421;
   --panel-background: #1f1e1b;
 
-  --bg-light: #3a352d;
+  --bg-light: #343434;
+  --bg-muted: #292929;
+  --bg-dark: #1a1a1a;
+  --bg-hover: #3f3f3f;
+  --bg-inset: #121212;
+  /* --bg-light: #3a352d;
   --bg-muted: #2b2925;
   --bg-dark: #171614;
   --bg-hover: #4a4338;
-  --bg-inset: #11100e;
+  --bg-inset: #11100e; */
 
   --card-background: #262421;
   --card-muted-background: #1f1e1b;
@@ -206,15 +211,13 @@ body {
   transition-delay: 0ms;
 }
 
-.group\/play:hover .sidebar-play-flyout,
-.group\/play:focus-within .sidebar-play-flyout {
+.group\/play:hover .sidebar-play-flyout {
   pointer-events: auto;
   opacity: 1;
   transform: translateX(0);
 }
 
-.group\/play:hover .sidebar-play-menu-row,
-.group\/play:focus-within .sidebar-play-menu-row {
+.group\/play:hover .sidebar-play-menu-row {
   opacity: 1;
   transform: translateX(0);
   transition-delay: var(--row-delay, 70ms);

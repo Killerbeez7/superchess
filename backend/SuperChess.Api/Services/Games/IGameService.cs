@@ -1,5 +1,5 @@
 using SuperChess.Api.Common;
-using SuperChess.Api.Contracts.Games;
+using SuperChess.Api.DTOs.Games;
 
 namespace SuperChess.Api.Services.Games;
 

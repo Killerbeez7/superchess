@@ -1,4 +1,4 @@
-using SuperChess.Api.Contracts.Games;
+using SuperChess.Api.DTOs.Games;
 
 namespace SuperChess.Api.Realtime;
 

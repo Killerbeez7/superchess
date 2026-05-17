@@ -1,4 +1,4 @@
-using SuperChess.Api.Contracts.Games;
+using SuperChess.Api.DTOs.Games;
 using SuperChess.Api.Models;
 using SuperChess.Core.Chess;
 

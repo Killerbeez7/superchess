@@ -1,5 +1,5 @@
 using SuperChess.Api.Common;
-using SuperChess.Api.Contracts.Games;
+using SuperChess.Api.DTOs.Games;
 using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Domain.Enums;
 using SuperChess.Api.Models;

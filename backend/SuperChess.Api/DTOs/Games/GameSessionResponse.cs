@@ -1,4 +1,4 @@
-namespace SuperChess.Api.Contracts.Games;
+namespace SuperChess.Api.DTOs.Games;
 
 public sealed class GameSessionResponse
 {

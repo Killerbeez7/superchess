@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SuperChess.Api.Common;
 using SuperChess.Api.Common.Errors;
-using SuperChess.Api.Contracts.Games;
+using SuperChess.Api.DTOs.Games;
 using SuperChess.Api.Services.Games;
 
 namespace SuperChess.Api.Controllers;

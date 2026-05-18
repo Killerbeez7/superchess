@@ -61,8 +61,6 @@ export function NewOnlineGameClient() {
         setIsCreating(true);
         prepareGameAudio();
 
-        console.log("[setup create] selected", currentTimeControl);
-
         const result = await createGame(session.accessToken, {
           ...toCreateGameRequest(session.user.lastGameSettings),
           initialMinutes: currentTimeControl.minutes,

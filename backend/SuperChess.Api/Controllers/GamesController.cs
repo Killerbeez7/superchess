@@ -63,7 +63,7 @@ public class GamesController(IGameService gameService) : ControllerBase
     }
 
     [Authorize]
-    [HttpPost("{gameId:guid}/move")]
+    [HttpPost("{gameId:guid}/moves")]
     public async Task<ActionResult<GameResponse>> MakeMove(
         Guid gameId,
         MakeMoveRequest request,

@@ -35,11 +35,10 @@ export function HomeActionGrid() {
         setIsCreatingQuickGame(true);
         prepareGameAudio();
 
-        const quickPlayPayload = toCreateGameRequest(session.user.lastGameSettings);
-        console.log("[quick play] settings", session.user.lastGameSettings);
-        console.log("[quick play] payload", quickPlayPayload);
-
-        const result = await createGame(session.accessToken, quickPlayPayload);
+        const result = await createGame(
+          session.accessToken,
+          toCreateGameRequest(session.user.lastGameSettings)
+        );
 
         saveGameSession({
           gameId: result.game.id,

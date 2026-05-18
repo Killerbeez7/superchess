@@ -5,12 +5,14 @@ namespace SuperChess.Api.Realtime;
 
 public sealed class SignalRGameNotifier : IGameNotifier
 {
+    private const string LobbyGroupName = "lobby";
+
     private readonly IHubContext<GameHub> _hub;
 
     public SignalRGameNotifier(IHubContext<GameHub> hub) => _hub = hub;
 
     public Task NotifyOpenGamesChangedAsync(IReadOnlyList<GameResponse> games) =>
-        _hub.Clients.All.SendAsync("OpenGamesChanged", games);
+        _hub.Clients.Group(LobbyGroupName).SendAsync("OpenGamesChanged", games);
 
     public Task NotifyPlayerJoinedAsync(Guid gameId, GameResponse game) =>
         _hub.Clients.Group($"game:{gameId}").SendAsync("PlayerJoined", game);

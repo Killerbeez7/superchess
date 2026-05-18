@@ -29,6 +29,7 @@ export function useGameRealtime({
     const connection = createGameHubConnection();
     let isAlive = true;
     let didJoinRoom = false;
+    let didJoinLobby = false;
 
     if (onPlayerJoined) {
       connection.on("PlayerJoined", (game: GameResponse) => {
@@ -51,9 +52,15 @@ export function useGameRealtime({
     (async () => {
       try {
         await connection.start();
+
         if (!isAlive) {
           await connection.stop();
           return;
+        }
+
+        if (onOpenGamesChanged) {
+          await connection.invoke("JoinLobby");
+          didJoinLobby = true;
         }
 
         if (gameId) {
@@ -78,15 +85,21 @@ export function useGameRealtime({
     return () => {
       isAlive = false;
       setIsConnected(false);
+
       connection.off("PlayerJoined");
       connection.off("MovePlayed");
       connection.off("OpenGamesChanged");
 
       void (async () => {
         try {
+          if (didJoinLobby && connection.state === "Connected") {
+            await connection.invoke("LeaveLobby").catch(() => {});
+          }
+
           if (gameId && didJoinRoom && connection.state === "Connected") {
             await connection.invoke("LeaveGameRoom", gameId).catch(() => {});
           }
+
           if (connection.state === "Connected") {
             await connection.stop();
           }

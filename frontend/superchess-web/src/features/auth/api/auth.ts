@@ -1,9 +1,17 @@
 import { API_BASE_URL } from "@/lib/api/client";
 
+export type UserGameSettings = {
+  initialMinutes: number;
+  incrementSeconds: number;
+  isRated: boolean;
+  gameMode: string;
+};
+
 export type CurrentUser = {
   id: string;
   displayName: string;
   email: string;
+  lastGameSettings: UserGameSettings;
 };
 
 export type AuthResponse = {

@@ -185,6 +185,20 @@ namespace SuperChess.Api.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LastGameMode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("LastIncrementSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LastInitialMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("LastIsRated")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");

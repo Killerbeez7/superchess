@@ -13,6 +13,7 @@ export type CreateGameRequest = {
   initialMinutes: number;
   incrementSeconds: number;
   isRated: boolean;
+  gameMode: string;
 };
 
 type ApiPieceColor = PieceColor | "White" | "Black" | 0 | 1;

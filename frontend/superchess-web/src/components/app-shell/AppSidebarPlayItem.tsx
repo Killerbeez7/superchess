@@ -11,7 +11,7 @@ import {
   FaRobot,
   FaTrophy,
 } from "react-icons/fa6";
-import { DEFAULT_ONLINE_SETUP_HREF } from "@/features/game/setupRoutes";
+import { ONLINE_SETUP_HREF } from "@/features/game/setupRoutes";
 
 type PlayMenuItem = {
   href: string;
@@ -32,7 +32,7 @@ const playMenuGroups: PlayMenuGroup[] = [
     label: "Play",
     items: [
       {
-        href: DEFAULT_ONLINE_SETUP_HREF,
+        href: ONLINE_SETUP_HREF,
         label: "Play Online",
         description: "Create a timed room",
         icon: <FaChessKnight />,

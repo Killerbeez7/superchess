@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Identity;
 using SuperChess.Api.Common;
 using SuperChess.Api.DTOs.Games;
 using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Domain.Enums;
+using SuperChess.Api.Entities;
 using SuperChess.Api.Models;
 using SuperChess.Api.Realtime;
 using SuperChess.Api.Services.Mapping;
@@ -14,15 +16,18 @@ public class GameService : IGameService
     private readonly IGameRepository _repo;
     private readonly IGameNotifier _notifier;
     private readonly IChessEngine _engine;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public GameService(
         IGameRepository repo,
         IGameNotifier notifier,
-        IChessEngine engine)
+        IChessEngine engine,
+        UserManager<ApplicationUser> userManager)
     {
         _repo = repo;
         _notifier = notifier;
         _engine = engine;
+        _userManager = userManager;
     }
 
     public async Task<Result<GameSessionResponse>> CreateGameAsync(
@@ -43,6 +48,11 @@ public class GameService : IGameService
         }
 
         var timeControl = timeControlResult.Value!;
+        var settingsError = await UpdateLastGameSettingsAsync(player.UserId, request);
+        if (settingsError is not null)
+        {
+            return Result<GameSessionResponse>.Forbidden(settingsError);
+        }
 
         var now = DateTime.UtcNow;
         var white = NewPlayer(name);
@@ -303,6 +313,12 @@ public class GameService : IGameService
 
     private static Result<GameTimeControl> CreateTimeControl(CreateGameRequest request)
     {
+        var gameMode = NormalizeGameMode(request.GameMode);
+        if (gameMode != "classical")
+        {
+            return Result<GameTimeControl>.Validation("Only classical mode is supported.");
+        }
+
         if (request.InitialMinutes is < 1 or > 180)
         {
             return Result<GameTimeControl>.Validation("InitialMinutes must be between 1 and 180.");
@@ -334,6 +350,32 @@ public class GameService : IGameService
             ? TimeControlType.Blitz
             : TimeControlType.Rapid;
     }
+
+    private async Task<string?> UpdateLastGameSettingsAsync(
+        Guid userId,
+        CreateGameRequest request)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return "Authenticated user no longer exists.";
+        }
+
+        user.LastInitialMinutes = request.InitialMinutes;
+        user.LastIncrementSeconds = request.IncrementSeconds;
+        user.LastIsRated = request.IsRated;
+        user.LastGameMode = NormalizeGameMode(request.GameMode);
+
+        var result = await _userManager.UpdateAsync(user);
+        return result.Succeeded
+            ? null
+            : string.Join(" ", result.Errors.Select(error => error.Description));
+    }
+
+    private static string NormalizeGameMode(string? gameMode) =>
+        string.IsNullOrWhiteSpace(gameMode)
+            ? "classical"
+            : gameMode.Trim().ToLowerInvariant();
 
     private async Task BroadcastOpenGamesAsync(CancellationToken ct)
     {

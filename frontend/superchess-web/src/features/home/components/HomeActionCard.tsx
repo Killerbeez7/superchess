@@ -7,8 +7,10 @@ type HomeActionCardProps = {
   description: string;
   icon: ReactNode;
   href?: string;
+  onClick?: () => void;
   featured?: boolean;
   disabled?: boolean;
+  isBusy?: boolean;
 };
 
 export function HomeActionCard({
@@ -16,8 +18,10 @@ export function HomeActionCard({
   description,
   icon,
   href,
+  onClick,
   featured = false,
   disabled = false,
+  isBusy = false,
 }: HomeActionCardProps) {
   const content = (
     <>
@@ -64,6 +68,19 @@ export function HomeActionCard({
       ? "cursor-default opacity-65"
       : "hover:border-accent-soft hover:bg-card-hover"
   );
+
+  if (onClick && !disabled) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={isBusy}
+        className={clsx(className, "text-left disabled:cursor-wait disabled:opacity-70")}
+      >
+        {content}
+      </button>
+    );
+  }
 
   if (disabled || !href) {
     return (

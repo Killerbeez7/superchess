@@ -95,7 +95,14 @@ public class AuthController(
         {
             Id = user.Id.ToString(),
             DisplayName = user.DisplayName,
-            Email = user.Email ?? string.Empty
+            Email = user.Email ?? string.Empty,
+            LastGameSettings = new UserGameSettingsResponse
+            {
+                InitialMinutes = user.LastInitialMinutes,
+                IncrementSeconds = user.LastIncrementSeconds,
+                IsRated = user.LastIsRated,
+                GameMode = user.LastGameMode
+            }
         };
     }
 }

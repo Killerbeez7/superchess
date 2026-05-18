@@ -8,6 +8,7 @@ import { getGameSession, saveGameSession } from "@/lib/storage/gameSession";
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { toCreateGameRequest } from "@/features/game/setupPreferences";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
@@ -35,8 +36,9 @@ export default function PlayPage() {
   const [isJoiningGame, setIsJoiningGame] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-  const [pendingAuthAction, setPendingAuthAction] =
-    useState<PendingAuthAction | null>(null);
+  const [pendingAuthAction, setPendingAuthAction] = useState<PendingAuthAction | null>(
+    null
+  );
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { isConnected: isRealtimeConnected } = useGameRealtime({
     onOpenGamesChanged: setGames,
@@ -101,7 +103,10 @@ export default function PlayPage() {
       setIsCreatingGame(true);
       prepareGameAudio();
 
-      const result = await createGame(session.accessToken);
+      const result = await createGame(
+        session.accessToken,
+        toCreateGameRequest(session.user.lastGameSettings)
+      );
 
       saveGameSession({
         gameId: result.game.id,
@@ -132,10 +137,7 @@ export default function PlayPage() {
     await createGameForSession({ accessToken, user });
   }
 
-  async function joinExistingGameForSession(
-    gameIdToJoin: string,
-    session: AuthResponse
-  ) {
+  async function joinExistingGameForSession(gameIdToJoin: string, session: AuthResponse) {
     try {
       setError(null);
       setIsJoiningGame(true);

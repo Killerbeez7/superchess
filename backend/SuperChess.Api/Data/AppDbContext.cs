@@ -24,6 +24,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.Property(x => x.SessionToken).HasMaxLength(200).IsRequired();
         });
 
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(x => x.LastGameMode).HasMaxLength(40).IsRequired();
+        });
+
         modelBuilder.Entity<ChessGame>(entity =>
         {
             entity.HasKey(x => x.Id);

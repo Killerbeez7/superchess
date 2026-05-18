@@ -10,9 +10,12 @@ import { NewGameBoardPreview } from "@/features/game/components/setup/NewGameBoa
 import { NewGameSetupPanel } from "@/features/game/components/setup/NewGameSetupPanel";
 import { NewOnlineGameShell } from "@/features/game/components/setup/NewOnlineGameShell";
 import {
+  findTimeControlFromGameSettings,
   findTimeControlFromSetupParams,
+  hasTimeControlSetupParams,
   type TimeControl,
 } from "@/features/game/components/setup/TimeControlPicker";
+import { toCreateGameRequest } from "@/features/game/setupPreferences";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
 import { createGame } from "@/lib/api/games";
@@ -30,9 +33,17 @@ export function NewOnlineGameClient() {
     () => findTimeControlFromSetupParams(searchParams),
     [searchParams]
   );
+  const hasRouteTimeControl = useMemo(
+    () => hasTimeControlSetupParams(searchParams),
+    [searchParams]
+  );
+  const preferredTimeControl = hasRouteTimeControl
+    ? routeTimeControl
+    : findTimeControlFromGameSettings(user?.lastGameSettings);
 
   const [selectedTimeControl, setSelectedTimeControl] =
-    useState<TimeControl>(routeTimeControl);
+    useState<TimeControl | null>(null);
+  const currentTimeControl = selectedTimeControl ?? preferredTimeControl;
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingCreateAction | null>(null);
@@ -50,9 +61,10 @@ export function NewOnlineGameClient() {
         prepareGameAudio();
 
         const result = await createGame(session.accessToken, {
-          initialMinutes: selectedTimeControl.minutes,
-          incrementSeconds: selectedTimeControl.incrementSeconds,
-          isRated: false,
+          ...toCreateGameRequest(session.user.lastGameSettings),
+          initialMinutes: currentTimeControl.minutes,
+          incrementSeconds: currentTimeControl.incrementSeconds,
+          gameMode: "classical",
         });
 
         saveGameSession({
@@ -70,7 +82,7 @@ export function NewOnlineGameClient() {
         setIsCreating(false);
       }
     },
-    [prepareGameAudio, router, selectedTimeControl]
+    [currentTimeControl, prepareGameAudio, router]
   );
 
   const beginCreateFlow = useCallback(
@@ -108,14 +120,14 @@ export function NewOnlineGameClient() {
       board={
         <NewGameBoardPreview
           playerName={user?.displayName}
-          timeControl={selectedTimeControl}
+          timeControl={currentTimeControl}
         />
       }
       panel={
         <NewGameSetupPanel
           playerName={user?.displayName}
           isIdentityReady={isReady}
-          selectedTimeControl={selectedTimeControl}
+          selectedTimeControl={currentTimeControl}
           isCreating={isCreating}
           error={error}
           onTimeControlChange={setSelectedTimeControl}

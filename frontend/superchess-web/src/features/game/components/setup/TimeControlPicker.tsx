@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import clsx from "clsx";
 import { FaBolt, FaRocket, FaStopwatch } from "react-icons/fa6";
+import type { UserGameSettings } from "@/features/auth/api/auth";
 
 export type TimeControlCategory = "bullet" | "blitz" | "rapid";
 
@@ -126,6 +127,27 @@ export function findTimeControlFromSetupParams(params: SetupSearchParams) {
     0;
 
   return findTimeControlByClock(baseSeconds, incrementSeconds);
+}
+
+export function hasTimeControlSetupParams(params: SetupSearchParams) {
+  return (
+    params.get("timeControl") !== null ||
+    params.get("minutes") !== null ||
+    params.get("base") !== null
+  );
+}
+
+export function findTimeControlFromGameSettings(
+  settings?: UserGameSettings | null
+) {
+  if (!settings) {
+    return DEFAULT_TIME_CONTROL;
+  }
+
+  return findTimeControlByClock(
+    settings.initialMinutes * 60,
+    settings.incrementSeconds
+  );
 }
 
 export function getTimeControlGroup(timeControl: TimeControl) {

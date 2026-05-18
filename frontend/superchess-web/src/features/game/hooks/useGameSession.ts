@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getGameSession,
   saveGameSession,
-  type LocalGameSession,
+  type StoredGameSession,
 } from "@/lib/storage/gameSession";
 
 export function useGameSession(gameId: string | undefined) {
-  const [session, setSession] = useState<LocalGameSession | null>(null);
+  const [session, setSession] = useState<StoredGameSession | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,7 +22,7 @@ export function useGameSession(gameId: string | undefined) {
     };
   }, [gameId]);
 
-  const persist = useCallback((next: LocalGameSession) => {
+  const persist = useCallback((next: StoredGameSession) => {
     saveGameSession(next);
     setSession(next);
   }, []);

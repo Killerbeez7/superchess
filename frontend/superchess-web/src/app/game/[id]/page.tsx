@@ -181,12 +181,7 @@ export default function GameDetailsPage() {
   const { game, setGame, isLoading, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
   const localPlayerColor = session?.color;
-  const {
-    user,
-    accessToken,
-    isReady: isAuthReady,
-    isAuthenticated,
-  } = useAuth();
+  const { user, accessToken, isReady: isAuthReady, isAuthenticated } = useAuth();
   const { whiteTimer, blackTimer, whiteTimeRemainingMs, blackTimeRemainingMs } =
     useGameClocks(game);
   const displayedFen = optimisticFen ?? game?.currentFen;
@@ -412,7 +407,7 @@ export default function GameDetailsPage() {
     }
 
     void prepareSounds(JOIN_PRELOAD_SOUNDS);
-    await handleJoin(accessToken);
+    await handleJoin();
   }, [
     accessToken,
     handleJoin,
@@ -423,10 +418,7 @@ export default function GameDetailsPage() {
     user,
   ]);
 
-  const handleAutoJoin = useCallback(
-    (token: string) => handleJoin(token),
-    [handleJoin]
-  );
+  const handleAutoJoin = useCallback(() => handleJoin(), [handleJoin]);
 
   useGameAutoJoin({
     gameId,
@@ -437,14 +429,11 @@ export default function GameDetailsPage() {
     handleJoin: handleAutoJoin,
   });
 
-  const handleAuthenticated = useCallback(
-    (session: AuthResponse) => {
-      setIsAuthModalOpen(false);
-      void prepareSounds(JOIN_PRELOAD_SOUNDS);
-      void handleJoin(session.accessToken);
-    },
-    [handleJoin, prepareSounds]
-  );
+  const handleAuthenticated = useCallback(() => {
+    setIsAuthModalOpen(false);
+    void prepareSounds(JOIN_PRELOAD_SOUNDS);
+    void handleJoin();
+  }, [handleJoin, prepareSounds]);
 
   const handleRefresh = useCallback(async () => {
     await refresh();

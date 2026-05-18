@@ -9,11 +9,11 @@ import {
 } from "@/utils/board/interactions";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import type { GameResponse } from "@/types/game";
-import type { LocalGameSession } from "@/lib/storage/gameSession";
+import type { StoredGameSession } from "@/lib/storage/gameSession";
 
 export function useBoardSelection(
   game: GameResponse | null,
-  session: LocalGameSession | null,
+  session: StoredGameSession | null,
   displayedFen?: string | null
 ) {
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);

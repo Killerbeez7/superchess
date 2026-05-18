@@ -3,14 +3,13 @@
 import { useEffect, useRef } from "react";
 
 import type { GameResponse } from "@/types/game";
-import type { LocalGameSession } from "@/lib/storage/gameSession";
-
+import type { StoredGameSession } from "@/lib/storage/gameSession";
 type useGameAutoJoinParams = {
   gameId?: string;
   game: GameResponse | null;
   accessToken: string | null;
   isIdentityReady: boolean;
-  session: LocalGameSession | null;
+  session: StoredGameSession | null;
   handleJoin: (accessToken: string) => Promise<void>;
 };
 

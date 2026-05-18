@@ -12,8 +12,8 @@ using SuperChess.Api.Data;
 namespace SuperChess.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260518140103_RememberPreferredSetupOptions")]
-    partial class RememberPreferredSetupOptions
+    [Migration("20260518140956_AddMissingPreferredSetupColumns")]
+    partial class AddMissingPreferredSetupColumns
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

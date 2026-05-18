@@ -179,7 +179,7 @@ export function AppSidebarPlayItem() {
         role="menu"
         className="sidebar-play-flyout absolute left-[calc(100%+1rem)] top-0 z-60 hidden w-[218px] lg:block"
       >
-        <div className="relative rounded-r-2xl border border-border-light bg-[#1f1e1b] p-1.5 shadow-2xl">
+        <div className="relative rounded-r-2xl border border-border-light bg-card-muted p-1.5 shadow-2xl">
           <div className="grid gap-2">
             {playMenuGroups.map((group, groupIndex) => (
               <section key={group.label} className="grid gap-1">

@@ -45,7 +45,7 @@ export function MobileAppHeader() {
           aria-expanded={isMenuOpen}
           aria-controls="mobile-app-menu"
           aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-          className="flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-text-primary transition hover:bg-white/[0.07]"
+          className="flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-text-primary transition hover:bg-bg-light"
         >
           <span className="relative block h-4 w-5 shrink-0">
             <span

@@ -50,11 +50,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       },
     });
   } catch (err) {
-    throw new ApiError(
-      0,
-      "network",
-      err instanceof Error ? err.message : "Network error"
-    );
+    const isFetchFailure =
+      err instanceof TypeError &&
+      err.message.toLowerCase().includes("failed to fetch");
+    const message = isFetchFailure
+      ? `Cannot reach the API at ${API_BASE_URL}. Start the backend (npm run run:backend) and try again.`
+      : err instanceof Error
+        ? err.message
+        : "Network error";
+    throw new ApiError(0, "network", message);
   }
 
   if (!res.ok) {

@@ -39,16 +39,15 @@ public static class GameMapper
     public static GameSessionResponse ToSessionResponse(
         ChessGame game,
         Player player,
-        PieceColor color) => new()
+        PieceColor color)
     {
-        Game = ToResponse(game),
-        Session = new PlayerSessionResponse
+        return new GameSessionResponse
         {
+            Game = ToResponse(game),
             PlayerId = player.Id,
-            SessionToken = player.SessionToken,
-            Color = color.ToString().ToLowerInvariant()
-        }
-    };
+            Color = color
+        };
+    }
 
     private static PlayerSummary ToSummary(Player p) => new()
     {

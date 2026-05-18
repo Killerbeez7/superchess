@@ -41,8 +41,9 @@ export function NewOnlineGameClient() {
     ? routeTimeControl
     : findTimeControlFromGameSettings(user?.lastGameSettings);
 
-  const [selectedTimeControl, setSelectedTimeControl] =
-    useState<TimeControl | null>(null);
+  const [selectedTimeControl, setSelectedTimeControl] = useState<TimeControl | null>(
+    null
+  );
   const currentTimeControl = selectedTimeControl ?? preferredTimeControl;
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,9 +74,8 @@ export function NewOnlineGameClient() {
 
         saveGameSession({
           gameId: result.game.id,
-          playerId: result.session.playerId,
-          sessionToken: result.session.sessionToken,
-          color: result.session.color,
+          playerId: result.playerId,
+          color: result.color,
           playerName: session.user.displayName,
         });
 

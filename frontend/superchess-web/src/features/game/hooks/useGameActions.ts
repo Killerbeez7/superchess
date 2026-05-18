@@ -10,14 +10,15 @@ import {
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
 import type { GameResponse, PieceColor, PromotionPiece } from "@/types/game";
-import type { LocalGameSession } from "@/lib/storage/gameSession";
+import type { StoredGameSession } from "@/lib/storage/gameSession";
 import type { BoardPiece, BoardPosition } from "@/utils/board/position";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 type UseGameActionsArgs = {
   gameId: string | undefined;
   game: GameResponse | null;
-  session: LocalGameSession | null;
-  saveSession: (s: LocalGameSession) => void;
+  session: StoredGameSession | null;
+  saveSession: (s: StoredGameSession) => void;
   setGame: (g: GameResponse) => void;
   setError: (msg: string | null) => void;
   selectedSquare: string | null;
@@ -76,6 +77,9 @@ export function useGameActions({
   const [pendingPromotionMove, setPendingPromotionMove] =
     useState<PendingPromotionMove | null>(null);
 
+  const { accessToken } = useAuth();
+  const currentGameStatus = game?.status;
+
   const isLocalPlayersTurn = !!session && !!game && session.color === game.whoseTurn;
 
   const canInteractWithBoard =
@@ -86,62 +90,64 @@ export function useGameActions({
     !isMakingMove &&
     !pendingPromotionMove;
 
-  const handleJoin = useCallback(
-    async (accessToken: string) => {
-      if (!gameId) {
-        setError("Missing game id.");
-        return;
+  const handleJoin = useCallback(async () => {
+    if (!gameId) {
+      setError("Missing game id.");
+      return;
+    }
+
+    if (!accessToken) {
+      setError("Sign in to join this game.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsJoining(true);
+
+      const result = await joinGame(gameId, accessToken);
+      const color = result.color as PieceColor;
+
+      saveSession({
+        gameId: result.game.id,
+        playerId: result.playerId,
+        color,
+        playerName: getSessionPlayerName(result.game, color),
+      });
+
+      setGame(result.game);
+      setOptimisticFen(null);
+      setPendingPromotionMove(null);
+      setSelectedSquare(null);
+
+      if (currentGameStatus === "waiting" && result.game.status === "active") {
+        onGameStarted?.();
       }
-
-      if (!accessToken) {
-        setError("Sign in to join this game.");
-        return;
-      }
-
-      try {
-        setError(null);
-        setIsJoining(true);
-        const result = await joinGame(gameId, session?.sessionToken, accessToken);
-        const color = result.session.color as PieceColor;
-
-        saveSession({
-          gameId: result.game.id,
-          playerId: result.session.playerId,
-          sessionToken: result.session.sessionToken,
-          color,
-          playerName: getSessionPlayerName(result.game, color),
-        });
-
-        setGame(result.game);
-        setOptimisticFen(null);
-        setPendingPromotionMove(null);
-        setSelectedSquare(null);
-
-        if (game?.status === "waiting" && result.game.status === "active") {
-          onGameStarted?.();
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to join game.");
-      } finally {
-        setIsJoining(false);
-      }
-    },
-    [
-      gameId,
-      game?.status,
-      session,
-      saveSession,
-      setGame,
-      setError,
-      setOptimisticFen,
-      setSelectedSquare,
-      onGameStarted,
-    ]
-  );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to join game.");
+    } finally {
+      setIsJoining(false);
+    }
+  }, [
+    accessToken,
+    gameId,
+    currentGameStatus,
+    saveSession,
+    setGame,
+    setError,
+    setOptimisticFen,
+    setSelectedSquare,
+    onGameStarted,
+  ]);
 
   const submitMove = useCallback(
     async (from: string, to: string, promotion?: PromotionPiece) => {
       if (!gameId || !game || !session) return;
+
+      if (!accessToken) {
+        setError("Sign in to make a move.");
+        return;
+      }
 
       try {
         setError(null);
@@ -153,16 +159,21 @@ export function useGameActions({
           to,
           promotion
         );
+
         setOptimisticFen(optimisticNextFen);
         setSelectedSquare(null);
-        onOptimisticMove?.({ from, to, promotion, optimisticFen: optimisticNextFen });
 
-        const updatedGame = await makeMove(gameId, {
+        onOptimisticMove?.({
           from,
           to,
           promotion,
-          playerId: session.playerId,
-          sessionToken: session.sessionToken,
+          optimisticFen: optimisticNextFen,
+        });
+
+        const updatedGame = await makeMove(gameId, accessToken, {
+          from,
+          to,
+          promotion,
         });
 
         setGame(updatedGame);
@@ -181,6 +192,7 @@ export function useGameActions({
       }
     },
     [
+      accessToken,
       gameId,
       game,
       session,
@@ -196,6 +208,7 @@ export function useGameActions({
   const handleMoveAttempt = useCallback(
     async (from: string, to: string) => {
       if (!gameId || !game || !session || !canInteractWithBoard) return;
+
       if (from === to) {
         setSelectedSquare(null);
         return;
@@ -222,6 +235,7 @@ export function useGameActions({
         movingPiece,
         enPassantSquare
       );
+
       if (!candidates.includes(to)) {
         onIllegalMove?.();
         setSelectedSquare(null);
@@ -272,11 +286,13 @@ export function useGameActions({
       if (!gameId || !game || !session || !canInteractWithBoard) return;
 
       setError(null);
+
       const clickedPiece = getPieceAtSquare(boardPosition, square);
 
       if (!selectedSquare) {
         if (!clickedPiece) return;
         if (!pieceBelongsToColor(clickedPiece, session.color)) return;
+
         setSelectedSquare(square);
         return;
       }

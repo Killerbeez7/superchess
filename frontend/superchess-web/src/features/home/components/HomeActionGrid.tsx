@@ -7,10 +7,7 @@ import { FaBolt, FaChessKnight, FaRobot, FaUserGroup } from "react-icons/fa6";
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import {
-  FRIEND_ONLINE_SETUP_HREF,
-  ONLINE_SETUP_HREF,
-} from "@/features/game/setupRoutes";
+import { FRIEND_ONLINE_SETUP_HREF, ONLINE_SETUP_HREF } from "@/features/game/setupRoutes";
 import { toCreateGameRequest } from "@/features/game/setupPreferences";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
@@ -46,9 +43,8 @@ export function HomeActionGrid() {
 
         saveGameSession({
           gameId: result.game.id,
-          playerId: result.session.playerId,
-          sessionToken: result.session.sessionToken,
-          color: result.session.color,
+          playerId: result.playerId,
+          color: result.color,
           playerName: session.user.displayName,
         });
 

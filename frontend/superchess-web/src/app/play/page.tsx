@@ -110,9 +110,8 @@ export default function PlayPage() {
 
       saveGameSession({
         gameId: result.game.id,
-        playerId: result.session.playerId,
-        sessionToken: result.session.sessionToken,
-        color: result.session.color,
+        playerId: result.playerId,
+        color: result.color,
         playerName: session.user.displayName,
       });
 
@@ -143,19 +142,12 @@ export default function PlayPage() {
       setIsJoiningGame(true);
       prepareGameAudio();
 
-      const existingSession = getGameSession(gameIdToJoin);
-
-      const result = await joinGame(
-        gameIdToJoin,
-        existingSession?.sessionToken,
-        session.accessToken
-      );
+      const result = await joinGame(gameIdToJoin, session.accessToken);
 
       saveGameSession({
         gameId: result.game.id,
-        playerId: result.session.playerId,
-        sessionToken: result.session.sessionToken,
-        color: result.session.color,
+        playerId: result.playerId,
+        color: result.color,
         playerName: session.user.displayName,
       });
 

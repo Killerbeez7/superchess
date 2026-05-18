@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using SuperChess.Api.Common;
-using SuperChess.Api.DTOs.Games;
 using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Domain.Enums;
+using SuperChess.Api.DTOs.Games;
 using SuperChess.Api.Entities;
 using SuperChess.Api.Models;
 using SuperChess.Api.Realtime;
@@ -35,10 +35,14 @@ public class GameService : IGameService
         CreateGameRequest request,
         CancellationToken ct = default)
     {
-        var name = player.DisplayName.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        if (player.UserId == Guid.Empty)
         {
-            return Result<GameSessionResponse>.Validation("Player name is required.");
+            return Result<GameSessionResponse>.Forbidden("Authentication is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(player.DisplayName))
+        {
+            return Result<GameSessionResponse>.Validation("Player display name is required.");
         }
 
         var timeControlResult = CreateTimeControl(request);
@@ -48,6 +52,7 @@ public class GameService : IGameService
         }
 
         var timeControl = timeControlResult.Value!;
+
         var settingsError = await UpdateLastGameSettingsAsync(player.UserId, request);
         if (settingsError is not null)
         {
@@ -55,7 +60,8 @@ public class GameService : IGameService
         }
 
         var now = DateTime.UtcNow;
-        var white = NewPlayer(name);
+        var white = NewPlayer(player);
+
         var game = new ChessGame
         {
             Id = Guid.NewGuid(),
@@ -79,14 +85,17 @@ public class GameService : IGameService
 
         _repo.AddPlayer(white);
         _repo.AddGame(game);
-        await _repo.SaveChangesAsync(ct);
 
+        await _repo.SaveChangesAsync(ct);
         await BroadcastOpenGamesAsync(ct);
+
         return Result<GameSessionResponse>.Success(
             GameMapper.ToSessionResponse(game, white, PieceColor.White));
     }
 
-    public async Task<Result<GameResponse>> GetGameAsync(Guid gameId, CancellationToken ct = default)
+    public async Task<Result<GameResponse>> GetGameAsync(
+        Guid gameId,
+        CancellationToken ct = default)
     {
         var game = await _repo.GetByIdWithDetailsAsync(gameId, ct);
         if (game is null)
@@ -120,10 +129,14 @@ public class GameService : IGameService
         JoinGameRequest request,
         CancellationToken ct = default)
     {
-        var name = player.DisplayName.Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        if (player.UserId == Guid.Empty)
         {
-            return Result<GameSessionResponse>.Validation("Player name is required.");
+            return Result<GameSessionResponse>.Forbidden("Authentication is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(player.DisplayName))
+        {
+            return Result<GameSessionResponse>.Validation("Player display name is required.");
         }
 
         var game = await _repo.GetByIdWithDetailsAsync(gameId, ct);
@@ -132,18 +145,17 @@ public class GameService : IGameService
             return Result<GameSessionResponse>.NotFound("Game not found.");
         }
 
-        if (game.BlackPlayerId is not null)
+        if (game.BlackPlayerId is not null || game.BlackPlayer is not null)
         {
             return Result<GameSessionResponse>.Conflict("Game already has two players.");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.ExistingSessionToken) &&
-            request.ExistingSessionToken == game.WhitePlayer.SessionToken)
+        if (game.WhitePlayer.UserId == player.UserId)
         {
-            return Result<GameSessionResponse>.Forbidden("You cannot join as both players.");
+            return Result<GameSessionResponse>.Forbidden("You cannot join your own game.");
         }
 
-        var black = NewPlayer(name);
+        var black = NewPlayer(player);
         var now = DateTime.UtcNow;
 
         game.BlackPlayerId = black.Id;
@@ -155,8 +167,8 @@ public class GameService : IGameService
         game.UpdatedAtUtc = now;
 
         _repo.AddPlayer(black);
-        await _repo.SaveChangesAsync(ct);
 
+        await _repo.SaveChangesAsync(ct);
         await BroadcastOpenGamesAsync(ct);
 
         var response = GameMapper.ToResponse(game);
@@ -169,9 +181,15 @@ public class GameService : IGameService
 
     public async Task<Result<GameResponse>> MakeMoveAsync(
         Guid gameId,
+        AuthenticatedGameUser player,
         MakeMoveRequest request,
         CancellationToken ct = default)
     {
+        if (player.UserId == Guid.Empty)
+        {
+            return Result<GameResponse>.Forbidden("Authentication is required.");
+        }
+
         var game = await _repo.GetByIdWithDetailsAsync(gameId, ct);
         if (game is null)
         {
@@ -193,16 +211,6 @@ public class GameService : IGameService
             return Result<GameResponse>.Validation("Both from/to squares are required.");
         }
 
-        if (request.PlayerId == Guid.Empty)
-        {
-            return Result<GameResponse>.Validation("PlayerId is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.SessionToken))
-        {
-            return Result<GameResponse>.Validation("SessionToken is required.");
-        }
-
         var expectedPlayer = game.WhoseTurn == PieceColor.White
             ? game.WhitePlayer
             : game.BlackPlayer;
@@ -212,9 +220,9 @@ public class GameService : IGameService
             return Result<GameResponse>.Conflict("Player not found.");
         }
 
-        if (request.PlayerId != expectedPlayer.Id || request.SessionToken != expectedPlayer.SessionToken)
+        if (expectedPlayer.UserId != player.UserId)
         {
-            return Result<GameResponse>.Forbidden("Its not your turn.");
+            return Result<GameResponse>.Forbidden("It's not your turn.");
         }
 
         var now = DateTime.UtcNow;
@@ -244,14 +252,16 @@ public class GameService : IGameService
 
         var moveResult = _engine.TryApplyMove(
             game.CurrentFen,
-            request.From,
-            request.To,
+            from,
+            to,
             request.Promotion);
 
         if (!moveResult.IsLegal)
         {
             return Result<GameResponse>.Validation(moveResult.Error ?? "Illegal move.");
         }
+
+        var movingColor = game.WhoseTurn;
 
         var move = new Move
         {
@@ -260,7 +270,7 @@ public class GameService : IGameService
             MoveNumber = game.Moves.Count + 1,
             Uci = $"{from}{to}",
             San = null,
-            PlayedByColor = game.WhoseTurn,
+            PlayedByColor = movingColor,
             CreatedAtUtc = now
         };
 
@@ -269,10 +279,12 @@ public class GameService : IGameService
 
         game.CurrentFen = moveResult.NewFen!;
 
-        var nextTurn = game.WhoseTurn == PieceColor.White ? PieceColor.Black : PieceColor.White;
-        var movingColor = game.WhoseTurn;
+        var nextTurn = movingColor == PieceColor.White
+            ? PieceColor.Black
+            : PieceColor.White;
 
         game.WhoseTurn = nextTurn;
+
         if (moveResult.IsCheckmate || moveResult.IsStalemate)
         {
             CompleteGame(
@@ -292,17 +304,16 @@ public class GameService : IGameService
         await _repo.SaveChangesAsync(ct);
 
         var response = GameMapper.ToResponse(game);
-
         await _notifier.NotifyMovePlayedAsync(game.Id, response);
 
         return Result<GameResponse>.Success(response);
     }
 
-    private static Player NewPlayer(string displayName) => new()
+    private static Player NewPlayer(AuthenticatedGameUser player) => new()
     {
         Id = Guid.NewGuid(),
-        DisplayName = displayName,
-        SessionToken = Guid.NewGuid().ToString("N")
+        UserId = player.UserId,
+        DisplayName = player.DisplayName.Trim()
     };
 
     private sealed record GameTimeControl(
@@ -367,6 +378,7 @@ public class GameService : IGameService
         user.LastGameMode = NormalizeGameMode(request.GameMode);
 
         var result = await _userManager.UpdateAsync(user);
+
         return result.Succeeded
             ? null
             : string.Join(" ", result.Errors.Select(error => error.Description));
@@ -381,6 +393,7 @@ public class GameService : IGameService
     {
         var games = await _repo.GetWaitingGamesAsync(ct);
         var responses = games.Select(GameMapper.ToResponse).ToList();
+
         await _notifier.NotifyOpenGamesChangedAsync(responses);
     }
 
@@ -407,6 +420,7 @@ public class GameService : IGameService
         }
 
         SetRemainingTime(game, game.WhoseTurn, 0);
+
         CompleteGame(
             game,
             GameEndReason.Timeout,

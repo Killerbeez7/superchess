@@ -10,76 +10,109 @@ using SuperChess.Api.Services.Games;
 namespace SuperChess.Api.Controllers;
 
 [ApiController]
-[Route("games")]
+[Route("api/games")]
 public class GamesController(IGameService gameService) : ControllerBase
 {
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create(
-        [FromBody] CreateGameRequest? request,
+    public async Task<ActionResult<GameSessionResponse>> CreateGame(
+        CreateGameRequest request,
         CancellationToken ct)
     {
-        var player = GetAuthenticatedPlayer();
-        if (player is null)
+        var currentUser = GetAuthenticatedGameUser();
+        if (currentUser is null)
         {
-            return Unauthorized(new { message = "Authenticated user is missing required claims." });
+            return Unauthorized("Authentication is required.");
         }
 
-        var result = await gameService.CreateGameAsync(player, request ?? new CreateGameRequest(), ct);
-        return result.IsSuccess
-            ? CreatedAtAction(nameof(GetById), new { gameId = result.Value!.Game.Id }, result.Value)
-            : ToActionResult(result);
+        var result = await gameService.CreateGameAsync(currentUser, request, ct);
+        return ToActionResult(result);
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<List<GameResponse>>> GetGames(CancellationToken ct)
+    {
+        var games = await gameService.GetGamesAsync(ct);
+        return Ok(games);
     }
 
     [HttpGet("{gameId:guid}")]
-    public async Task<IActionResult> GetById(Guid gameId, CancellationToken ct) =>
-        ToActionResult(await gameService.GetGameAsync(gameId, ct));
-
-    [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        Ok(await gameService.GetGamesAsync(ct));
+    public async Task<ActionResult<GameResponse>> GetGame(
+        Guid gameId,
+        CancellationToken ct)
+    {
+        var result = await gameService.GetGameAsync(gameId, ct);
+        return ToActionResult(result);
+    }
 
     [Authorize]
     [HttpPost("{gameId:guid}/join")]
-    public async Task<IActionResult> Join(
-        Guid gameId, [FromBody] JoinGameRequest? request, CancellationToken ct)
+    public async Task<ActionResult<GameSessionResponse>> JoinGame(
+        Guid gameId,
+        JoinGameRequest request,
+        CancellationToken ct)
     {
-        var player = GetAuthenticatedPlayer();
-        if (player is null)
+        var currentUser = GetAuthenticatedGameUser();
+        if (currentUser is null)
         {
-            return Unauthorized(new { message = "Authenticated user is missing required claims." });
+            return Unauthorized("Authentication is required.");
         }
 
-        return ToActionResult(await gameService.JoinGameAsync(gameId, player, request ?? new JoinGameRequest(), ct));
+        var result = await gameService.JoinGameAsync(gameId, currentUser, request, ct);
+        return ToActionResult(result);
     }
 
+    [Authorize]
     [HttpPost("{gameId:guid}/move")]
-    public async Task<IActionResult> MakeMove(
-        Guid gameId, [FromBody] MakeMoveRequest request, CancellationToken ct) =>
-        ToActionResult(await gameService.MakeMoveAsync(gameId, request, ct));
-
-    private IActionResult ToActionResult<T>(Result<T> result) => result.Kind switch
+    public async Task<ActionResult<GameResponse>> MakeMove(
+        Guid gameId,
+        MakeMoveRequest request,
+        CancellationToken ct)
     {
-        ErrorKind.None => Ok(result.Value),
-        ErrorKind.NotFound => NotFound(new { message = result.Error }),
-        ErrorKind.Validation => BadRequest(new { message = result.Error }),
-        ErrorKind.Conflict => Conflict(new { message = result.Error }),
-        ErrorKind.Forbidden => StatusCode(403, new { message = result.Error }),
-        _ => StatusCode(500)
-    };
+        var currentUser = GetAuthenticatedGameUser();
+        if (currentUser is null)
+        {
+            return Unauthorized("Authentication is required.");
+        }
 
-    private AuthenticatedGameUser? GetAuthenticatedPlayer()
+        var result = await gameService.MakeMoveAsync(gameId, currentUser, request, ct);
+        return ToActionResult(result);
+    }
+
+    private AuthenticatedGameUser? GetAuthenticatedGameUser()
     {
         var userIdValue =
             User.FindFirstValue(ClaimTypes.NameIdentifier) ??
             User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+        if (!Guid.TryParse(userIdValue, out var userId))
+        {
+            return null;
+        }
+
         var displayName =
             User.FindFirstValue("displayName") ??
-            User.FindFirstValue(ClaimTypes.Name);
+            User.FindFirstValue(ClaimTypes.Name) ??
+            User.FindFirstValue(ClaimTypes.Email) ??
+            "Player";
 
-        return Guid.TryParse(userIdValue, out var userId) &&
-               !string.IsNullOrWhiteSpace(displayName)
-            ? new AuthenticatedGameUser(userId, displayName.Trim())
-            : null;
+        return new AuthenticatedGameUser(userId, displayName);
+    }
+
+    private ActionResult<T> ToActionResult<T>(Result<T> result)
+    {
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+
+        return result.Kind switch
+        {
+            ErrorKind.NotFound => NotFound(new { message = result.Error }),
+            ErrorKind.Validation => BadRequest(new { message = result.Error }),
+            ErrorKind.Conflict => Conflict(new { message = result.Error }),
+            ErrorKind.Forbidden => StatusCode(403, new { message = result.Error }),
+            _ => BadRequest(new { message = result.Error })
+        };
     }
 }

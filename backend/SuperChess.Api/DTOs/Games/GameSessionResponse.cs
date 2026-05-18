@@ -1,7 +1,11 @@
+using SuperChess.Core.Chess;
+
 namespace SuperChess.Api.DTOs.Games;
 
-public sealed class GameSessionResponse
+public class GameSessionResponse
 {
-    public GameResponse Game { get; set; } = null!;
-    public PlayerSessionResponse Session { get; set; } = null!;
+    public GameResponse Game { get; set; } = new();
+
+    public Guid PlayerId { get; set; }
+    public PieceColor Color { get; set; }
 }

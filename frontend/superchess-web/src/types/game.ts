@@ -41,11 +41,11 @@ export type GameResponse = {
 
 export type PlayerSession = {
   playerId: string;
-  sessionToken: string;
   color: PieceColor;
 };
 
 export type GameSessionResponse = {
   game: GameResponse;
-  session: PlayerSession;
+  playerId: string;
+  color: PieceColor;
 };

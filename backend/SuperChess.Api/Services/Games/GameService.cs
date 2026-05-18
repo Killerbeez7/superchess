@@ -26,10 +26,10 @@ public class GameService : IGameService
     }
 
     public async Task<Result<GameSessionResponse>> CreateGameAsync(
-        CreateGameRequest request,
+        AuthenticatedGameUser player,
         CancellationToken ct = default)
     {
-        var name = request.PlayerName?.Trim();
+        var name = player.DisplayName.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
             return Result<GameSessionResponse>.Validation("Player name is required.");
@@ -95,10 +95,11 @@ public class GameService : IGameService
 
     public async Task<Result<GameSessionResponse>> JoinGameAsync(
         Guid gameId,
+        AuthenticatedGameUser player,
         JoinGameRequest request,
         CancellationToken ct = default)
     {
-        var name = request.PlayerName?.Trim();
+        var name = player.DisplayName.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
             return Result<GameSessionResponse>.Validation("Player name is required.");

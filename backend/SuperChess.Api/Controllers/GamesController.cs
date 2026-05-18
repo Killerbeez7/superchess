@@ -1,3 +1,6 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SuperChess.Api.Common;
 using SuperChess.Api.Common.Errors;
@@ -10,11 +13,17 @@ namespace SuperChess.Api.Controllers;
 [Route("games")]
 public class GamesController(IGameService gameService) : ControllerBase
 {
+    [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create(
-        [FromBody] CreateGameRequest request, CancellationToken ct)
+    public async Task<IActionResult> Create(CancellationToken ct)
     {
-        var result = await gameService.CreateGameAsync(request, ct);
+        var player = GetAuthenticatedPlayer();
+        if (player is null)
+        {
+            return Unauthorized(new { message = "Authenticated user is missing required claims." });
+        }
+
+        var result = await gameService.CreateGameAsync(player, ct);
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetById), new { gameId = result.Value!.Game.Id }, result.Value)
             : ToActionResult(result);
@@ -28,10 +37,19 @@ public class GamesController(IGameService gameService) : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await gameService.GetGamesAsync(ct));
 
+    [Authorize]
     [HttpPost("{gameId:guid}/join")]
     public async Task<IActionResult> Join(
-        Guid gameId, [FromBody] JoinGameRequest request, CancellationToken ct) =>
-        ToActionResult(await gameService.JoinGameAsync(gameId, request, ct));
+        Guid gameId, [FromBody] JoinGameRequest? request, CancellationToken ct)
+    {
+        var player = GetAuthenticatedPlayer();
+        if (player is null)
+        {
+            return Unauthorized(new { message = "Authenticated user is missing required claims." });
+        }
+
+        return ToActionResult(await gameService.JoinGameAsync(gameId, player, request ?? new JoinGameRequest(), ct));
+    }
 
     [HttpPost("{gameId:guid}/move")]
     public async Task<IActionResult> MakeMove(
@@ -47,4 +65,19 @@ public class GamesController(IGameService gameService) : ControllerBase
         ErrorKind.Forbidden => StatusCode(403, new { message = result.Error }),
         _ => StatusCode(500)
     };
+
+    private AuthenticatedGameUser? GetAuthenticatedPlayer()
+    {
+        var userIdValue =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var displayName =
+            User.FindFirstValue("displayName") ??
+            User.FindFirstValue(ClaimTypes.Name);
+
+        return Guid.TryParse(userIdValue, out var userId) &&
+               !string.IsNullOrWhiteSpace(displayName)
+            ? new AuthenticatedGameUser(userId, displayName.Trim())
+            : null;
+    }
 }

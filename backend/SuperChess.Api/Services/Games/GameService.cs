@@ -93,6 +93,72 @@ public class GameService : IGameService
             GameMapper.ToSessionResponse(game, white, PieceColor.White));
     }
 
+    public async Task<Result<GameSessionResponse>> CreateBotGameAsync(
+        AuthenticatedGameUser player,
+        CreateGameRequest request,
+        CancellationToken ct = default)
+    {
+        if (player.UserId == Guid.Empty)
+        {
+            return Result<GameSessionResponse>.Forbidden("Authentication is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(player.DisplayName))
+        {
+            return Result<GameSessionResponse>.Validation("Player display name is required.");
+        }
+
+        var timeControlResult = CreateTimeControl(request);
+        if (!timeControlResult.IsSuccess)
+        {
+            return Result<GameSessionResponse>.Validation(timeControlResult.Error!);
+        }
+
+        var timeControl = timeControlResult.Value!;
+
+        var settingsError = await UpdateLastGameSettingsAsync(player.UserId, request);
+        if (settingsError is not null)
+        {
+            return Result<GameSessionResponse>.Forbidden(settingsError);
+        }
+
+        var now = DateTime.UtcNow;
+        var white = NewPlayer(player);
+        var black = NewBotPlayer();
+
+        var game = new ChessGame
+        {
+            Id = Guid.NewGuid(),
+            WhitePlayerId = white.Id,
+            WhitePlayer = white,
+            BlackPlayerId = black.Id,
+            BlackPlayer = black,
+            Status = GameStatus.Active,
+            CurrentFen = _engine.StartingFen,
+            WhoseTurn = PieceColor.White,
+            InitialClockMs = timeControl.InitialClockMs,
+            IncrementMs = timeControl.IncrementMs,
+            TimeControlType = timeControl.Type,
+            IsRated = timeControl.IsRated,
+            WhiteTimeRemainingMs = timeControl.InitialClockMs,
+            BlackTimeRemainingMs = timeControl.InitialClockMs,
+            TurnStartedAtUtc = now,
+            EndReason = null,
+            WinnerColor = null,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        _repo.AddPlayer(white);
+        _repo.AddPlayer(black);
+        _repo.AddGame(game);
+
+        await _repo.SaveChangesAsync(ct);
+
+        return Result<GameSessionResponse>.Success(
+            GameMapper.ToSessionResponse(game, white, PieceColor.White));
+    }
+
     public async Task<Result<GameResponse>> GetGameAsync(
         Guid gameId,
         CancellationToken ct = default)
@@ -220,10 +286,16 @@ public class GameService : IGameService
             return Result<GameResponse>.Conflict("Player not found.");
         }
 
+        if (expectedPlayer.IsBot)
+        {
+            return Result<GameResponse>.Forbidden("Bot moves are handled by the server.");
+        }
+
         if (expectedPlayer.UserId != player.UserId)
         {
             return Result<GameResponse>.Forbidden("It's not your turn.");
         }
+
 
         var now = DateTime.UtcNow;
         if (!ApplyClockSpend(game, now, game.WhoseTurn))
@@ -301,6 +373,8 @@ public class GameService : IGameService
 
         game.UpdatedAtUtc = now;
 
+        ApplyBotMoveIfNeeded(game, now);
+
         await _repo.SaveChangesAsync(ct);
 
         var response = GameMapper.ToResponse(game);
@@ -315,6 +389,123 @@ public class GameService : IGameService
         UserId = player.UserId,
         DisplayName = player.DisplayName.Trim()
     };
+
+    private static Player NewBotPlayer() => new()
+    {
+        Id = Guid.NewGuid(),
+        UserId = null,
+        IsBot = true,
+        DisplayName = "SuperChess Bot"
+    };
+
+    private sealed record BotMoveCandidate(
+        string From,
+        string To,
+        string? Promotion,
+        MoveResult Result);
+
+    private static readonly string[] BoardSquares =
+    [
+        "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
+        "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
+        "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
+        "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
+        "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
+        "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
+        "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
+        "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"
+    ];
+
+    private static readonly string[] PromotionPieces = ["q", "r", "b", "n"];
+
+    private void ApplyBotMoveIfNeeded(ChessGame game, DateTime now)
+    {
+        if (game.Status != GameStatus.Active)
+        {
+            return;
+        }
+
+        var botPlayer = game.WhoseTurn == PieceColor.White
+            ? game.WhitePlayer
+            : game.BlackPlayer;
+
+        if (botPlayer?.IsBot != true)
+        {
+            return;
+        }
+
+        var movingColor = game.WhoseTurn;
+
+        if (!ApplyClockSpend(game, now, movingColor))
+        {
+            CompleteGame(game, GameEndReason.Timeout, OppositeColor(movingColor), now);
+            return;
+        }
+
+        var legalMoves = GetLegalBotMoves(game.CurrentFen).ToList();
+        if (legalMoves.Count == 0)
+        {
+            CompleteGame(game, GameEndReason.Stalemate, null, now);
+            return;
+        }
+
+        var selected = legalMoves[Random.Shared.Next(legalMoves.Count)];
+        var move = new Move
+        {
+            Id = Guid.NewGuid(),
+            GameId = game.Id,
+            MoveNumber = game.Moves.Count + 1,
+            Uci = $"{selected.From}{selected.To}{selected.Promotion ?? string.Empty}",
+            San = null,
+            PlayedByColor = movingColor,
+            CreatedAtUtc = now
+        };
+
+        game.Moves.Add(move);
+        _repo.AddMove(move);
+        game.CurrentFen = selected.Result.NewFen!;
+        game.WhoseTurn = OppositeColor(movingColor);
+
+        if (selected.Result.IsCheckmate || selected.Result.IsStalemate)
+        {
+            CompleteGame(
+                game,
+                selected.Result.IsCheckmate ? GameEndReason.Checkmate : GameEndReason.Stalemate,
+                selected.Result.IsCheckmate ? movingColor : null,
+                now);
+        }
+        else
+        {
+            ApplyIncrement(game, movingColor);
+            game.TurnStartedAtUtc = now;
+            game.UpdatedAtUtc = now;
+        }
+    }
+
+    private IEnumerable<BotMoveCandidate> GetLegalBotMoves(string fen)
+    {
+        foreach (var from in BoardSquares)
+        {
+            foreach (var to in BoardSquares)
+            {
+                var regularMove = _engine.TryApplyMove(fen, from, to);
+                if (regularMove.IsLegal)
+                {
+                    yield return new BotMoveCandidate(from, to, null, regularMove);
+                    continue;
+                }
+
+                foreach (var promotion in PromotionPieces)
+                {
+                    var promotionMove = _engine.TryApplyMove(fen, from, to, promotion);
+                    if (promotionMove.IsLegal)
+                    {
+                        yield return new BotMoveCandidate(from, to, promotion, promotionMove);
+                    }
+                }
+            }
+        }
+    }
 
     private sealed record GameTimeControl(
         int InitialClockMs,

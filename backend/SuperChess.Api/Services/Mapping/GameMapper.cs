@@ -52,7 +52,8 @@ public static class GameMapper
     private static PlayerSummary ToSummary(Player p) => new()
     {
         Id = p.Id,
-        DisplayName = p.DisplayName
+        DisplayName = p.DisplayName,
+        IsBot = p.IsBot
     };
 
     private static MoveSummaryResponse ToMoveSummary(Move m) => new()

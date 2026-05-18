@@ -10,6 +10,11 @@ public interface IGameService
         CreateGameRequest request,
         CancellationToken ct = default);
 
+    Task<Result<GameSessionResponse>> CreateBotGameAsync(
+        AuthenticatedGameUser player,
+        CreateGameRequest request,
+        CancellationToken ct = default);
+
     Task<Result<GameResponse>> GetGameAsync(
         Guid gameId,
         CancellationToken ct = default);

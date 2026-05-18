@@ -28,7 +28,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            entity.Property(x => x.IsBot)
+                .HasDefaultValue(false);
         });
 
         modelBuilder.Entity<ApplicationUser>(entity =>

@@ -11,7 +11,7 @@ import {
   FaRobot,
   FaTrophy,
 } from "react-icons/fa6";
-import { ONLINE_SETUP_HREF } from "@/features/game/setupRoutes";
+import { ONLINE_SETUP_HREF, PLAY_AI_SETUP_HREF } from "@/features/game/setupRoutes";
 
 type PlayMenuItem = {
   href: string;
@@ -39,11 +39,10 @@ const playMenuGroups: PlayMenuGroup[] = [
         isPrimary: true,
       },
       {
-        href: "/play/bot/new",
-        label: "Play Bots",
+        href: PLAY_AI_SETUP_HREF,
+        label: "Play AI",
         description: "Practice mode",
         icon: <FaRobot />,
-        isDisabled: true,
       },
       {
         href: "/training",

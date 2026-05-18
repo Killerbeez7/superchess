@@ -29,6 +29,22 @@ public class GamesController(IGameService gameService) : ControllerBase
         return ToActionResult(result);
     }
 
+    [Authorize]
+    [HttpPost("ai")]
+    public async Task<ActionResult<GameSessionResponse>> CreateAiGame(
+        CreateGameRequest request,
+        CancellationToken ct)
+    {
+        var currentUser = GetAuthenticatedGameUser();
+        if (currentUser is null)
+        {
+            return Unauthorized("Authentication is required.");
+        }
+
+        var result = await gameService.CreateBotGameAsync(currentUser, request, ct);
+        return ToActionResult(result);
+    }
+
     [HttpGet]
     public async Task<ActionResult<List<GameResponse>>> GetGames(CancellationToken ct)
     {

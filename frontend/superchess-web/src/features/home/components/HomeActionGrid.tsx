@@ -7,7 +7,11 @@ import { FaBolt, FaChessKnight, FaRobot, FaUserGroup } from "react-icons/fa6";
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { FRIEND_ONLINE_SETUP_HREF, ONLINE_SETUP_HREF } from "@/features/game/setupRoutes";
+import {
+  FRIEND_ONLINE_SETUP_HREF,
+  ONLINE_SETUP_HREF,
+  PLAY_AI_SETUP_HREF,
+} from "@/features/game/setupRoutes";
 import {
   DEFAULT_GAME_SETTINGS,
   formatGameSetupSummary,
@@ -117,10 +121,10 @@ export function HomeActionGrid() {
           showDescription
         />
         <HomeActionCard
-          title="Play Bot"
-          description="Coming soon."
+          title="Play AI"
+          description="Practice against the engine."
+          href={PLAY_AI_SETUP_HREF}
           icon={<FaRobot />}
-          disabled
           showDescription
         />
       </section>

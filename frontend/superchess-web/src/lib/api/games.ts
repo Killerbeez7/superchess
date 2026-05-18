@@ -80,6 +80,13 @@ export const createGame = (accessToken: string, request?: CreateGameRequest) =>
     body: JSON.stringify(request ?? {}),
   }).then(normalizeGameSessionResponse);
 
+export const createAiGame = (accessToken: string, request?: CreateGameRequest) =>
+  apiFetch<ApiGameSessionResponse>("/api/games/ai", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(request ?? {}),
+  }).then(normalizeGameSessionResponse);
+
 export const joinGame = (gameId: string, accessToken: string) =>
   apiFetch<ApiGameSessionResponse>(`/api/games/${gameId}/join`, {
     method: "POST",

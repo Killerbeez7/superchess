@@ -2,6 +2,7 @@ import { GameSetupDropdown } from "@/features/game/components/setup/GameSetupDro
 import type { TimeControl } from "@/features/game/components/setup/TimeControlPicker";
 
 type NewGameSetupPanelProps = {
+  title?: string;
   playerName?: string;
   isIdentityReady: boolean;
   selectedTimeControl: TimeControl;
@@ -10,9 +11,14 @@ type NewGameSetupPanelProps = {
   onTimeControlChange: (timeControl: TimeControl) => void;
   onStartGame: () => void | Promise<void>;
   onCreateInviteRoom: () => void | Promise<void>;
+  primaryActionLabel?: string;
+  creatingLabel?: string;
+  secondaryActionLabel?: string;
+  showSecondaryAction?: boolean;
 };
 
 export function NewGameSetupPanel({
+  title = "Create game",
   isIdentityReady,
   selectedTimeControl,
   isCreating,
@@ -20,12 +26,16 @@ export function NewGameSetupPanel({
   onTimeControlChange,
   onStartGame,
   onCreateInviteRoom,
+  primaryActionLabel = "Start game",
+  creatingLabel = "Creating...",
+  secondaryActionLabel = "Create invite room",
+  showSecondaryAction = true,
 }: NewGameSetupPanelProps) {
   return (
     <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border-light bg-card shadow-2xl lg:h-full">
       <header className="shrink-0 border-b border-border-light p-4">
         <h2 className="pl-1 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">
-          Create game
+          {title}
         </h2>
       </header>
 
@@ -42,17 +52,19 @@ export function NewGameSetupPanel({
             disabled={!isIdentityReady || isCreating}
             className="h-10 rounded-lg bg-accent px-4 text-sm font-bold text-text-inverse shadow-sm transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isCreating ? "Creating..." : "Start game"}
+            {isCreating ? creatingLabel : primaryActionLabel}
           </button>
 
-          <button
-            type="button"
-            onClick={() => void onCreateInviteRoom()}
-            disabled={!isIdentityReady || isCreating}
-            className="h-10 rounded-lg border border-border-light bg-card-muted px-4 text-sm font-bold text-text-primary transition hover:border-accent-soft hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Create invite room
-          </button>
+          {showSecondaryAction ? (
+            <button
+              type="button"
+              onClick={() => void onCreateInviteRoom()}
+              disabled={!isIdentityReady || isCreating}
+              className="h-10 rounded-lg border border-border-light bg-card-muted px-4 text-sm font-bold text-text-primary transition hover:border-accent-soft hover:bg-card-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {secondaryActionLabel}
+            </button>
+          ) : null}
         </div>
 
         {error && (

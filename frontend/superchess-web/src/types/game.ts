@@ -8,6 +8,7 @@ export type PromotionPiece = "q" | "r" | "b" | "n";
 export type PlayerSummary = {
   id: string;
   displayName: string;
+  isBot: boolean;
 };
 
 export type MoveSummary = {

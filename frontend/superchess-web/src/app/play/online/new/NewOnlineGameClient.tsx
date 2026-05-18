@@ -26,7 +26,7 @@ type PendingCreateAction = "start" | "friend";
 export function NewOnlineGameClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, accessToken, isReady, isAuthenticated } = useAuth();
+  const { user, accessToken, isReady, isAuthenticated, refreshUser } = useAuth();
   const { prepareSounds } = useGameSounds();
 
   const routeTimeControl = useMemo(
@@ -60,12 +60,16 @@ export function NewOnlineGameClient() {
         setIsCreating(true);
         prepareGameAudio();
 
+        console.log("[setup create] selected", currentTimeControl);
+
         const result = await createGame(session.accessToken, {
           ...toCreateGameRequest(session.user.lastGameSettings),
           initialMinutes: currentTimeControl.minutes,
           incrementSeconds: currentTimeControl.incrementSeconds,
           gameMode: "classical",
         });
+
+        await refreshUser();
 
         saveGameSession({
           gameId: result.game.id,
@@ -82,7 +86,7 @@ export function NewOnlineGameClient() {
         setIsCreating(false);
       }
     },
-    [currentTimeControl, prepareGameAudio, router]
+    [currentTimeControl, prepareGameAudio, refreshUser, router]
   );
 
   const beginCreateFlow = useCallback(

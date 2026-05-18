@@ -1,7 +1,5 @@
-import {
-  TimeControlPicker,
-  type TimeControl,
-} from "@/features/game/components/setup/TimeControlPicker";
+import { GameSetupDropdown } from "@/features/game/components/setup/GameSetupDropdown";
+import type { TimeControl } from "@/features/game/components/setup/TimeControlPicker";
 
 type NewGameSetupPanelProps = {
   playerName?: string;
@@ -32,9 +30,9 @@ export function NewGameSetupPanel({
       </header>
 
       <div className="superchess-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-        <TimeControlPicker
-          selectedId={selectedTimeControl.id}
-          onChange={onTimeControlChange}
+        <GameSetupDropdown
+          selectedTimeControl={selectedTimeControl}
+          onTimeControlChange={onTimeControlChange}
         />
 
         <div className="mt-auto grid shrink-0 gap-2">

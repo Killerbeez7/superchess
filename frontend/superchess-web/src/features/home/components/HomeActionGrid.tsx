@@ -8,7 +8,11 @@ import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { FRIEND_ONLINE_SETUP_HREF, ONLINE_SETUP_HREF } from "@/features/game/setupRoutes";
-import { toCreateGameRequest } from "@/features/game/setupPreferences";
+import {
+  DEFAULT_GAME_SETTINGS,
+  formatGameSetupSummary,
+  toCreateGameRequest,
+} from "@/features/game/setupPreferences";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
 import { createGame } from "@/lib/api/games";
@@ -23,6 +27,8 @@ export function HomeActionGrid() {
   const [isCreatingQuickGame, setIsCreatingQuickGame] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const quickPlaySettings = user?.lastGameSettings ?? DEFAULT_GAME_SETTINGS;
+  const quickPlayDescription = formatGameSetupSummary(quickPlaySettings);
 
   const prepareGameAudio = useCallback(() => {
     void prepareSounds(JOIN_PRELOAD_SOUNDS);
@@ -89,29 +95,33 @@ export function HomeActionGrid() {
       <section className="grid gap-3 sm:grid-cols-2">
         <HomeActionCard
           title={isCreatingQuickGame ? "Starting..." : "Quick Play"}
-          description="Start with your last setup."
+          description={quickPlayDescription}
           onClick={handleQuickPlay}
           icon={<FaBolt />}
           featured
           isBusy={isCreatingQuickGame}
+          showDescription
         />
         <HomeActionCard
           title="New Game"
-          description="Create or join a room."
+          description="Choose time and mode."
           href={ONLINE_SETUP_HREF}
           icon={<FaChessKnight />}
+          showDescription
         />
         <HomeActionCard
           title="Play Friend"
           description="Start a private room link."
           href={FRIEND_ONLINE_SETUP_HREF}
           icon={<FaUserGroup />}
+          showDescription
         />
         <HomeActionCard
           title="Play Bot"
           description="Coming soon."
           icon={<FaRobot />}
           disabled
+          showDescription
         />
       </section>
 

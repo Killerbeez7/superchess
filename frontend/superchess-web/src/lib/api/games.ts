@@ -20,12 +20,15 @@ export type CreateGameRequest = {
 };
 
 type ApiPieceColor = PieceColor | "White" | "Black" | 0 | 1;
+
 type ApiMoveSummary = Omit<MoveSummary, "playerColor"> & {
   playerColor: ApiPieceColor;
 };
+
 type ApiGameResponse = Omit<GameResponse, "moves"> & {
   moves: ApiMoveSummary[];
 };
+
 type ApiGameSessionResponse = Omit<GameSessionResponse, "game"> & {
   game: ApiGameResponse;
 };
@@ -58,18 +61,18 @@ function normalizeGameSessionResponse(
   };
 }
 
-function authHeaders(accessToken?: string): HeadersInit | undefined {
-  return accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+function authHeaders(accessToken?: string): HeadersInit {
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
 
 export const getGames = async () =>
   normalizeGameResponses(await apiFetch<ApiGameResponse[]>("/api/games"));
 
 export const getGame = async (gameId: string) =>
-  normalizeGameResponse(await apiFetch<ApiGameResponse>(`/games/${gameId}`));
+  normalizeGameResponse(await apiFetch<ApiGameResponse>(`/api/games/${gameId}`));
 
 export const createGame = (accessToken: string, request?: CreateGameRequest) =>
-  apiFetch<ApiGameSessionResponse>("/games", {
+  apiFetch<ApiGameSessionResponse>("/api/games", {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify(request ?? {}),

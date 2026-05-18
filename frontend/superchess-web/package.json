@@ -9,7 +9,13 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "sounds:fix": "node scripts/fix-sounds.cjs"
+    "sounds:fix": "node scripts/fix-sounds.cjs",
+    "build:backend": "cd ../../backend/SuperChess.Api && dotnet build",
+    "run:backend": "cd ../../backend/SuperChess.Api && dotnet run",
+    "build:frontend": "npm run build",
+    "run:frontend": "npm run dev",
+    "build:all": "npm run build:backend && npm run build:frontend",
+    "start:all": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue.bold,bgGreen.bold\" \"npm run run:backend\" \"npm run run:frontend\""
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",
@@ -28,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.5",
     "jsdom": "^29.1.1",

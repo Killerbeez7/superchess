@@ -65,13 +65,13 @@ function authHeaders(accessToken?: string): HeadersInit | undefined {
 }
 
 export const getGames = async () =>
-  normalizeGameResponses(await apiFetch<ApiGameResponse[]>("/api/games"));
+  normalizeGameResponses(await apiFetch<ApiGameResponse[]>("/games"));
 
 export const getGame = async (gameId: string) =>
-  normalizeGameResponse(await apiFetch<ApiGameResponse>(`/api/games/${gameId}`));
+  normalizeGameResponse(await apiFetch<ApiGameResponse>(`/games/${gameId}`));
 
 export const createGame = (accessToken: string, request?: CreateGameRequest) =>
-  apiFetch<ApiGameSessionResponse>("/api/games", {
+  apiFetch<ApiGameSessionResponse>("/games", {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify(request ?? {}),
@@ -82,7 +82,7 @@ export const joinGame = (
   existingSessionToken?: string,
   accessToken?: string
 ) =>
-  apiFetch<ApiGameSessionResponse>(`/api/games/${gameId}/join`, {
+  apiFetch<ApiGameSessionResponse>(`/games/${gameId}/join`, {
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify({
@@ -91,10 +91,8 @@ export const joinGame = (
   }).then(normalizeGameSessionResponse);
 
 export const makeMove = (gameId: string, request: MakeMoveRequest) =>
-  apiFetch<ApiGameResponse>(`/api/games/${gameId}/move`, {
+  apiFetch<ApiGameResponse>(`/games/${gameId}/move`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+
     body: JSON.stringify({ ...request, promotion: request.promotion ?? null }),
   }).then(normalizeGameResponse);

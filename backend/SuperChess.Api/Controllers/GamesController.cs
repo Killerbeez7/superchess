@@ -10,7 +10,7 @@ using SuperChess.Api.Services.Games;
 namespace SuperChess.Api.Controllers;
 
 [ApiController]
-[Route("api/games")]
+[Route("games")]
 public class GamesController(IGameService gameService) : ControllerBase
 {
     [Authorize]

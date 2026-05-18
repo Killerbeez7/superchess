@@ -29,8 +29,9 @@ type ApiGameResponse = Omit<GameResponse, "moves"> & {
   moves: ApiMoveSummary[];
 };
 
-type ApiGameSessionResponse = Omit<GameSessionResponse, "game"> & {
+type ApiGameSessionResponse = Omit<GameSessionResponse, "game" | "color"> & {
   game: ApiGameResponse;
+  color: ApiPieceColor;
 };
 
 function normalizePieceColor(color: ApiPieceColor): PieceColor {
@@ -57,6 +58,7 @@ function normalizeGameSessionResponse(
 ): GameSessionResponse {
   return {
     ...response,
+    color: normalizePieceColor(response.color),
     game: normalizeGameResponse(response.game),
   };
 }

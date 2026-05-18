@@ -22,7 +22,7 @@ type PendingCreateAction = "start" | "friend";
 
 export default function NewOnlineGamePage() {
   const router = useRouter();
-  const { user, accessToken, isReady, isAuthenticated } = useAuth();
+  const { user, isReady, isAuthenticated } = useAuth();
   const { prepareSounds } = useGameSounds();
 
   const [selectedTimeControl, setSelectedTimeControl] =
@@ -37,13 +37,13 @@ export default function NewOnlineGamePage() {
   }, [prepareSounds]);
 
   const createRoomForUser = useCallback(
-    async (currentUser: CurrentUser, token: string | null) => {
+    async (currentUser: CurrentUser) => {
       try {
         setError(null);
         setIsCreating(true);
         prepareGameAudio();
 
-        const result = await createGame(currentUser.displayName, token ?? undefined);
+        const result = await createGame(currentUser.displayName);
 
         saveGameSession({
           gameId: result.game.id,
@@ -74,9 +74,9 @@ export default function NewOnlineGamePage() {
         return;
       }
 
-      await createRoomForUser(user, accessToken);
+      await createRoomForUser(user);
     },
-    [accessToken, createRoomForUser, isAuthenticated, isReady, user]
+    [createRoomForUser, isAuthenticated, isReady, user]
   );
 
   useEffect(() => {
@@ -86,15 +86,8 @@ export default function NewOnlineGamePage() {
 
     setIsAuthModalOpen(false);
     setPendingAction(null);
-    void createRoomForUser(user, accessToken);
-  }, [
-    accessToken,
-    createRoomForUser,
-    isAuthenticated,
-    isCreating,
-    pendingAction,
-    user,
-  ]);
+    void createRoomForUser(user);
+  }, [createRoomForUser, isAuthenticated, isCreating, pendingAction, user]);
 
   return (
     <NewOnlineGameShell

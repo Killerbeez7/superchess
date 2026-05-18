@@ -25,7 +25,7 @@ type PendingAuthAction =
 
 export default function PlayPage() {
   const router = useRouter();
-  const { user, accessToken, isReady, isAuthenticated } = useAuth();
+  const { user, isReady, isAuthenticated } = useAuth();
 
   const [joinGameId, setJoinGameId] = useState("");
 
@@ -95,13 +95,13 @@ export default function PlayPage() {
     }
   }
 
-  async function createGameForUser(currentUser: CurrentUser, token: string | null) {
+  async function createGameForUser(currentUser: CurrentUser) {
     try {
       setError(null);
       setIsCreatingGame(true);
       prepareGameAudio();
 
-      const result = await createGame(currentUser.displayName, token ?? undefined);
+      const result = await createGame(currentUser.displayName);
 
       saveGameSession({
         gameId: result.game.id,
@@ -129,13 +129,12 @@ export default function PlayPage() {
       return;
     }
 
-    await createGameForUser(user, accessToken);
+    await createGameForUser(user);
   }
 
   async function joinExistingGameForUser(
     gameIdToJoin: string,
-    currentUser: CurrentUser,
-    token: string | null
+    currentUser: CurrentUser
   ) {
     try {
       setError(null);
@@ -147,8 +146,7 @@ export default function PlayPage() {
       const result = await joinGame(
         gameIdToJoin,
         currentUser.displayName,
-        existingSession?.sessionToken,
-        token ?? undefined
+        existingSession?.sessionToken
       );
 
       saveGameSession({
@@ -183,7 +181,7 @@ export default function PlayPage() {
       return;
     }
 
-    await joinExistingGameForUser(gameIdToJoin, user, accessToken);
+    await joinExistingGameForUser(gameIdToJoin, user);
   }
 
   async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
@@ -233,18 +231,17 @@ export default function PlayPage() {
     setPendingAuthAction(null);
 
     if (action.type === "create") {
-      void createGameForUser(user, accessToken);
+      void createGameForUser(user);
       return;
     }
 
     if (action.type === "join") {
-      void joinExistingGameForUser(action.gameId, user, accessToken);
+      void joinExistingGameForUser(action.gameId, user);
       return;
     }
 
     openRoom(action.gameId);
   }, [
-    accessToken,
     isAuthenticated,
     joinExistingGameForUser,
     createGameForUser,

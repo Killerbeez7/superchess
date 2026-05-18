@@ -53,7 +53,7 @@ public class GamesController(IGameService gameService) : ControllerBase
         return ToActionResult(await gameService.JoinGameAsync(gameId, player, request ?? new JoinGameRequest(), ct));
     }
 
-    [HttpPost("{gameId:guid}/move")]
+    [HttpPost("{gameId:guid}/moves")]
     public async Task<IActionResult> MakeMove(
         Guid gameId, [FromBody] MakeMoveRequest request, CancellationToken ct) =>
         ToActionResult(await gameService.MakeMoveAsync(gameId, request, ct));

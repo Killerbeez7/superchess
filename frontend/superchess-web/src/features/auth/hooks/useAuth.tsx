@@ -13,6 +13,7 @@ import {
   getMe,
   login,
   register,
+  type AuthResponse,
   type CurrentUser,
   type LoginRequest,
   type RegisterRequest,
@@ -24,8 +25,8 @@ type AuthContextValue = {
   accessToken: string | null;
   isReady: boolean;
   isAuthenticated: boolean;
-  loginUser: (request: LoginRequest) => Promise<CurrentUser>;
-  registerUser: (request: RegisterRequest) => Promise<CurrentUser>;
+  loginUser: (request: LoginRequest) => Promise<AuthResponse>;
+  registerUser: (request: RegisterRequest) => Promise<AuthResponse>;
   logoutUser: () => void;
 };
 
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveAuthToken(result.accessToken);
     setAccessToken(result.accessToken);
     setUser(result.user);
-    return result.user;
+    return result;
   }, []);
 
   const registerUser = useCallback(async (request: RegisterRequest) => {
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveAuthToken(result.accessToken);
     setAccessToken(result.accessToken);
     setUser(result.user);
-    return result.user;
+    return result;
   }, []);
 
   const logoutUser = useCallback(() => {

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createGame, getGames, joinGame } from "@/lib/api/games";
 import { getGameSession, saveGameSession } from "@/lib/storage/gameSession";
-import type { CurrentUser } from "@/features/auth/api/auth";
+import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useGameRealtime } from "@/features/game/hooks/useGameRealtime";
@@ -25,7 +25,7 @@ type PendingAuthAction =
 
 export default function PlayPage() {
   const router = useRouter();
-  const { user, isReady, isAuthenticated } = useAuth();
+  const { user, accessToken, isReady, isAuthenticated } = useAuth();
 
   const [joinGameId, setJoinGameId] = useState("");
 
@@ -95,20 +95,20 @@ export default function PlayPage() {
     }
   }
 
-  async function createGameForUser(currentUser: CurrentUser) {
+  async function createGameForSession(session: AuthResponse) {
     try {
       setError(null);
       setIsCreatingGame(true);
       prepareGameAudio();
 
-      const result = await createGame(currentUser.displayName);
+      const result = await createGame(session.accessToken);
 
       saveGameSession({
         gameId: result.game.id,
         playerId: result.session.playerId,
         sessionToken: result.session.sessionToken,
         color: result.session.color,
-        playerName: currentUser.displayName,
+        playerName: session.user.displayName,
       });
 
       router.push(`/game/${result.game.id}`);
@@ -122,19 +122,19 @@ export default function PlayPage() {
   async function handleCreateGame() {
     if (!isReady) return;
 
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !user || !accessToken) {
       setError(null);
       setPendingAuthAction({ type: "create" });
       setIsAuthModalOpen(true);
       return;
     }
 
-    await createGameForUser(user);
+    await createGameForSession({ accessToken, user });
   }
 
-  async function joinExistingGameForUser(
+  async function joinExistingGameForSession(
     gameIdToJoin: string,
-    currentUser: CurrentUser
+    session: AuthResponse
   ) {
     try {
       setError(null);
@@ -145,8 +145,8 @@ export default function PlayPage() {
 
       const result = await joinGame(
         gameIdToJoin,
-        currentUser.displayName,
-        existingSession?.sessionToken
+        existingSession?.sessionToken,
+        session.accessToken
       );
 
       saveGameSession({
@@ -154,7 +154,7 @@ export default function PlayPage() {
         playerId: result.session.playerId,
         sessionToken: result.session.sessionToken,
         color: result.session.color,
-        playerName: currentUser.displayName,
+        playerName: session.user.displayName,
       });
 
       setJoinGameId("");
@@ -174,14 +174,14 @@ export default function PlayPage() {
   async function joinExistingGame(gameIdToJoin: string) {
     if (!isReady) return;
 
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !user || !accessToken) {
       setError(null);
       setPendingAuthAction({ type: "join", gameId: gameIdToJoin });
       setIsAuthModalOpen(true);
       return;
     }
 
-    await joinExistingGameForUser(gameIdToJoin, user);
+    await joinExistingGameForSession(gameIdToJoin, { accessToken, user });
   }
 
   async function handleJoinGame(e: SubmitEvent<HTMLFormElement>) {
@@ -221,8 +221,9 @@ export default function PlayPage() {
     [isAuthenticated, isReady, openRoom, user]
   );
 
-  useEffect(() => {
-    if (!pendingAuthAction || !isAuthenticated || !user) {
+  function handleAuthenticated(session: AuthResponse) {
+    if (!pendingAuthAction) {
+      setIsAuthModalOpen(false);
       return;
     }
 
@@ -231,24 +232,17 @@ export default function PlayPage() {
     setPendingAuthAction(null);
 
     if (action.type === "create") {
-      void createGameForUser(user);
+      void createGameForSession(session);
       return;
     }
 
     if (action.type === "join") {
-      void joinExistingGameForUser(action.gameId, user);
+      void joinExistingGameForSession(action.gameId, session);
       return;
     }
 
     openRoom(action.gameId);
-  }, [
-    isAuthenticated,
-    joinExistingGameForUser,
-    createGameForUser,
-    openRoom,
-    pendingAuthAction,
-    user,
-  ]);
+  }
 
   return (
     <LobbyShell playerName={user?.displayName}>
@@ -279,7 +273,7 @@ export default function PlayPage() {
           setIsAuthModalOpen(false);
           setPendingAuthAction(null);
         }}
-        onAuthenticated={() => setIsAuthModalOpen(false)}
+        onAuthenticated={handleAuthenticated}
         reason="Sign in to create or join a SuperChess room."
       />
     </LobbyShell>

@@ -4,21 +4,20 @@ import { useEffect, useRef } from "react";
 
 import type { GameResponse } from "@/types/game";
 import type { LocalGameSession } from "@/lib/storage/gameSession";
-import type { PlayerIdentity } from "@/types/player";
 
 type useGameAutoJoinParams = {
   gameId?: string;
   game: GameResponse | null;
-  identity: PlayerIdentity | null;
+  accessToken: string | null;
   isIdentityReady: boolean;
   session: LocalGameSession | null;
-  handleJoin: (displayName: string) => Promise<void>;
+  handleJoin: (accessToken: string) => Promise<void>;
 };
 
 export function useGameAutoJoin({
   gameId,
   game,
-  identity,
+  accessToken,
   isIdentityReady,
   session,
   handleJoin,
@@ -26,7 +25,7 @@ export function useGameAutoJoin({
   const hasAttemptedAutoJoinRef = useRef(false);
 
   useEffect(() => {
-    if (!gameId || !game || !isIdentityReady || !identity) {
+    if (!gameId || !game || !isIdentityReady || !accessToken) {
       return;
     }
 
@@ -41,6 +40,6 @@ export function useGameAutoJoin({
     }
 
     hasAttemptedAutoJoinRef.current = true;
-    void handleJoin(identity.displayName);
-  }, [gameId, game, identity, isIdentityReady, session, handleJoin]);
+    void handleJoin(accessToken);
+  }, [gameId, game, accessToken, isIdentityReady, session, handleJoin]);
 }

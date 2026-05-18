@@ -56,16 +56,14 @@ export const getGames = async () =>
 export const getGame = async (gameId: string) =>
   normalizeGameResponse(await apiFetch<ApiGameResponse>(`/games/${gameId}`));
 
-export const createGame = (playerName: string, accessToken?: string) =>
+export const createGame = (accessToken: string) =>
   apiFetch<ApiGameSessionResponse>("/games", {
     method: "POST",
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ playerName }),
   }).then(normalizeGameSessionResponse);
 
 export const joinGame = (
   gameId: string,
-  playerName: string,
   existingSessionToken?: string,
   accessToken?: string
 ) =>
@@ -73,7 +71,6 @@ export const joinGame = (
     method: "POST",
     headers: authHeaders(accessToken),
     body: JSON.stringify({
-      playerName,
       existingSessionToken: existingSessionToken ?? null,
     }),
   }).then(normalizeGameSessionResponse);

@@ -2,11 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 
-import type { CurrentUser } from "@/features/auth/api/auth";
+import type { AuthResponse } from "@/features/auth/api/auth";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 type LoginFormProps = {
-  onSuccess?: (user: CurrentUser) => void;
+  onSuccess?: (session: AuthResponse) => void;
 };
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
@@ -22,8 +22,8 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     try {
       setError(null);
       setIsSubmitting(true);
-      const user = await loginUser({ email, password });
-      onSuccess?.(user);
+      const session = await loginUser({ email, password });
+      onSuccess?.(session);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to login.");
     } finally {

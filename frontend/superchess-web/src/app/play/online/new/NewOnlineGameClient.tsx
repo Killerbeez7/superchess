@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
-import type { CurrentUser } from "@/features/auth/api/auth";
+import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { NewGameBoardPreview } from "@/features/game/components/setup/NewGameBoardPreview";
@@ -23,7 +23,7 @@ type PendingCreateAction = "start" | "friend";
 export function NewOnlineGameClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isReady, isAuthenticated } = useAuth();
+  const { user, accessToken, isReady, isAuthenticated } = useAuth();
   const { prepareSounds } = useGameSounds();
 
   const routeTimeControl = useMemo(
@@ -42,21 +42,21 @@ export function NewOnlineGameClient() {
     void prepareSounds(JOIN_PRELOAD_SOUNDS);
   }, [prepareSounds]);
 
-  const createRoomForUser = useCallback(
-    async (currentUser: CurrentUser) => {
+  const createRoomForSession = useCallback(
+    async (session: AuthResponse) => {
       try {
         setError(null);
         setIsCreating(true);
         prepareGameAudio();
 
-        const result = await createGame(currentUser.displayName);
+        const result = await createGame(session.accessToken);
 
         saveGameSession({
           gameId: result.game.id,
           playerId: result.session.playerId,
           sessionToken: result.session.sessionToken,
           color: result.session.color,
-          playerName: currentUser.displayName,
+          playerName: session.user.displayName,
         });
 
         router.push(`/game/${result.game.id}`);
@@ -73,30 +73,30 @@ export function NewOnlineGameClient() {
     async (action: PendingCreateAction) => {
       if (!isReady) return;
 
-      if (!isAuthenticated || !user) {
+      if (!isAuthenticated || !user || !accessToken) {
         setError(null);
         setPendingAction(action);
         setIsAuthModalOpen(true);
         return;
       }
 
-      await createRoomForUser(user);
+      await createRoomForSession({ accessToken, user });
     },
-    [createRoomForUser, isAuthenticated, isReady, user]
+    [accessToken, createRoomForSession, isAuthenticated, isReady, user]
   );
 
   const handleAuthenticated = useCallback(
-    (currentUser: CurrentUser) => {
+    (session: AuthResponse) => {
       const action = pendingAction;
 
       setIsAuthModalOpen(false);
       setPendingAction(null);
 
       if (action) {
-        void createRoomForUser(currentUser);
+        void createRoomForSession(session);
       }
     },
-    [createRoomForUser, pendingAction]
+    [createRoomForSession, pendingAction]
   );
 
   return (

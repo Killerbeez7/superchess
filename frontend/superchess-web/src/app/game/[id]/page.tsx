@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
+import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ChessBoard } from "@/features/game/components/board/ChessBoard";
@@ -180,7 +181,12 @@ export default function GameDetailsPage() {
   const { game, setGame, isLoading, setError, refresh } = useGame(gameId);
   const { session, saveSession } = useGameSession(gameId);
   const localPlayerColor = session?.color;
-  const { user, isReady: isAuthReady, isAuthenticated } = useAuth();
+  const {
+    user,
+    accessToken,
+    isReady: isAuthReady,
+    isAuthenticated,
+  } = useAuth();
   const { whiteTimer, blackTimer, whiteTimeRemainingMs, blackTimeRemainingMs } =
     useGameClocks(game);
   const displayedFen = optimisticFen ?? game?.currentFen;
@@ -399,15 +405,16 @@ export default function GameDetailsPage() {
   const handleJoinWithIdentity = useCallback(async () => {
     unlockSounds();
 
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated || !user || !accessToken) {
       setError(null);
       setIsAuthModalOpen(true);
       return;
     }
 
     void prepareSounds(JOIN_PRELOAD_SOUNDS);
-    await handleJoin(user.displayName);
+    await handleJoin(accessToken);
   }, [
+    accessToken,
     handleJoin,
     isAuthenticated,
     prepareSounds,
@@ -417,18 +424,27 @@ export default function GameDetailsPage() {
   ]);
 
   const handleAutoJoin = useCallback(
-    (displayName: string) => handleJoin(displayName),
+    (token: string) => handleJoin(token),
     [handleJoin]
   );
 
   useGameAutoJoin({
     gameId,
     game,
-    identity: user,
+    accessToken,
     isIdentityReady: isAuthReady,
     session,
     handleJoin: handleAutoJoin,
   });
+
+  const handleAuthenticated = useCallback(
+    (session: AuthResponse) => {
+      setIsAuthModalOpen(false);
+      void prepareSounds(JOIN_PRELOAD_SOUNDS);
+      void handleJoin(session.accessToken);
+    },
+    [handleJoin, prepareSounds]
+  );
 
   const handleRefresh = useCallback(async () => {
     await refresh();
@@ -797,7 +813,7 @@ export default function GameDetailsPage() {
               <AuthModal
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
-                onAuthenticated={() => setIsAuthModalOpen(false)}
+                onAuthenticated={handleAuthenticated}
                 reason="Sign in to join this SuperChess room."
               />
 

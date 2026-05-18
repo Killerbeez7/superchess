@@ -41,6 +41,12 @@ type PendingPromotionMove = {
   color: PieceColor;
 };
 
+function getSessionPlayerName(game: GameResponse, color: PieceColor) {
+  return color === "white"
+    ? game.whitePlayer.displayName
+    : game.blackPlayer?.displayName ?? "Player";
+}
+
 function isPromotionMove(piece: BoardPiece, to: string) {
   return (
     piece.type === "pawn" &&
@@ -81,34 +87,29 @@ export function useGameActions({
     !pendingPromotionMove;
 
   const handleJoin = useCallback(
-    async (playerName: string, accessToken?: string) => {
+    async (accessToken: string) => {
       if (!gameId) {
         setError("Missing game id.");
         return;
       }
 
-      const trimmed = playerName.trim();
-      if (!trimmed) {
-        setError("Player name is required.");
+      if (!accessToken) {
+        setError("Sign in to join this game.");
         return;
       }
 
       try {
         setError(null);
         setIsJoining(true);
-        const result = await joinGame(
-          gameId,
-          trimmed,
-          session?.sessionToken,
-          accessToken
-        );
+        const result = await joinGame(gameId, session?.sessionToken, accessToken);
+        const color = result.session.color as PieceColor;
 
         saveSession({
           gameId: result.game.id,
           playerId: result.session.playerId,
           sessionToken: result.session.sessionToken,
-          color: result.session.color as PieceColor,
-          playerName: trimmed,
+          color,
+          playerName: getSessionPlayerName(result.game, color),
         });
 
         setGame(result.game);

@@ -14,6 +14,8 @@ public static class GameMapper
         WhoseTurn = game.WhoseTurn.ToString().ToLowerInvariant(),
         InitialClockMs = game.InitialClockMs,
         IncrementMs = game.IncrementMs,
+        TimeControlType = game.TimeControlType.ToString().ToLowerInvariant(),
+        IsRated = game.IsRated,
         WhiteTimeRemainingMs = game.WhiteTimeRemainingMs,
         BlackTimeRemainingMs = game.BlackTimeRemainingMs,
         TurnStartedAtUtc = game.TurnStartedAtUtc,

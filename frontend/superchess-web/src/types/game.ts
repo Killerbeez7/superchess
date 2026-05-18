@@ -1,6 +1,7 @@
 export type PieceColor = "white" | "black";
 export type GameStatus = "waiting" | "active" | "completed" | "abandoned";
 export type GameEndReason = "checkmate" | "stalemate" | "timeout";
+export type TimeControlType = "bullet" | "blitz" | "rapid";
 export type PieceType = "pawn" | "knight" | "bishop" | "rook" | "queen" | "king";
 export type PromotionPiece = "q" | "r" | "b" | "n";
 
@@ -24,6 +25,8 @@ export type GameResponse = {
   whoseTurn: PieceColor;
   initialClockMs: number;
   incrementMs: number;
+  timeControlType: TimeControlType;
+  isRated: boolean;
   whiteTimeRemainingMs: number;
   blackTimeRemainingMs: number;
   turnStartedAtUtc: string | null;

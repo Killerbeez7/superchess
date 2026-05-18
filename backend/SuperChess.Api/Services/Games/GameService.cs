@@ -27,6 +27,7 @@ public class GameService : IGameService
 
     public async Task<Result<GameSessionResponse>> CreateGameAsync(
         AuthenticatedGameUser player,
+        CreateGameRequest request,
         CancellationToken ct = default)
     {
         var name = player.DisplayName.Trim();
@@ -34,6 +35,14 @@ public class GameService : IGameService
         {
             return Result<GameSessionResponse>.Validation("Player name is required.");
         }
+
+        var timeControlResult = CreateTimeControl(request);
+        if (!timeControlResult.IsSuccess)
+        {
+            return Result<GameSessionResponse>.Validation(timeControlResult.Error!);
+        }
+
+        var timeControl = timeControlResult.Value!;
 
         var now = DateTime.UtcNow;
         var white = NewPlayer(name);
@@ -45,10 +54,12 @@ public class GameService : IGameService
             Status = GameStatus.Waiting,
             CurrentFen = _engine.StartingFen,
             WhoseTurn = PieceColor.White,
-            InitialClockMs = ChessGame.DefaultInitialClockMs,
-            IncrementMs = 0,
-            WhiteTimeRemainingMs = ChessGame.DefaultInitialClockMs,
-            BlackTimeRemainingMs = ChessGame.DefaultInitialClockMs,
+            InitialClockMs = timeControl.InitialClockMs,
+            IncrementMs = timeControl.IncrementMs,
+            TimeControlType = timeControl.Type,
+            IsRated = timeControl.IsRated,
+            WhiteTimeRemainingMs = timeControl.InitialClockMs,
+            BlackTimeRemainingMs = timeControl.InitialClockMs,
             TurnStartedAtUtc = null,
             EndReason = null,
             WinnerColor = null,
@@ -283,6 +294,46 @@ public class GameService : IGameService
         DisplayName = displayName,
         SessionToken = Guid.NewGuid().ToString("N")
     };
+
+    private sealed record GameTimeControl(
+        int InitialClockMs,
+        int IncrementMs,
+        TimeControlType Type,
+        bool IsRated);
+
+    private static Result<GameTimeControl> CreateTimeControl(CreateGameRequest request)
+    {
+        if (request.InitialMinutes is < 1 or > 180)
+        {
+            return Result<GameTimeControl>.Validation("InitialMinutes must be between 1 and 180.");
+        }
+
+        if (request.IncrementSeconds is < 0 or > 60)
+        {
+            return Result<GameTimeControl>.Validation("IncrementSeconds must be between 0 and 60.");
+        }
+
+        var initialClockMs = request.InitialMinutes * 60 * 1000;
+        var incrementMs = request.IncrementSeconds * 1000;
+
+        return Result<GameTimeControl>.Success(new GameTimeControl(
+            initialClockMs,
+            incrementMs,
+            DeriveTimeControlType(request.InitialMinutes),
+            request.IsRated));
+    }
+
+    private static TimeControlType DeriveTimeControlType(int initialMinutes)
+    {
+        if (initialMinutes < 3)
+        {
+            return TimeControlType.Bullet;
+        }
+
+        return initialMinutes < 10
+            ? TimeControlType.Blitz
+            : TimeControlType.Rapid;
+    }
 
     private async Task BroadcastOpenGamesAsync(CancellationToken ct)
     {

@@ -20,6 +20,8 @@ public class ChessGame
     public PieceColor WhoseTurn { get; set; }
     public int InitialClockMs { get; set; } = DefaultInitialClockMs;
     public int IncrementMs { get; set; }
+    public TimeControlType TimeControlType { get; set; } = TimeControlType.Blitz;
+    public bool IsRated { get; set; }
     public int WhiteTimeRemainingMs { get; set; } = DefaultInitialClockMs;
     public int BlackTimeRemainingMs { get; set; } = DefaultInitialClockMs;
     public DateTime? TurnStartedAtUtc { get; set; }

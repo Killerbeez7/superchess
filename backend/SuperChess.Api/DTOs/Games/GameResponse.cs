@@ -8,6 +8,8 @@ public class GameResponse
     public string WhoseTurn { get; set; } = string.Empty;
     public int InitialClockMs { get; set; }
     public int IncrementMs { get; set; }
+    public string TimeControlType { get; set; } = string.Empty;
+    public bool IsRated { get; set; }
     public int WhiteTimeRemainingMs { get; set; }
     public int BlackTimeRemainingMs { get; set; }
     public DateTime? TurnStartedAtUtc { get; set; }

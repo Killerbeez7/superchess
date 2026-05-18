@@ -49,7 +49,11 @@ export function NewOnlineGameClient() {
         setIsCreating(true);
         prepareGameAudio();
 
-        const result = await createGame(session.accessToken);
+        const result = await createGame(session.accessToken, {
+          initialMinutes: selectedTimeControl.minutes,
+          incrementSeconds: selectedTimeControl.incrementSeconds,
+          isRated: false,
+        });
 
         saveGameSession({
           gameId: result.game.id,
@@ -66,7 +70,7 @@ export function NewOnlineGameClient() {
         setIsCreating(false);
       }
     },
-    [prepareGameAudio, router]
+    [prepareGameAudio, router, selectedTimeControl]
   );
 
   const beginCreateFlow = useCallback(

@@ -15,7 +15,9 @@ public class GamesController(IGameService gameService) : ControllerBase
 {
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create(CancellationToken ct)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateGameRequest? request,
+        CancellationToken ct)
     {
         var player = GetAuthenticatedPlayer();
         if (player is null)
@@ -23,7 +25,7 @@ public class GamesController(IGameService gameService) : ControllerBase
             return Unauthorized(new { message = "Authenticated user is missing required claims." });
         }
 
-        var result = await gameService.CreateGameAsync(player, ct);
+        var result = await gameService.CreateGameAsync(player, request ?? new CreateGameRequest(), ct);
         return result.IsSuccess
             ? CreatedAtAction(nameof(GetById), new { gameId = result.Value!.Game.Id }, result.Value)
             : ToActionResult(result);

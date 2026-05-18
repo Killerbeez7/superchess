@@ -254,10 +254,18 @@ namespace SuperChess.Api.Migrations
                     b.Property<int>("InitialClockMs")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsRated")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TimeControlType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("TurnStartedAtUtc")
                         .HasColumnType("timestamp with time zone");

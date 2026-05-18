@@ -9,6 +9,12 @@ export type MakeMoveRequest = {
   sessionToken: string;
 };
 
+export type CreateGameRequest = {
+  initialMinutes: number;
+  incrementSeconds: number;
+  isRated: boolean;
+};
+
 type ApiPieceColor = PieceColor | "White" | "Black" | 0 | 1;
 type ApiMoveSummary = Omit<MoveSummary, "playerColor"> & {
   playerColor: ApiPieceColor;
@@ -56,10 +62,14 @@ export const getGames = async () =>
 export const getGame = async (gameId: string) =>
   normalizeGameResponse(await apiFetch<ApiGameResponse>(`/games/${gameId}`));
 
-export const createGame = (accessToken: string) =>
+export const createGame = (
+  accessToken: string,
+  request?: CreateGameRequest
+) =>
   apiFetch<ApiGameSessionResponse>("/games", {
     method: "POST",
     headers: authHeaders(accessToken),
+    body: JSON.stringify(request ?? {}),
   }).then(normalizeGameSessionResponse);
 
 export const joinGame = (

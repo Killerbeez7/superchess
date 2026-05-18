@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import type { CurrentUser } from "@/features/auth/api/auth";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { RegisterForm } from "@/features/auth/components/RegisterForm";
 
@@ -10,7 +11,7 @@ type AuthMode = "login" | "register";
 export type AuthModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onAuthenticated?: () => void;
+  onAuthenticated?: (user: CurrentUser) => void;
   reason?: string;
 };
 
@@ -24,8 +25,8 @@ export function AuthModal({
 
   if (!isOpen) return null;
 
-  const handleAuthenticated = () => {
-    onAuthenticated?.();
+  const handleAuthenticated = (user: CurrentUser) => {
+    onAuthenticated?.(user);
     if (!onAuthenticated) {
       onClose();
     }

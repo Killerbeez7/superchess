@@ -77,11 +77,55 @@ export const TIME_CONTROLS = TIME_CONTROL_GROUPS.flatMap((group) => group.option
 export const DEFAULT_TIME_CONTROL =
   TIME_CONTROLS.find((timeControl) => timeControl.id === "5+0") ?? TIME_CONTROLS[0];
 
+type SetupSearchParams = {
+  get: (name: string) => string | null;
+};
+
+function parseNonNegativeInteger(value: string | null) {
+  if (!value) return null;
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 export function findTimeControl(timeControlId: string) {
   return (
     TIME_CONTROLS.find((timeControl) => timeControl.id === timeControlId) ??
     DEFAULT_TIME_CONTROL
   );
+}
+
+export function findTimeControlByClock(baseSeconds: number, incrementSeconds: number) {
+  return (
+    TIME_CONTROLS.find(
+      (timeControl) =>
+        timeControl.minutes * 60 === baseSeconds &&
+        timeControl.incrementSeconds === incrementSeconds
+    ) ?? DEFAULT_TIME_CONTROL
+  );
+}
+
+export function findTimeControlFromSetupParams(params: SetupSearchParams) {
+  const explicitTimeControl = params.get("timeControl");
+
+  if (explicitTimeControl) {
+    return findTimeControl(explicitTimeControl);
+  }
+
+  const minutes = parseNonNegativeInteger(params.get("minutes"));
+  const baseSeconds =
+    minutes !== null ? minutes * 60 : parseNonNegativeInteger(params.get("base"));
+
+  if (baseSeconds === null) {
+    return DEFAULT_TIME_CONTROL;
+  }
+
+  const incrementSeconds =
+    parseNonNegativeInteger(params.get("increment")) ??
+    parseNonNegativeInteger(params.get("timeIncrement")) ??
+    0;
+
+  return findTimeControlByClock(baseSeconds, incrementSeconds);
 }
 
 export function getTimeControlGroup(timeControl: TimeControl) {

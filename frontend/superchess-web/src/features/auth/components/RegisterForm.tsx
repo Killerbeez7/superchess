@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 
+import type { CurrentUser } from "@/features/auth/api/auth";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 type RegisterFormProps = {
-  onSuccess?: () => void;
+  onSuccess?: (user: CurrentUser) => void;
 };
 
 export function RegisterForm({ onSuccess }: RegisterFormProps) {
@@ -22,8 +23,8 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     try {
       setError(null);
       setIsSubmitting(true);
-      await registerUser({ displayName, email, password });
-      onSuccess?.();
+      const user = await registerUser({ displayName, email, password });
+      onSuccess?.(user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create account.");
     } finally {

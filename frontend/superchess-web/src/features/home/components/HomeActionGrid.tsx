@@ -1,5 +1,10 @@
 import { FaBolt, FaChessKnight, FaRobot, FaUserGroup } from "react-icons/fa6";
 
+import {
+  DEFAULT_ONLINE_SETUP_HREF,
+  FRIEND_ONLINE_SETUP_HREF,
+} from "@/features/game/setupRoutes";
+
 import { HomeActionCard } from "./HomeActionCard";
 
 export function HomeActionGrid() {
@@ -8,20 +13,20 @@ export function HomeActionGrid() {
       <HomeActionCard
         title="Quick Play"
         description="Jump back into your latest setup."
-        href="/play"
+        href={DEFAULT_ONLINE_SETUP_HREF}
         icon={<FaBolt />}
         featured
       />
       <HomeActionCard
         title="New Game"
         description="Create or join a room."
-        href="/play/online/new"
+        href={DEFAULT_ONLINE_SETUP_HREF}
         icon={<FaChessKnight />}
       />
       <HomeActionCard
         title="Play Friend"
         description="Start a private room link."
-        href="/play/online/new"
+        href={FRIEND_ONLINE_SETUP_HREF}
         icon={<FaUserGroup />}
       />
       <HomeActionCard

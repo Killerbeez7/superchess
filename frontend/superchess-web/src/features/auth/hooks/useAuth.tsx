@@ -24,8 +24,8 @@ type AuthContextValue = {
   accessToken: string | null;
   isReady: boolean;
   isAuthenticated: boolean;
-  loginUser: (request: LoginRequest) => Promise<void>;
-  registerUser: (request: RegisterRequest) => Promise<void>;
+  loginUser: (request: LoginRequest) => Promise<CurrentUser>;
+  registerUser: (request: RegisterRequest) => Promise<CurrentUser>;
   logoutUser: () => void;
 };
 
@@ -80,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveAuthToken(result.accessToken);
     setAccessToken(result.accessToken);
     setUser(result.user);
+    return result.user;
   }, []);
 
   const registerUser = useCallback(async (request: RegisterRequest) => {
@@ -87,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveAuthToken(result.accessToken);
     setAccessToken(result.accessToken);
     setUser(result.user);
+    return result.user;
   }, []);
 
   const logoutUser = useCallback(() => {

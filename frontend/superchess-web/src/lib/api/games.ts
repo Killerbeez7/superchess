@@ -19,6 +19,11 @@ export type CreateGameRequest = {
   gameMode: string;
 };
 
+export type CreateAiGameRequest = CreateGameRequest & {
+  botLevel: 1 | 2;
+  playerColor: PieceColor;
+};
+
 type ApiPieceColor = PieceColor | "White" | "Black" | 0 | 1;
 
 type ApiMoveSummary = Omit<MoveSummary, "playerColor"> & {
@@ -80,7 +85,7 @@ export const createGame = (accessToken: string, request?: CreateGameRequest) =>
     body: JSON.stringify(request ?? {}),
   }).then(normalizeGameSessionResponse);
 
-export const createAiGame = (accessToken: string, request?: CreateGameRequest) =>
+export const createAiGame = (accessToken: string, request?: CreateAiGameRequest) =>
   apiFetch<ApiGameSessionResponse>("/api/games/ai", {
     method: "POST",
     headers: authHeaders(accessToken),

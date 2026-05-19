@@ -6,6 +6,7 @@ using SuperChess.Api.DTOs.Games;
 using SuperChess.Api.Entities;
 using SuperChess.Api.Models;
 using SuperChess.Api.Realtime;
+using SuperChess.Api.Services.Bots;
 using SuperChess.Api.Services.Mapping;
 using SuperChess.Core.Chess;
 
@@ -16,17 +17,20 @@ public class GameService : IGameService
     private readonly IGameRepository _repo;
     private readonly IGameNotifier _notifier;
     private readonly IChessEngine _engine;
+    private readonly IBotMoveSelectorProvider _botMoveSelectorProvider;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public GameService(
         IGameRepository repo,
         IGameNotifier notifier,
         IChessEngine engine,
+        IBotMoveSelectorProvider botMoveSelectorProvider,
         UserManager<ApplicationUser> userManager)
     {
         _repo = repo;
         _notifier = notifier;
         _engine = engine;
+        _botMoveSelectorProvider = botMoveSelectorProvider;
         _userManager = userManager;
     }
 
@@ -95,7 +99,7 @@ public class GameService : IGameService
 
     public async Task<Result<GameSessionResponse>> CreateBotGameAsync(
         AuthenticatedGameUser player,
-        CreateGameRequest request,
+        CreateBotGameRequest request,
         CancellationToken ct = default)
     {
         if (player.UserId == Guid.Empty)
@@ -116,6 +120,21 @@ public class GameService : IGameService
 
         var timeControl = timeControlResult.Value!;
 
+        var botLevelResult = CreateBotLevel(request);
+        if (!botLevelResult.IsSuccess)
+        {
+            return Result<GameSessionResponse>.Validation(botLevelResult.Error!);
+        }
+
+        var playerColorResult = CreatePlayerColor(request);
+        if (!playerColorResult.IsSuccess)
+        {
+            return Result<GameSessionResponse>.Validation(playerColorResult.Error!);
+        }
+
+        var botLevel = botLevelResult.Value;
+        var playerColor = playerColorResult.Value;
+
         var settingsError = await UpdateLastGameSettingsAsync(player.UserId, request);
         if (settingsError is not null)
         {
@@ -123,8 +142,10 @@ public class GameService : IGameService
         }
 
         var now = DateTime.UtcNow;
-        var white = NewPlayer(player);
-        var black = NewBotPlayer();
+        var human = NewPlayer(player);
+        var bot = NewBotPlayer(botLevel);
+        var white = playerColor == PieceColor.White ? human : bot;
+        var black = playerColor == PieceColor.White ? bot : human;
 
         var game = new ChessGame
         {
@@ -140,6 +161,7 @@ public class GameService : IGameService
             IncrementMs = timeControl.IncrementMs,
             TimeControlType = timeControl.Type,
             IsRated = timeControl.IsRated,
+            BotLevel = botLevel,
             WhiteTimeRemainingMs = timeControl.InitialClockMs,
             BlackTimeRemainingMs = timeControl.InitialClockMs,
             TurnStartedAtUtc = now,
@@ -149,14 +171,16 @@ public class GameService : IGameService
             UpdatedAtUtc = now
         };
 
-        _repo.AddPlayer(white);
-        _repo.AddPlayer(black);
+        _repo.AddPlayer(human);
+        _repo.AddPlayer(bot);
         _repo.AddGame(game);
+
+        ApplyBotMoveIfNeeded(game, now);
 
         await _repo.SaveChangesAsync(ct);
 
         return Result<GameSessionResponse>.Success(
-            GameMapper.ToSessionResponse(game, white, PieceColor.White));
+            GameMapper.ToSessionResponse(game, human, playerColor));
     }
 
     public async Task<Result<GameResponse>> GetGameAsync(
@@ -390,33 +414,13 @@ public class GameService : IGameService
         DisplayName = player.DisplayName.Trim()
     };
 
-    private static Player NewBotPlayer() => new()
+    private static Player NewBotPlayer(int botLevel) => new()
     {
         Id = Guid.NewGuid(),
         UserId = null,
         IsBot = true,
-        DisplayName = "SuperChess Bot"
+        DisplayName = $"SuperChess Bot L{botLevel}"
     };
-
-    private sealed record BotMoveCandidate(
-        string From,
-        string To,
-        string? Promotion,
-        MoveResult Result);
-
-    private static readonly string[] BoardSquares =
-    [
-        "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
-        "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
-        "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3",
-        "a4", "b4", "c4", "d4", "e4", "f4", "g4", "h4",
-        "a5", "b5", "c5", "d5", "e5", "f5", "g5", "h5",
-        "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
-        "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
-        "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"
-    ];
-
-    private static readonly string[] PromotionPieces = ["q", "r", "b", "n"];
 
     private void ApplyBotMoveIfNeeded(ChessGame game, DateTime now)
     {
@@ -442,14 +446,15 @@ public class GameService : IGameService
             return;
         }
 
-        var legalMoves = GetLegalBotMoves(game.CurrentFen).ToList();
-        if (legalMoves.Count == 0)
+        var selected = _botMoveSelectorProvider
+            .GetSelector(game.BotLevel)
+            .SelectMove(game.CurrentFen);
+        if (selected is null)
         {
             CompleteGame(game, GameEndReason.Stalemate, null, now);
             return;
         }
 
-        var selected = legalMoves[Random.Shared.Next(legalMoves.Count)];
         var move = new Move
         {
             Id = Guid.NewGuid(),
@@ -479,31 +484,6 @@ public class GameService : IGameService
             ApplyIncrement(game, movingColor);
             game.TurnStartedAtUtc = now;
             game.UpdatedAtUtc = now;
-        }
-    }
-
-    private IEnumerable<BotMoveCandidate> GetLegalBotMoves(string fen)
-    {
-        foreach (var from in BoardSquares)
-        {
-            foreach (var to in BoardSquares)
-            {
-                var regularMove = _engine.TryApplyMove(fen, from, to);
-                if (regularMove.IsLegal)
-                {
-                    yield return new BotMoveCandidate(from, to, null, regularMove);
-                    continue;
-                }
-
-                foreach (var promotion in PromotionPieces)
-                {
-                    var promotionMove = _engine.TryApplyMove(fen, from, to, promotion);
-                    if (promotionMove.IsLegal)
-                    {
-                        yield return new BotMoveCandidate(from, to, promotion, promotionMove);
-                    }
-                }
-            }
         }
     }
 
@@ -539,6 +519,28 @@ public class GameService : IGameService
             incrementMs,
             DeriveTimeControlType(request.InitialMinutes),
             request.IsRated));
+    }
+
+    private static Result<int> CreateBotLevel(CreateBotGameRequest request)
+    {
+        if (request.BotLevel is < 1 or > 2)
+        {
+            return Result<int>.Validation("BotLevel must be 1 or 2.");
+        }
+
+        return Result<int>.Success(request.BotLevel);
+    }
+
+    private static Result<PieceColor> CreatePlayerColor(CreateBotGameRequest request)
+    {
+        var color = request.PlayerColor?.Trim().ToLowerInvariant();
+
+        return color switch
+        {
+            "white" => Result<PieceColor>.Success(PieceColor.White),
+            "black" => Result<PieceColor>.Success(PieceColor.Black),
+            _ => Result<PieceColor>.Validation("PlayerColor must be white or black.")
+        };
     }
 
     private static TimeControlType DeriveTimeControlType(int initialMinutes)

@@ -1,5 +1,6 @@
 import { GameSetupDropdown } from "@/features/game/components/setup/GameSetupDropdown";
 import type { TimeControl } from "@/features/game/components/setup/TimeControlPicker";
+import type { ReactNode } from "react";
 
 type NewGameSetupPanelProps = {
   title?: string;
@@ -15,6 +16,7 @@ type NewGameSetupPanelProps = {
   creatingLabel?: string;
   secondaryActionLabel?: string;
   showSecondaryAction?: boolean;
+  children?: ReactNode;
 };
 
 export function NewGameSetupPanel({
@@ -30,6 +32,7 @@ export function NewGameSetupPanel({
   creatingLabel = "Creating...",
   secondaryActionLabel = "Create invite room",
   showSecondaryAction = true,
+  children,
 }: NewGameSetupPanelProps) {
   return (
     <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border-light bg-card shadow-2xl lg:h-full">
@@ -44,6 +47,8 @@ export function NewGameSetupPanel({
           selectedTimeControl={selectedTimeControl}
           onTimeControlChange={onTimeControlChange}
         />
+
+        {children}
 
         <div className="mt-auto grid shrink-0 gap-2">
           <button

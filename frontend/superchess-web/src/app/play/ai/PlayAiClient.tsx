@@ -6,6 +6,10 @@ import { useCallback, useMemo, useState } from "react";
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import {
+  BotGameOptions,
+  type BotLevel,
+} from "@/features/game/components/setup/BotGameOptions";
 import { NewGameBoardPreview } from "@/features/game/components/setup/NewGameBoardPreview";
 import { NewGameSetupPanel } from "@/features/game/components/setup/NewGameSetupPanel";
 import { NewOnlineGameShell } from "@/features/game/components/setup/NewOnlineGameShell";
@@ -20,6 +24,7 @@ import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
 import { createAiGame } from "@/lib/api/games";
 import { saveGameSession } from "@/lib/storage/gameSession";
+import type { PieceColor } from "@/types/game";
 
 export function PlayAiClient() {
   const router = useRouter();
@@ -43,6 +48,8 @@ export function PlayAiClient() {
     null
   );
   const currentTimeControl = selectedTimeControl ?? preferredTimeControl;
+  const [playerColor, setPlayerColor] = useState<PieceColor>("white");
+  const [botLevel, setBotLevel] = useState<BotLevel>(2);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shouldStartAfterAuth, setShouldStartAfterAuth] = useState(false);
@@ -64,6 +71,8 @@ export function PlayAiClient() {
           initialMinutes: currentTimeControl.minutes,
           incrementSeconds: currentTimeControl.incrementSeconds,
           gameMode: "classical",
+          botLevel,
+          playerColor,
         });
 
         await refreshUser();
@@ -82,7 +91,7 @@ export function PlayAiClient() {
         setIsCreating(false);
       }
     },
-    [currentTimeControl, prepareGameAudio, refreshUser, router]
+    [botLevel, currentTimeControl, playerColor, prepareGameAudio, refreshUser, router]
   );
 
   const beginCreateFlow = useCallback(
@@ -121,6 +130,8 @@ export function PlayAiClient() {
         <NewGameBoardPreview
           playerName={user?.displayName}
           timeControl={currentTimeControl}
+          playerColor={playerColor}
+          opponentName={`SuperChess Bot L${botLevel}`}
         />
       }
       panel={
@@ -137,7 +148,14 @@ export function PlayAiClient() {
           primaryActionLabel="Start vs AI"
           creatingLabel="Starting..."
           showSecondaryAction={false}
-        />
+        >
+          <BotGameOptions
+            playerColor={playerColor}
+            botLevel={botLevel}
+            onPlayerColorChange={setPlayerColor}
+            onBotLevelChange={setBotLevel}
+          />
+        </NewGameSetupPanel>
       }
       overlays={
         <AuthModal

@@ -4,6 +4,7 @@ using SuperChess.Api.Data;
 using SuperChess.Api.Data.Repositories;
 using SuperChess.Api.Entities;
 using SuperChess.Api.Realtime;
+using SuperChess.Api.Services.Bots;
 using SuperChess.Api.Services.Games;
 using SuperChess.Core.Chess;
 using System.Text;
@@ -79,6 +80,11 @@ builder.Services.AddScoped<IGameRepository, GameRepository>();
 builder.Services.AddScoped<IGameNotifier, SignalRGameNotifier>();
 builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddSingleton<IChessEngine, ChessEngine>();
+builder.Services.AddSingleton<IBotMoveGenerator, BotMoveGenerator>();
+builder.Services.AddSingleton<BotMoveEvaluator>();
+builder.Services.AddSingleton<IBotMoveSelector, LevelOneBotMoveSelector>();
+builder.Services.AddSingleton<IBotMoveSelector, LevelTwoBotMoveSelector>();
+builder.Services.AddSingleton<IBotMoveSelectorProvider, BotMoveSelectorProvider>();
 
 // --- CORS ---
 const string frontendCorsPolicy = "FrontendCorsPolicy";

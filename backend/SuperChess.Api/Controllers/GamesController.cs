@@ -32,7 +32,7 @@ public class GamesController(IGameService gameService) : ControllerBase
     [Authorize]
     [HttpPost("ai")]
     public async Task<ActionResult<GameSessionResponse>> CreateAiGame(
-        CreateGameRequest request,
+        CreateBotGameRequest request,
         CancellationToken ct)
     {
         var currentUser = GetAuthenticatedGameUser();

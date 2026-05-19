@@ -12,7 +12,7 @@ public interface IGameService
 
     Task<Result<GameSessionResponse>> CreateBotGameAsync(
         AuthenticatedGameUser player,
-        CreateGameRequest request,
+        CreateBotGameRequest request,
         CancellationToken ct = default);
 
     Task<Result<GameResponse>> GetGameAsync(

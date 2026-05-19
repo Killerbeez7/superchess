@@ -22,6 +22,7 @@ public class ChessGame
     public int IncrementMs { get; set; }
     public TimeControlType TimeControlType { get; set; } = TimeControlType.Blitz;
     public bool IsRated { get; set; }
+    public int BotLevel { get; set; }
     public int WhiteTimeRemainingMs { get; set; } = DefaultInitialClockMs;
     public int BlackTimeRemainingMs { get; set; } = DefaultInitialClockMs;
     public DateTime? TurnStartedAtUtc { get; set; }

@@ -44,6 +44,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.Property(x => x.LastGameMode)
                 .HasMaxLength(40)
                 .IsRequired();
+
+            entity.Property(x => x.RefreshTokenHash)
+                .HasMaxLength(128);
         });
 
         modelBuilder.Entity<ChessGame>(entity =>

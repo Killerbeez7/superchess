@@ -94,7 +94,7 @@ export function AppSidebar() {
               <button
                 type="button"
                 onClick={() => {
-                  logoutUser();
+                  void logoutUser();
                   setIsAccountMenuOpen(false);
                 }}
                 className="h-9 w-full rounded-lg px-3 text-left text-sm font-semibold text-text-muted transition hover:bg-bg-light hover:text-text-primary"

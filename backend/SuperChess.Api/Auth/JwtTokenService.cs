@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using SuperChess.Api.Entities;
@@ -10,7 +12,6 @@ namespace SuperChess.Api.Auth;
 public class JwtTokenService(IOptions<JwtOptions> options)
 {
     private readonly JwtOptions _options = options.Value;
-
 
     public string CreateAccessToken(ApplicationUser user)
     {
@@ -36,4 +37,16 @@ public class JwtTokenService(IOptions<JwtOptions> options)
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public string CreateRefreshToken() =>
+        WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(64));
+
+    public string HashRefreshToken(string refreshToken)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken));
+        return Convert.ToHexString(bytes);
+    }
+
+    public DateTime GetRefreshTokenExpiryUtc() =>
+        DateTime.UtcNow.AddDays(_options.RefreshTokenDays);
 }

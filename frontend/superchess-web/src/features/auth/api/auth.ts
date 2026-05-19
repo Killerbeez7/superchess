@@ -47,6 +47,7 @@ async function parseApiError(response: Response) {
 export async function register(request: RegisterRequest): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -63,6 +64,7 @@ export async function register(request: RegisterRequest): Promise<AuthResponse> 
 export async function login(request: LoginRequest): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -74,6 +76,30 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
   }
 
   return response.json();
+}
+
+export async function refresh(): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+
+  return response.json();
+}
+
+export async function logout(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
 }
 
 export async function getMe(accessToken: string): Promise<CurrentUser> {

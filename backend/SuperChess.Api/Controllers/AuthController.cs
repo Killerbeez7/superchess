@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SuperChess.Api.Auth;
 using SuperChess.Api.DTOs.Auth;
 using SuperChess.Api.Entities;
@@ -12,8 +13,11 @@ namespace SuperChess.Api.Controllers;
 public class AuthController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
-    JwtTokenService jwtTokenService) : ControllerBase
+    JwtTokenService jwtTokenService,
+    IWebHostEnvironment environment) : ControllerBase
 {
+    private const string RefreshTokenCookieName = "superchess_refresh";
+
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
@@ -44,7 +48,7 @@ public class AuthController(
             return BadRequest(string.Join(" ", result.Errors.Select(e => e.Description)));
         }
 
-        return CreateAuthResponse(user);
+        return await CreateAuthResponseAsync(user);
     }
 
     [HttpPost("login")]
@@ -65,7 +69,54 @@ public class AuthController(
         if (!result.Succeeded)
             return Unauthorized("Invalid email or password.");
 
-        return CreateAuthResponse(user);
+        return await CreateAuthResponseAsync(user);
+    }
+
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponse>> Refresh()
+    {
+        if (!Request.Cookies.TryGetValue(RefreshTokenCookieName, out var refreshToken) ||
+            string.IsNullOrWhiteSpace(refreshToken))
+        {
+            ClearRefreshTokenCookie();
+            return Unauthorized("Refresh session is missing.");
+        }
+
+        var refreshTokenHash = jwtTokenService.HashRefreshToken(refreshToken);
+        var user = await userManager.Users.FirstOrDefaultAsync(x =>
+            x.RefreshTokenHash == refreshTokenHash);
+
+        if (user is null ||
+            user.RefreshTokenExpiresAtUtc is null ||
+            user.RefreshTokenExpiresAtUtc <= DateTime.UtcNow)
+        {
+            ClearRefreshTokenCookie();
+            return Unauthorized("Refresh session has expired.");
+        }
+
+        return await CreateAuthResponseAsync(user);
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        if (Request.Cookies.TryGetValue(RefreshTokenCookieName, out var refreshToken) &&
+            !string.IsNullOrWhiteSpace(refreshToken))
+        {
+            var refreshTokenHash = jwtTokenService.HashRefreshToken(refreshToken);
+            var user = await userManager.Users.FirstOrDefaultAsync(x =>
+                x.RefreshTokenHash == refreshTokenHash);
+
+            if (user is not null)
+            {
+                user.RefreshTokenHash = null;
+                user.RefreshTokenExpiresAtUtc = null;
+                await userManager.UpdateAsync(user);
+            }
+        }
+
+        ClearRefreshTokenCookie();
+        return NoContent();
     }
 
     [Authorize]
@@ -80,13 +131,53 @@ public class AuthController(
         return ToCurrentUserResponse(user);
     }
 
-    private AuthResponse CreateAuthResponse(ApplicationUser user)
+    private async Task<AuthResponse> CreateAuthResponseAsync(ApplicationUser user)
     {
+        var refreshToken = jwtTokenService.CreateRefreshToken();
+        var refreshTokenExpiry = jwtTokenService.GetRefreshTokenExpiryUtc();
+
+        user.RefreshTokenHash = jwtTokenService.HashRefreshToken(refreshToken);
+        user.RefreshTokenExpiresAtUtc = refreshTokenExpiry;
+
+        await userManager.UpdateAsync(user);
+        AppendRefreshTokenCookie(refreshToken, refreshTokenExpiry);
+
         return new AuthResponse
         {
             AccessToken = jwtTokenService.CreateAccessToken(user),
             User = ToCurrentUserResponse(user)
         };
+    }
+
+    private void AppendRefreshTokenCookie(string refreshToken, DateTime expiresAtUtc)
+    {
+        Response.Cookies.Append(
+            RefreshTokenCookieName,
+            refreshToken,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !environment.IsDevelopment(),
+                SameSite = environment.IsDevelopment()
+                    ? SameSiteMode.Lax
+                    : SameSiteMode.None,
+                Expires = expiresAtUtc,
+                Path = "/api/auth"
+            });
+    }
+
+    private void ClearRefreshTokenCookie()
+    {
+        Response.Cookies.Delete(
+            RefreshTokenCookieName,
+            new CookieOptions
+            {
+                Secure = !environment.IsDevelopment(),
+                SameSite = environment.IsDevelopment()
+                    ? SameSiteMode.Lax
+                    : SameSiteMode.None,
+                Path = "/api/auth"
+            });
     }
 
     private static CurrentUserResponse ToCurrentUserResponse(ApplicationUser user)

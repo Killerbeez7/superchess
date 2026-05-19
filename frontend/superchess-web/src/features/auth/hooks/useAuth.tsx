@@ -11,57 +11,78 @@ import {
 
 import {
   getMe,
-  login,
-  register,
+  login as loginRequest,
+  logout as logoutRequest,
+  refresh as refreshRequest,
+  register as registerRequest,
   type AuthResponse,
   type CurrentUser,
   type LoginRequest,
   type RegisterRequest,
 } from "@/features/auth/api/auth";
-import { clearAuthToken, getAuthToken, saveAuthToken } from "@/lib/storage/authToken";
 
-type AuthContextValue = {
+export type AuthState = {
   user: CurrentUser | null;
   accessToken: string | null;
   isReady: boolean;
   isAuthenticated: boolean;
+  login: (request: LoginRequest) => Promise<AuthResponse>;
+  register: (request: RegisterRequest) => Promise<AuthResponse>;
+  logout: () => Promise<void>;
+  refreshSession: () => Promise<void>;
   loginUser: (request: LoginRequest) => Promise<AuthResponse>;
   registerUser: (request: RegisterRequest) => Promise<AuthResponse>;
-  logoutUser: () => void;
+  logoutUser: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
+  const applyAuthResponse = useCallback((result: AuthResponse) => {
+    setAccessToken(result.accessToken);
+    setUser(result.user);
+  }, []);
+
+  const clearSession = useCallback(() => {
+    setAccessToken(null);
+    setUser(null);
+  }, []);
+
+  const login = useCallback(async (request: LoginRequest) => {
+    const result = await loginRequest(request);
+    applyAuthResponse(result);
+    return result;
+  }, [applyAuthResponse]);
+
+  const register = useCallback(async (request: RegisterRequest) => {
+    const result = await registerRequest(request);
+    applyAuthResponse(result);
+    return result;
+  }, [applyAuthResponse]);
+
+  const refreshSession = useCallback(async () => {
+    const result = await refreshRequest();
+    applyAuthResponse(result);
+  }, [applyAuthResponse]);
+
   useEffect(() => {
     let cancelled = false;
 
     async function restoreSession() {
-      const token = getAuthToken();
-
-      if (!token) {
-        setIsReady(true);
-        return;
-      }
-
       try {
-        const currentUser = await getMe(token);
+        const result = await refreshRequest();
 
         if (!cancelled) {
-          setAccessToken(token);
-          setUser(currentUser);
+          applyAuthResponse(result);
         }
       } catch {
-        clearAuthToken();
-
         if (!cancelled) {
-          setAccessToken(null);
-          setUser(null);
+          clearSession();
         }
       } finally {
         if (!cancelled) {
@@ -75,51 +96,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyAuthResponse, clearSession]);
 
-  const loginUser = useCallback(async (request: LoginRequest) => {
-    const result = await login(request);
-    saveAuthToken(result.accessToken);
-    setAccessToken(result.accessToken);
-    setUser(result.user);
-    return result;
-  }, []);
-
-  const registerUser = useCallback(async (request: RegisterRequest) => {
-    const result = await register(request);
-    saveAuthToken(result.accessToken);
-    setAccessToken(result.accessToken);
-    setUser(result.user);
-    return result;
-  }, []);
-
-  const logoutUser = useCallback(() => {
-    clearAuthToken();
-    setAccessToken(null);
-    setUser(null);
-  }, []);
+  const logout = useCallback(async () => {
+    try {
+      await logoutRequest();
+    } finally {
+      clearSession();
+    }
+  }, [clearSession]);
 
   const refreshUser = useCallback(async () => {
     if (!accessToken) {
+      await refreshSession();
       return;
     }
 
-    const currentUser = await getMe(accessToken);
-    setUser(currentUser);
-  }, [accessToken]);
+    try {
+      const currentUser = await getMe(accessToken);
+      setUser(currentUser);
+    } catch {
+      await refreshSession();
+    }
+  }, [accessToken, refreshSession]);
 
-  const value = useMemo<AuthContextValue>(
+  const value = useMemo<AuthState>(
     () => ({
       user,
       accessToken,
       isReady,
       isAuthenticated: !!user && !!accessToken,
-      loginUser,
-      registerUser,
-      logoutUser,
+      login,
+      register,
+      logout,
+      refreshSession,
+      loginUser: login,
+      registerUser: register,
+      logoutUser: logout,
       refreshUser,
     }),
-    [accessToken, isReady, loginUser, logoutUser, refreshUser, registerUser, user]
+    [
+      accessToken,
+      isReady,
+      login,
+      logout,
+      refreshSession,
+      refreshUser,
+      register,
+      user,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

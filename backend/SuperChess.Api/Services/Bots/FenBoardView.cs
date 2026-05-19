@@ -53,4 +53,7 @@ public sealed class FenBoardView
     public static bool IsWhitePiece(char piece) => char.IsUpper(piece);
 
     public static bool IsBlackPiece(char piece) => char.IsLower(piece);
+
+    public static bool PieceBelongsToSide(char piece, char side) =>
+        side == 'w' ? IsWhitePiece(piece) : IsBlackPiece(piece);
 }

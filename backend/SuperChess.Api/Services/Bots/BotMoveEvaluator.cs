@@ -78,10 +78,18 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
     public int EvaluatePositionForSide(string fen, char side)
     {
         var board = FenBoardView.Parse(fen);
-        var score = MaterialScore(board, side);
+        var legalMoves = moveGenerator.GetLegalMoves(fen);
 
-        score -= LoosePiecePenalty(fen, side);
-        score += LoosePiecePenalty(fen, OppositeSide(side)) / 2;
+        return EvaluatePositionForSide(board, side, legalMoves);
+    }
+
+    public int EvaluatePositionForSide(
+        FenBoardView board,
+        char side,
+        IEnumerable<BotMoveSelection> legalMovesForSideToMove)
+    {
+        var score = MaterialScore(board, side);
+        score -= LoosePiecePenalty(board, side, legalMovesForSideToMove);
 
         return score;
     }
@@ -107,11 +115,12 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
             : 0;
     }
 
-    private int LoosePiecePenalty(string fen, char side)
+    private static int LoosePiecePenalty(
+        FenBoardView board,
+        char side,
+        IEnumerable<BotMoveSelection> legalMovesForSideToMove)
     {
-        var board = FenBoardView.Parse(fen);
-        var opponentCaptures = moveGenerator
-            .GetLegalMoves(fen)
+        var opponentCaptures = legalMovesForSideToMove
             .Where(move =>
             {
                 var target = board.GetPiece(move.To);
@@ -186,7 +195,7 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
         char.IsUpper(a) == char.IsUpper(b);
 
     public static bool PieceBelongsToSide(char piece, char side) =>
-        side == 'w' ? FenBoardView.IsWhitePiece(piece) : FenBoardView.IsBlackPiece(piece);
+        FenBoardView.PieceBelongsToSide(piece, side);
 
     public static char OppositeSide(char side) => side == 'w' ? 'b' : 'w';
 }

@@ -20,7 +20,12 @@ public sealed class BotMoveGenerator(IChessEngine engine) : IBotMoveGenerator
 
     public IEnumerable<BotMoveSelection> GetLegalMoves(string fen)
     {
-        foreach (var from in BoardSquares)
+        var board = FenBoardView.Parse(fen);
+        var sourceSquares = board.Pieces
+            .Where(piece => FenBoardView.PieceBelongsToSide(piece.Value, board.SideToMove))
+            .Select(piece => piece.Key);
+
+        foreach (var from in sourceSquares)
         {
             foreach (var to in BoardSquares)
             {

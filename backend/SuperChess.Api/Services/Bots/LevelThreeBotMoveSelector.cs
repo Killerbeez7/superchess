@@ -4,7 +4,7 @@ public sealed class LevelThreeBotMoveSelector(
     IBotMoveGenerator moveGenerator,
     BotMoveEvaluator moveEvaluator) : IBotMoveSelector
 {
-    private const double OpponentReplyWeight = 1.05;
+    private const double OpponentReplyWeight = 1.15;
     private const double PositionWeight = 0.8;
 
     public int Level => 3;
@@ -44,42 +44,23 @@ public sealed class LevelThreeBotMoveSelector(
             return score;
         }
 
-        score += Weighted(moveEvaluator.EvaluatePositionForSide(move.Result.NewFen, botSide), PositionWeight);
-
         var opponentReplies = moveGenerator.GetLegalMoves(move.Result.NewFen).ToList();
+        var resultingBoard = FenBoardView.Parse(move.Result.NewFen);
+
+        score += Weighted(
+            moveEvaluator.EvaluatePositionForSide(resultingBoard, botSide, opponentReplies),
+            PositionWeight);
+
         if (opponentReplies.Count == 0)
         {
             return score;
         }
 
         var bestOpponentReplyScore = opponentReplies
-            .Select(reply => ScoreOpponentReply(move.Result.NewFen, reply, botSide))
+            .Select(reply => moveEvaluator.EvaluateImmediate(move.Result.NewFen, reply))
             .Max();
 
         return score - Weighted(bestOpponentReplyScore, OpponentReplyWeight);
-    }
-
-    private int ScoreOpponentReply(string fen, BotMoveSelection reply, char botSide)
-    {
-        if (reply.Result.IsCheckmate)
-        {
-            return BotMoveEvaluator.CheckmateScore;
-        }
-
-        if (reply.Result.IsStalemate)
-        {
-            return 0;
-        }
-
-        var score = moveEvaluator.EvaluateImmediate(fen, reply);
-        if (reply.Result.NewFen is null)
-        {
-            return score;
-        }
-
-        score -= moveEvaluator.EvaluatePositionForSide(reply.Result.NewFen, botSide);
-
-        return score;
     }
 
     private static int Weighted(int score, double weight) =>

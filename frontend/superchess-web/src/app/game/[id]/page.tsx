@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
@@ -383,6 +383,7 @@ export default function GameDetailsPage() {
     handlePromotionCancel,
     pendingPromotionMove,
     isJoining,
+    isMakingMove,
     canInteractWithBoard,
   } = useGameActions({
     gameId,
@@ -401,6 +402,33 @@ export default function GameDetailsPage() {
     onOptimisticMove: handleOptimisticMoveSound,
     onGameStarted: handleGameStartedSound,
   });
+  const pendingBotColor: PieceColor | null =
+    isMakingMove && session
+      ? session.color === "white"
+        ? "black"
+        : "white"
+      : null;
+  const pendingBotTurnStartedAt = useMemo(
+    () => (pendingBotColor ? new Date().toISOString() : null),
+    [pendingBotColor]
+  );
+  const pendingBotClockGame = useMemo(
+    () =>
+      game && pendingBotColor && pendingBotTurnStartedAt
+        ? {
+            ...game,
+            whoseTurn: pendingBotColor,
+            turnStartedAtUtc: pendingBotTurnStartedAt,
+          }
+        : null,
+    [game, pendingBotColor, pendingBotTurnStartedAt]
+  );
+  const {
+    whiteTimer: pendingWhiteTimer,
+    blackTimer: pendingBlackTimer,
+    whiteTimeRemainingMs: pendingWhiteTimeRemainingMs,
+    blackTimeRemainingMs: pendingBlackTimeRemainingMs,
+  } = useGameClocks(pendingBotClockGame);
 
   const handleJoinWithIdentity = useCallback(async () => {
     unlockSounds();
@@ -674,17 +702,24 @@ export default function GameDetailsPage() {
     setIsAuthModalOpen(true);
   }, [canTakeBlackSeat, isAuthReady, isAuthenticated]);
 
-  const isWhiteTurn = game?.status === "active" && game.whoseTurn === "white";
-  const isBlackTurn = game?.status === "active" && game.whoseTurn === "black";
+  const activeTurnColor = pendingBotColor ?? game?.whoseTurn;
+  const isWhiteTurn = game?.status === "active" && activeTurnColor === "white";
+  const isBlackTurn = game?.status === "active" && activeTurnColor === "black";
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for player 2";
   const whitePlayerName = game?.whitePlayer.displayName ?? "Waiting for player 1";
   const boardPerspective = localPlayerColor ?? "white";
+  const displayedWhiteTimer = pendingBotColor === "white" ? pendingWhiteTimer : whiteTimer;
+  const displayedBlackTimer = pendingBotColor === "black" ? pendingBlackTimer : blackTimer;
+  const displayedWhiteTimeRemainingMs =
+    pendingBotColor === "white" ? pendingWhiteTimeRemainingMs : whiteTimeRemainingMs;
+  const displayedBlackTimeRemainingMs =
+    pendingBotColor === "black" ? pendingBlackTimeRemainingMs : blackTimeRemainingMs;
 
   const whitePlayerView = {
     name: whitePlayerName,
     color: "white" as const,
-    timer: whiteTimer,
-    timeRemainingMs: whiteTimeRemainingMs,
+    timer: displayedWhiteTimer,
+    timeRemainingMs: displayedWhiteTimeRemainingMs,
     isActive: isWhiteTurn,
     action: null,
   };
@@ -692,8 +727,8 @@ export default function GameDetailsPage() {
   const blackPlayerView = {
     name: blackPlayerName,
     color: "black" as const,
-    timer: game?.blackPlayer ? blackTimer : "--:--",
-    timeRemainingMs: game?.blackPlayer ? blackTimeRemainingMs : undefined,
+    timer: game?.blackPlayer ? displayedBlackTimer : "--:--",
+    timeRemainingMs: game?.blackPlayer ? displayedBlackTimeRemainingMs : undefined,
     isActive: isBlackTurn,
     action:
       canTakeBlackSeat && isAuthReady ? (

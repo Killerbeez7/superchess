@@ -194,6 +194,10 @@ export default function GameDetailsPage() {
     lastMoveFrom,
     lastMoveTo,
   } = useBoardSelection(game, session, displayedFen);
+  const currentTurnTimeRemainingMs =
+    game?.whoseTurn === "white" ? whiteTimeRemainingMs : blackTimeRemainingMs;
+  const timedOutColor =
+    game?.status === "active" && currentTurnTimeRemainingMs <= 0 ? game.whoseTurn : null;
 
   const { playSound, playSounds, preloadSounds, prepareSounds, unlockSounds } =
     useGameSounds();
@@ -392,6 +396,7 @@ export default function GameDetailsPage() {
     setOptimisticFen,
     boardPosition,
     enPassantSquare,
+    canSubmitMove: !timedOutColor,
     onIllegalMove: handleIllegalMoveSound,
     onOptimisticMove: handleOptimisticMoveSound,
     onGameStarted: handleGameStartedSound,
@@ -441,10 +446,6 @@ export default function GameDetailsPage() {
     setSelectedSquare(null);
   }, [refresh, setSelectedSquare]);
 
-  const currentTurnTimeRemainingMs =
-    game?.whoseTurn === "white" ? whiteTimeRemainingMs : blackTimeRemainingMs;
-  const timedOutColor =
-    game?.status === "active" && currentTurnTimeRemainingMs <= 0 ? game.whoseTurn : null;
   const timeoutRefreshKey =
     game && timedOutColor
       ? `${game.id}:${timedOutColor}:${game.turnStartedAtUtc ?? game.updatedAtUtc}`

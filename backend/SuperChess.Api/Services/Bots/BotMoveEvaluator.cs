@@ -8,6 +8,7 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
     private const int CheckBonus = 35;
     private const int CenterBonus = 12;
     private const int DevelopmentBonus = 10;
+    private const int MaterialUnit = 100;
 
     private static readonly HashSet<string> CenterSquares = ["d4", "e4", "d5", "e5"];
 
@@ -34,7 +35,7 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
         var capturedPiece = board.GetPiece(move.To);
         if (capturedPiece is not null && !SameColor(movingPiece.Value, capturedPiece.Value))
         {
-            score += PieceValue(capturedPiece.Value) * 100;
+            score += PieceValue(capturedPiece.Value) * MaterialUnit;
         }
 
         if (move.Result.IsCheck)
@@ -44,7 +45,7 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
 
         if (move.Promotion is not null)
         {
-            score += PieceValue(move.Promotion[0]) * 100;
+            score += PieceValue(move.Promotion[0]) * MaterialUnit;
         }
 
         if (CenterSquares.Contains(move.To))
@@ -74,6 +75,17 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
         return score - HangingPiecePenalty(move, movingPiece.Value);
     }
 
+    public int EvaluatePositionForSide(string fen, char side)
+    {
+        var board = FenBoardView.Parse(fen);
+        var score = MaterialScore(board, side);
+
+        score -= LoosePiecePenalty(fen, side);
+        score += LoosePiecePenalty(fen, OppositeSide(side)) / 2;
+
+        return score;
+    }
+
     private int HangingPiecePenalty(BotMoveSelection move, char movingPiece)
     {
         if (move.Result.NewFen is null || move.Result.IsCheckmate || move.Result.IsStalemate)
@@ -95,6 +107,60 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
             : 0;
     }
 
+    private int LoosePiecePenalty(string fen, char side)
+    {
+        var board = FenBoardView.Parse(fen);
+        var opponentCaptures = moveGenerator
+            .GetLegalMoves(fen)
+            .Where(move =>
+            {
+                var target = board.GetPiece(move.To);
+                return target is not null && PieceBelongsToSide(target.Value, side);
+            });
+
+        var strongestThreatBySquare = new Dictionary<string, int>();
+        foreach (var capture in opponentCaptures)
+        {
+            var movingPiece = board.GetPiece(capture.From);
+            var capturedPiece = board.GetPiece(capture.To);
+            if (movingPiece is null || capturedPiece is null)
+            {
+                continue;
+            }
+
+            var capturedValue = PieceValue(capturedPiece.Value);
+            if (capturedValue <= 1)
+            {
+                continue;
+            }
+
+            var attackerValue = PieceValue(movingPiece.Value);
+            var threatScore = (capturedValue * MaterialUnit) - (attackerValue * 25);
+
+            if (
+                !strongestThreatBySquare.TryGetValue(capture.To, out var currentThreat) ||
+                threatScore > currentThreat)
+            {
+                strongestThreatBySquare[capture.To] = threatScore;
+            }
+        }
+
+        return strongestThreatBySquare.Values.Sum();
+    }
+
+    private static int MaterialScore(FenBoardView board, char side)
+    {
+        var score = 0;
+
+        foreach (var piece in board.Pieces.Select(entry => entry.Value))
+        {
+            var value = PieceValue(piece) * MaterialUnit;
+            score += PieceBelongsToSide(piece, side) ? value : -value;
+        }
+
+        return score;
+    }
+
     private static bool IsDevelopingMove(char piece, string from)
     {
         var lowerPiece = char.ToLowerInvariant(piece);
@@ -106,7 +172,7 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
         return from is "b1" or "g1" or "c1" or "f1" or "b8" or "g8" or "c8" or "f8";
     }
 
-    private static int PieceValue(char piece) =>
+    public static int PieceValue(char piece) =>
         char.ToLowerInvariant(piece) switch
         {
             'p' => 1,
@@ -118,4 +184,9 @@ public sealed class BotMoveEvaluator(IBotMoveGenerator moveGenerator)
 
     private static bool SameColor(char a, char b) =>
         char.IsUpper(a) == char.IsUpper(b);
+
+    public static bool PieceBelongsToSide(char piece, char side) =>
+        side == 'w' ? FenBoardView.IsWhitePiece(piece) : FenBoardView.IsBlackPiece(piece);
+
+    public static char OppositeSide(char side) => side == 'w' ? 'b' : 'w';
 }

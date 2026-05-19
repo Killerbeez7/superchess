@@ -152,3 +152,4 @@ core/SuperChess.Core/bin/
 core/SuperChess.Core/obj/
 core/SuperChess.Core.Tests/bin/
 core/SuperChess.Core.Tests/obj/
+.verify-build/

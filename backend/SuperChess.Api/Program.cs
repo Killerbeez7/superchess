@@ -84,6 +84,7 @@ builder.Services.AddSingleton<IBotMoveGenerator, BotMoveGenerator>();
 builder.Services.AddSingleton<BotMoveEvaluator>();
 builder.Services.AddSingleton<IBotMoveSelector, LevelOneBotMoveSelector>();
 builder.Services.AddSingleton<IBotMoveSelector, LevelTwoBotMoveSelector>();
+builder.Services.AddSingleton<IBotMoveSelector, LevelThreeBotMoveSelector>();
 builder.Services.AddSingleton<IBotMoveSelectorProvider, BotMoveSelectorProvider>();
 
 // --- CORS ---

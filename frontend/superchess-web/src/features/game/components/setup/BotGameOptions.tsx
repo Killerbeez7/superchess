@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { FaChessPawn, FaChessQueen, FaGaugeHigh } from "react-icons/fa6";
 import type { PieceColor } from "@/types/game";
 
-export type BotLevel = 1 | 2;
+export type BotLevel = 1 | 2 | 3;
 
 type BotGameOptionsProps = {
   playerColor: PieceColor;
@@ -44,6 +44,11 @@ const levelOptions: Array<{
     level: 2,
     title: "Level 2",
     description: "Looks one reply ahead",
+  },
+  {
+    level: 3,
+    title: "Level 3",
+    description: "Protects loose pieces",
   },
 ];
 

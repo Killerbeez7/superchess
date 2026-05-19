@@ -4,14 +4,18 @@ public sealed class FenBoardView
 {
     private readonly Dictionary<string, char> _pieces = [];
 
-    private FenBoardView()
+    private FenBoardView(char sideToMove)
     {
+        SideToMove = sideToMove;
     }
+
+    public char SideToMove { get; }
 
     public static FenBoardView Parse(string fen)
     {
-        var board = new FenBoardView();
-        var boardPart = fen.Split(' ')[0];
+        var parts = fen.Split(' ');
+        var board = new FenBoardView(parts.Length > 1 && parts[1] == "b" ? 'b' : 'w');
+        var boardPart = parts[0];
         var ranks = boardPart.Split('/');
 
         for (var row = 0; row < ranks.Length; row++)
@@ -43,4 +47,10 @@ public sealed class FenBoardView
 
     public char? GetPiece(string square) =>
         _pieces.TryGetValue(square, out var piece) ? piece : null;
+
+    public IEnumerable<KeyValuePair<string, char>> Pieces => _pieces;
+
+    public static bool IsWhitePiece(char piece) => char.IsUpper(piece);
+
+    public static bool IsBlackPiece(char piece) => char.IsLower(piece);
 }

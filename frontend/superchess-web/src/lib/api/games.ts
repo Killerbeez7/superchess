@@ -20,7 +20,7 @@ export type CreateGameRequest = {
 };
 
 export type CreateAiGameRequest = CreateGameRequest & {
-  botLevel: 1 | 2;
+  botLevel: 1 | 2 | 3;
   playerColor: PieceColor;
 };
 

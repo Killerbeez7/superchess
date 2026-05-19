@@ -49,7 +49,7 @@ export function PlayAiClient() {
   );
   const currentTimeControl = selectedTimeControl ?? preferredTimeControl;
   const [playerColor, setPlayerColor] = useState<PieceColor>("white");
-  const [botLevel, setBotLevel] = useState<BotLevel>(2);
+  const [botLevel, setBotLevel] = useState<BotLevel>(3);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shouldStartAfterAuth, setShouldStartAfterAuth] = useState(false);

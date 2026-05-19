@@ -14,6 +14,10 @@ namespace SuperChess.Api.Services.Games;
 
 public class GameService : IGameService
 {
+    private const int LevelOneBotThinkMs = 350;
+    private const int LevelTwoBotThinkMs = 650;
+    private const int LevelThreeBotThinkMs = 900;
+
     private readonly IGameRepository _repo;
     private readonly IGameNotifier _notifier;
     private readonly IChessEngine _engine;
@@ -286,6 +290,17 @@ public class GameService : IGameService
             return Result<GameResponse>.NotFound("Game not found.");
         }
 
+        var now = DateTime.UtcNow;
+        if (ExpireGameByClockIfNeeded(game, now))
+        {
+            await _repo.SaveChangesAsync(ct);
+
+            var expiredResponse = GameMapper.ToResponse(game);
+            await _notifier.NotifyMovePlayedAsync(game.Id, expiredResponse);
+
+            return Result<GameResponse>.Success(expiredResponse);
+        }
+
         if (game.Status == GameStatus.Completed)
         {
             return Result<GameResponse>.Conflict("The game is over.");
@@ -320,8 +335,6 @@ public class GameService : IGameService
             return Result<GameResponse>.Forbidden("It's not your turn.");
         }
 
-
-        var now = DateTime.UtcNow;
         if (!ApplyClockSpend(game, now, game.WhoseTurn))
         {
             CompleteGame(
@@ -446,6 +459,12 @@ public class GameService : IGameService
             return;
         }
 
+        if (!ApplyBotThinkTime(game, movingColor))
+        {
+            CompleteGame(game, GameEndReason.Timeout, OppositeColor(movingColor), now);
+            return;
+        }
+
         var selected = _botMoveSelectorProvider
             .GetSelector(game.BotLevel)
             .SelectMove(game.CurrentFen);
@@ -523,9 +542,9 @@ public class GameService : IGameService
 
     private static Result<int> CreateBotLevel(CreateBotGameRequest request)
     {
-        if (request.BotLevel is < 1 or > 2)
+        if (request.BotLevel is < 1 or > 3)
         {
-            return Result<int>.Validation("BotLevel must be 1 or 2.");
+            return Result<int>.Validation("BotLevel must be between 1 and 3.");
         }
 
         return Result<int>.Success(request.BotLevel);
@@ -702,4 +721,30 @@ public class GameService : IGameService
 
         game.BlackTimeRemainingMs += game.IncrementMs;
     }
+
+    private static bool ApplyBotThinkTime(ChessGame game, PieceColor color)
+    {
+        var thinkMs = GetBotThinkMs(game.BotLevel);
+        if (thinkMs <= 0)
+        {
+            return true;
+        }
+
+        if (color == PieceColor.White)
+        {
+            game.WhiteTimeRemainingMs = DeductElapsed(game.WhiteTimeRemainingMs, thinkMs);
+            return game.WhiteTimeRemainingMs > 0;
+        }
+
+        game.BlackTimeRemainingMs = DeductElapsed(game.BlackTimeRemainingMs, thinkMs);
+        return game.BlackTimeRemainingMs > 0;
+    }
+
+    private static int GetBotThinkMs(int botLevel) =>
+        botLevel switch
+        {
+            1 => LevelOneBotThinkMs,
+            2 => LevelTwoBotThinkMs,
+            _ => LevelThreeBotThinkMs
+        };
 }

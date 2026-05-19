@@ -26,6 +26,7 @@ type UseGameActionsArgs = {
   setOptimisticFen: (fen: string | null) => void;
   boardPosition: BoardPosition;
   enPassantSquare: string | null;
+  canSubmitMove?: boolean;
   onIllegalMove?: () => void;
   onOptimisticMove?: (move: {
     from: string;
@@ -68,6 +69,7 @@ export function useGameActions({
   setOptimisticFen,
   boardPosition,
   enPassantSquare,
+  canSubmitMove = true,
   onIllegalMove,
   onOptimisticMove,
   onGameStarted,
@@ -87,6 +89,7 @@ export function useGameActions({
     !!session &&
     game.status === "active" &&
     isLocalPlayersTurn &&
+    canSubmitMove &&
     !isMakingMove &&
     !pendingPromotionMove;
 
@@ -142,7 +145,7 @@ export function useGameActions({
 
   const submitMove = useCallback(
     async (from: string, to: string, promotion?: PromotionPiece) => {
-      if (!gameId || !game || !session) return;
+      if (!gameId || !game || !session || !canSubmitMove) return;
 
       if (!accessToken) {
         setError("Sign in to make a move.");
@@ -196,6 +199,7 @@ export function useGameActions({
       gameId,
       game,
       session,
+      canSubmitMove,
       setGame,
       setError,
       setOptimisticFen,

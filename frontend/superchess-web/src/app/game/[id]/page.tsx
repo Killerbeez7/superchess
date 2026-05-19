@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
-import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ChessBoard } from "@/features/game/components/board/ChessBoard";
@@ -36,6 +35,7 @@ import {
 import {
   getEnPassantSquareFromFen,
   getCandidateSquares,
+  getCastlingRightsFromFen,
   getPieceAtSquare,
   isKingInCheck,
   pieceBelongsToColor,
@@ -184,7 +184,14 @@ export default function GameDetailsPage() {
   const { user, accessToken, isReady: isAuthReady, isAuthenticated } = useAuth();
   const { whiteTimer, blackTimer, whiteTimeRemainingMs, blackTimeRemainingMs } =
     useGameClocks(game);
+
   const displayedFen = optimisticFen ?? game?.currentFen;
+
+  const castlingRights = useMemo(
+    () => getCastlingRightsFromFen(displayedFen),
+    [displayedFen]
+  );
+
   const {
     selectedSquare,
     setSelectedSquare,
@@ -194,8 +201,10 @@ export default function GameDetailsPage() {
     lastMoveFrom,
     lastMoveTo,
   } = useBoardSelection(game, session, displayedFen);
+
   const currentTurnTimeRemainingMs =
     game?.whoseTurn === "white" ? whiteTimeRemainingMs : blackTimeRemainingMs;
+
   const timedOutColor =
     game?.status === "active" && currentTurnTimeRemainingMs <= 0 ? game.whoseTurn : null;
 
@@ -243,6 +252,7 @@ export default function GameDetailsPage() {
     optimisticSoundRef.current = null;
     playSound("illegal");
   }, [playSound]);
+
   const handleOptimisticMoveSound = useCallback(
     ({
       from,
@@ -402,16 +412,15 @@ export default function GameDetailsPage() {
     onOptimisticMove: handleOptimisticMoveSound,
     onGameStarted: handleGameStartedSound,
   });
+
   const pendingBotColor: PieceColor | null =
-    isMakingMove && session
-      ? session.color === "white"
-        ? "black"
-        : "white"
-      : null;
+    isMakingMove && session ? (session.color === "white" ? "black" : "white") : null;
+
   const pendingBotTurnStartedAt = useMemo(
     () => (pendingBotColor ? new Date().toISOString() : null),
     [pendingBotColor]
   );
+
   const pendingBotClockGame = useMemo(
     () =>
       game && pendingBotColor && pendingBotTurnStartedAt
@@ -423,6 +432,7 @@ export default function GameDetailsPage() {
         : null,
     [game, pendingBotColor, pendingBotTurnStartedAt]
   );
+
   const {
     whiteTimer: pendingWhiteTimer,
     blackTimer: pendingBlackTimer,
@@ -533,7 +543,8 @@ export default function GameDetailsPage() {
                 boardPosition,
                 selectedSquare,
                 selectedPiece,
-                enPassantSquare
+                enPassantSquare,
+                castlingRights
               )
             : [];
 
@@ -553,6 +564,7 @@ export default function GameDetailsPage() {
     },
     [
       boardPosition,
+      castlingRights,
       enPassantSquare,
       isOwnPlayablePiece,
       selectedSquare,
@@ -576,7 +588,8 @@ export default function GameDetailsPage() {
             boardPosition,
             pendingTapMoveFrom,
             pendingPiece,
-            enPassantSquare
+            enPassantSquare,
+            castlingRights
           );
 
           if (candidates.includes(square)) {
@@ -607,7 +620,8 @@ export default function GameDetailsPage() {
           boardPosition,
           selectedSquare,
           selectedPiece,
-          enPassantSquare
+          enPassantSquare,
+          castlingRights
         );
 
         if (candidates.includes(square)) {
@@ -628,11 +642,12 @@ export default function GameDetailsPage() {
     },
     [
       boardPosition,
+      castlingRights,
+      enPassantSquare,
       handleMoveAttempt,
       isOwnPlayablePiece,
       selectedSquare,
       setSelectedSquare,
-      enPassantSquare,
       unlockSounds,
     ]
   );
@@ -663,7 +678,8 @@ export default function GameDetailsPage() {
         boardPosition,
         from,
         sourcePiece,
-        enPassantSquare
+        enPassantSquare,
+        castlingRights
       );
 
       if (!candidates.includes(releasedOn)) {
@@ -676,9 +692,10 @@ export default function GameDetailsPage() {
     },
     [
       boardPosition,
+      castlingRights,
       enPassantSquare,
-      handleMoveAttempt,
       handleIllegalMoveSound,
+      handleMoveAttempt,
       isOwnPlayablePiece,
       setSelectedSquare,
       unlockSounds,
@@ -708,8 +725,11 @@ export default function GameDetailsPage() {
   const blackPlayerName = game?.blackPlayer?.displayName ?? "Waiting for player 2";
   const whitePlayerName = game?.whitePlayer.displayName ?? "Waiting for player 1";
   const boardPerspective = localPlayerColor ?? "white";
-  const displayedWhiteTimer = pendingBotColor === "white" ? pendingWhiteTimer : whiteTimer;
-  const displayedBlackTimer = pendingBotColor === "black" ? pendingBlackTimer : blackTimer;
+
+  const displayedWhiteTimer =
+    pendingBotColor === "white" ? pendingWhiteTimer : whiteTimer;
+  const displayedBlackTimer =
+    pendingBotColor === "black" ? pendingBlackTimer : blackTimer;
   const displayedWhiteTimeRemainingMs =
     pendingBotColor === "white" ? pendingWhiteTimeRemainingMs : whiteTimeRemainingMs;
   const displayedBlackTimeRemainingMs =

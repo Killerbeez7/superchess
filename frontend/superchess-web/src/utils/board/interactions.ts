@@ -36,11 +36,18 @@ export function getEnPassantSquareFromFen(currentFen?: string | null) {
   return square && /^[a-h][36]$/.test(square) ? square : null;
 }
 
+export function getCastlingRightsFromFen(currentFen?: string | null) {
+  const rights = currentFen?.trim().split(/\s+/)[2];
+
+  return rights && rights !== "-" ? rights : "";
+}
+
 export function getCandidateSquares(
   position: BoardPosition | undefined,
   from: string,
   piece: BoardPiece,
-  enPassantSquare?: string | null
+  enPassantSquare?: string | null,
+  castlingRights = ""
 ): string[] {
   if (!position) return [];
 
@@ -196,6 +203,46 @@ export function getCandidateSquares(
       }
     }
 
+    const homeRank = piece.color === "white" ? "1" : "8";
+    const kingHomeSquare = `e${homeRank}`;
+
+    if (from === kingHomeSquare && !isKingInCheck(position, piece.color)) {
+      const enemyColor = oppositeColor(piece.color);
+      const kingSideRight = piece.color === "white" ? "K" : "k";
+      const queenSideRight = piece.color === "white" ? "Q" : "q";
+      const kingSideRookSquare = `h${homeRank}`;
+      const queenSideRookSquare = `a${homeRank}`;
+      const kingSideRook = position[kingSideRookSquare] ?? null;
+      const queenSideRook = position[queenSideRookSquare] ?? null;
+
+      const canCastleKingSide =
+        castlingRights.includes(kingSideRight) &&
+        kingSideRook?.type === "rook" &&
+        kingSideRook.color === piece.color &&
+        !position[`f${homeRank}`] &&
+        !position[`g${homeRank}`] &&
+        !isSquareAttackedBy(position, `f${homeRank}`, enemyColor) &&
+        !isSquareAttackedBy(position, `g${homeRank}`, enemyColor);
+
+      if (canCastleKingSide) {
+        results.push(`g${homeRank}`);
+      }
+
+      const canCastleQueenSide =
+        castlingRights.includes(queenSideRight) &&
+        queenSideRook?.type === "rook" &&
+        queenSideRook.color === piece.color &&
+        !position[`b${homeRank}`] &&
+        !position[`c${homeRank}`] &&
+        !position[`d${homeRank}`] &&
+        !isSquareAttackedBy(position, `d${homeRank}`, enemyColor) &&
+        !isSquareAttackedBy(position, `c${homeRank}`, enemyColor);
+
+      if (canCastleQueenSide) {
+        results.push(`c${homeRank}`);
+      }
+    }
+
     return filterKingSafeMoves(position, from, piece, results, enPassantSquare);
   }
 
@@ -285,6 +332,21 @@ export function applyOptimisticMoveToFen(
 
     board[fromCoords.row][fromCoords.col] = null;
     board[toCoords.row][toCoords.col] = promotionPiece ?? piece;
+
+    const isCastle =
+      piece.toLowerCase() === "k" &&
+      fromCoords.row === toCoords.row &&
+      Math.abs(toCoords.col - fromCoords.col) === 2;
+
+    if (isCastle) {
+      const isKingSide = toCoords.col > fromCoords.col;
+      const rookFromCol = isKingSide ? 7 : 0;
+      const rookToCol = isKingSide ? 5 : 3;
+      const rook = board[fromCoords.row][rookFromCol];
+
+      board[fromCoords.row][rookFromCol] = null;
+      board[fromCoords.row][rookToCol] = rook;
+    }
 
     if (isEnPassantCapture) {
       board[fromCoords.row][toCoords.col] = null;

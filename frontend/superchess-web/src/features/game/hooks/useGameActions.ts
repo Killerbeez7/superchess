@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/client";
 import {
   applyOptimisticMoveToFen,
   getCandidateSquares,
+  getCastlingRightsFromFen,
   getPieceAtSquare,
   pieceBelongsToColor,
 } from "@/utils/board/interactions";
@@ -217,7 +218,6 @@ export function useGameActions({
         setSelectedSquare(null);
         return;
       }
-
       const movingPiece = getPieceAtSquare(boardPosition, from);
       const targetPiece = getPieceAtSquare(boardPosition, to);
 
@@ -233,11 +233,13 @@ export function useGameActions({
         return;
       }
 
+      const castlingRights = getCastlingRightsFromFen(game.currentFen);
       const candidates = getCandidateSquares(
         boardPosition,
         from,
         movingPiece,
-        enPassantSquare
+        enPassantSquare,
+        castlingRights
       );
 
       if (!candidates.includes(to)) {

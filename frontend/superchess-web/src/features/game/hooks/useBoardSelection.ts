@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   getCandidateSquares,
+  getCastlingRightsFromFen,
   getEnPassantSquareFromFen,
   getPieceAtSquare,
   pieceBelongsToColor,
@@ -29,6 +30,11 @@ export function useBoardSelection(
     [activeFen]
   );
 
+  const castlingRights = useMemo(
+    () => getCastlingRightsFromFen(activeFen),
+    [activeFen]
+  );
+
   const selectedPiece = useMemo(
     () => (selectedSquare ? getPieceAtSquare(boardPosition, selectedSquare) : null),
     [boardPosition, selectedSquare]
@@ -41,9 +47,10 @@ export function useBoardSelection(
       boardPosition,
       selectedSquare,
       selectedPiece,
-      enPassantSquare
+      enPassantSquare,
+      castlingRights
     );
-  }, [boardPosition, enPassantSquare, selectedSquare, selectedPiece, session]);
+  }, [boardPosition, castlingRights, enPassantSquare, selectedSquare, selectedPiece, session]);
 
   const latestMove = game?.moves?.length ? game.moves[game.moves.length - 1] : null;
 
@@ -52,6 +59,7 @@ export function useBoardSelection(
     setSelectedSquare,
     boardPosition,
     enPassantSquare,
+    castlingRights,
     candidateSquares,
     lastMoveFrom: latestMove?.from ?? null,
     lastMoveTo: latestMove?.to ?? null,

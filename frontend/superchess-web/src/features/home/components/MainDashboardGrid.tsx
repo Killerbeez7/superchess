@@ -14,13 +14,13 @@ export function MainDashboardGrid({ children }: MainDashboardGridProps) {
   return (
     <div className="grid gap-5 min-[1400px]:grid-cols-[minmax(0,1fr)_360px]">
       <div className="contents min-[1400px]:grid min-[1400px]:gap-5">
-        <div className="order-1 min-[1400px]:order-none">{actionPanel}</div>
-        <div className="order-2 min-[1400px]:order-none">{historyPanel}</div>
+        <div className="order-1 min-[1400px]:order-0">{actionPanel}</div>
+        <div className="order-2 min-[1400px]:order-0">{historyPanel}</div>
       </div>
 
       <aside className="contents min-[1400px]:grid min-[1400px]:gap-5 min-[1400px]:self-start">
-        <div className="order-3 min-[1400px]:order-none">{statsPanel}</div>
-        <div className="order-4 min-[1400px]:order-none">{watchPanel}</div>
+        <div className="order-3 min-[1400px]:order-0">{statsPanel}</div>
+        <div className="order-4 min-[1400px]:order-0">{watchPanel}</div>
       </aside>
     </div>
   );

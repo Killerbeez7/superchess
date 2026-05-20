@@ -105,12 +105,6 @@ function PlayMenuRow({ item, index }: { item: PlayMenuItem; index: number }) {
         <span className="block truncate text-[13px] font-bold text-text-muted transition group-hover/menu-row:text-text-primary">
           {item.label}
         </span>
-
-        {/* {item.description ? (
-          <span className="mt-0.5 block truncate text-[11px] text-text-muted">
-            {item.description}
-          </span>
-        ) : null} */}
       </span>
     </>
   );

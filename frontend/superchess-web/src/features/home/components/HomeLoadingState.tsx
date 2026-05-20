@@ -5,7 +5,7 @@ export function HomeLoadingState() {
   return (
     <PageShell>
       <Container className="py-8 lg:py-12">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-5 min-[1400px]:grid-cols-[minmax(0,1fr)_360px]">
           <div className="grid gap-5">
             <div className="grid gap-3 sm:grid-cols-2">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -25,7 +25,7 @@ export function HomeLoadingState() {
             <div className="h-48 rounded-2xl border border-border-light bg-card" />
           </div>
 
-          <aside className="grid gap-5 lg:self-start">
+          <aside className="grid gap-5 min-[1400px]:self-start">
             <div className="h-48 rounded-2xl border border-border-light bg-card" />
             <div className="h-36 rounded-2xl border border-border-light bg-card" />
           </aside>

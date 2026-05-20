@@ -747,8 +747,8 @@ export default function GameDetailsPage() {
   const blackPlayerView = {
     name: blackPlayerName,
     color: "black" as const,
-    timer: game?.blackPlayer ? displayedBlackTimer : "--:--",
-    timeRemainingMs: game?.blackPlayer ? displayedBlackTimeRemainingMs : undefined,
+    timer: displayedBlackTimer,
+    timeRemainingMs: displayedBlackTimeRemainingMs,
     isActive: isBlackTurn,
     action:
       canTakeBlackSeat && isAuthReady ? (

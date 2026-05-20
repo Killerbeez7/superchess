@@ -120,13 +120,15 @@ export function GameRightSidebar({
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b8b8b8]">
               SuperChess
             </p>
-            <h2 className="mt-1 truncate text-xl font-bold text-white">
-              SuperChess Room
-            </h2>
           </div>
           <StatusPill isConnected={isConnected} />
         </div>
-
+        <div>
+          {" "}
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b8b8b8]">
+            invite code
+          </p>
+        </div>
         <button
           type="button"
           onClick={handleCopyInviteLink}
@@ -163,9 +165,6 @@ export function GameRightSidebar({
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b8b8b8]">
                 Moves
               </p>
-              <span className="text-xs font-semibold text-[#b8b8b8]">
-                {game?.moves.length ?? 0}
-              </span>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-3">

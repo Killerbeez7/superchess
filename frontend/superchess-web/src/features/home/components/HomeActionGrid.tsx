@@ -104,28 +104,24 @@ export function HomeActionGrid() {
           icon={<FaBolt />}
           featured
           isBusy={isCreatingQuickGame}
-          showDescription
         />
         <HomeActionCard
           title="New Game"
           description="Choose time and mode."
           href={ONLINE_SETUP_HREF}
           icon={<FaChessKnight />}
-          showDescription
         />
         <HomeActionCard
           title="Play Friend"
           description="Start a private room link."
           href={FRIEND_ONLINE_SETUP_HREF}
           icon={<FaUserGroup />}
-          showDescription
         />
         <HomeActionCard
           title="Play AI"
           description="Practice against the engine."
           href={PLAY_AI_SETUP_HREF}
           icon={<FaRobot />}
-          showDescription
         />
       </section>
 

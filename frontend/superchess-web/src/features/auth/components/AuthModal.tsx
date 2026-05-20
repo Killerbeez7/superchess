@@ -8,16 +8,24 @@ import { LoginForm } from "@/features/auth/components/LoginForm";
 import { RegisterForm } from "@/features/auth/components/RegisterForm";
 
 type AuthMode = "login" | "register";
+export type { AuthMode };
 
 export type AuthModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialMode?: AuthMode;
   onAuthenticated?: (session: AuthResponse) => void;
   reason?: string;
 };
 
-export function AuthModal({ isOpen, onClose, onAuthenticated, reason }: AuthModalProps) {
-  const [mode, setMode] = useState<AuthMode>("login");
+export function AuthModal({
+  isOpen,
+  onClose,
+  initialMode = "login",
+  onAuthenticated,
+  reason,
+}: AuthModalProps) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
 
   if (!isOpen) return null;
   if (typeof document === "undefined") return null;

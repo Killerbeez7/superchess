@@ -1,5 +1,15 @@
+const configuredApiBaseUrl =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || undefined;
+
+export const DIRECT_API_BASE_URL = configuredApiBaseUrl ?? "http://localhost:5199";
+
+// Production REST calls go through Next rewrites so auth cookies stay first-party.
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5199";
+  process.env.NODE_ENV === "production" ? "" : DIRECT_API_BASE_URL;
+
+function describeApiTarget() {
+  return API_BASE_URL || "the same-origin /api proxy";
+}
 
 export type ApiErrorKind =
   | "validation"
@@ -54,7 +64,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       err instanceof TypeError &&
       err.message.toLowerCase().includes("failed to fetch");
     const message = isFetchFailure
-      ? `Cannot reach the API at ${API_BASE_URL}. Start the backend (npm run run:backend) and try again.`
+      ? `Cannot reach the API at ${describeApiTarget()}. Start the backend (npm run run:backend) and try again.`
       : err instanceof Error
         ? err.message
         : "Network error";

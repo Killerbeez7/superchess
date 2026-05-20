@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createGame, getGames, joinGame } from "@/lib/api/games";
-import { getGameSession, saveGameSession } from "@/lib/storage/gameSession";
+import { saveGameSession } from "@/lib/storage/gameSession";
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";

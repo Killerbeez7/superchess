@@ -24,19 +24,16 @@ public sealed class GameRepository(AppDbContext db) : IGameRepository
         Guid userId,
         int take,
         CancellationToken ct = default) =>
-        WithDetails()
-            .Where(g =>
-                g.Kind == GameKind.Online &&
-                g.Status == GameStatus.Completed &&
-                !g.WhitePlayer.IsBot &&
-                g.BlackPlayer != null &&
-                !g.BlackPlayer.IsBot &&
-                (g.WhitePlayer.UserId == userId ||
-                 g.BlackPlayer.UserId == userId))
+        GetCompletedGamesForUserQuery(userId)
             .OrderByDescending(g => g.UpdatedAtUtc)
             .ThenByDescending(g => g.CreatedAtUtc)
             .Take(take)
             .ToListAsync(ct);
+
+    public Task<List<ChessGame>> GetCompletedGamesForUserAsync(
+        Guid userId,
+        CancellationToken ct = default) =>
+        GetCompletedGamesForUserQuery(userId).ToListAsync(ct);
 
     public void AddGame(ChessGame game) => db.Games.Add(game);
     public void AddPlayer(Player player) => db.Players.Add(player);
@@ -56,4 +53,15 @@ public sealed class GameRepository(AppDbContext db) : IGameRepository
                 !g.WhitePlayer.IsBot &&
                 g.CreatedAtUtc >= cutoff);
     }
+
+    private IQueryable<ChessGame> GetCompletedGamesForUserQuery(Guid userId) =>
+        WithDetails()
+            .Where(g =>
+                g.Kind == GameKind.Online &&
+                g.Status == GameStatus.Completed &&
+                !g.WhitePlayer.IsBot &&
+                g.BlackPlayer != null &&
+                !g.BlackPlayer.IsBot &&
+                (g.WhitePlayer.UserId == userId ||
+                 g.BlackPlayer.UserId == userId));
 }

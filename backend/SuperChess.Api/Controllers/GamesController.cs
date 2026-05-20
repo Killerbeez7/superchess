@@ -67,6 +67,21 @@ public class GamesController(IGameService gameService) : ControllerBase
         return Ok(games);
     }
 
+    [Authorize]
+    [HttpGet("stats")]
+    public async Task<ActionResult<GameStatsResponse>> GetGameStats(
+        CancellationToken ct)
+    {
+        var currentUser = GetAuthenticatedGameUser();
+        if (currentUser is null)
+        {
+            return Unauthorized("Authentication is required.");
+        }
+
+        var stats = await gameService.GetGameStatsAsync(currentUser, ct);
+        return Ok(stats);
+    }
+
     [HttpGet("{gameId:guid}")]
     public async Task<ActionResult<GameResponse>> GetGame(
         Guid gameId,

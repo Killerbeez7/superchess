@@ -82,3 +82,10 @@ export type GameHistoryResponse = {
   createdAtUtc: string;
   updatedAtUtc: string;
 };
+
+export type GameStatsResponse = {
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+};

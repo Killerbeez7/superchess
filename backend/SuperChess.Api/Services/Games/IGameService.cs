@@ -26,6 +26,10 @@ public interface IGameService
         AuthenticatedGameUser player,
         CancellationToken ct = default);
 
+    Task<GameStatsResponse> GetGameStatsAsync(
+        AuthenticatedGameUser player,
+        CancellationToken ct = default);
+
     Task<Result<GameSessionResponse>> JoinGameAsync(
         Guid gameId,
         AuthenticatedGameUser player,

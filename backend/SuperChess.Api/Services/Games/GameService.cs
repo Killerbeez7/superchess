@@ -229,6 +229,38 @@ public class GameService : IGameService
             .ToList();
     }
 
+    public async Task<GameStatsResponse> GetGameStatsAsync(
+        AuthenticatedGameUser player,
+        CancellationToken ct = default)
+    {
+        var games = await _repo.GetCompletedGamesForUserAsync(player.UserId, ct);
+        var stats = new GameStatsResponse
+        {
+            Games = games.Count
+        };
+
+        foreach (var game in games)
+        {
+            if (game.WinnerColor is null)
+            {
+                stats.Draws++;
+                continue;
+            }
+
+            var playerColor = GetPlayerColor(game, player.UserId);
+            if (game.WinnerColor == playerColor)
+            {
+                stats.Wins++;
+            }
+            else
+            {
+                stats.Losses++;
+            }
+        }
+
+        return stats;
+    }
+
     public async Task<Result<GameSessionResponse>> JoinGameAsync(
         Guid gameId,
         AuthenticatedGameUser player,
@@ -717,6 +749,9 @@ public class GameService : IGameService
 
     private static PieceColor OppositeColor(PieceColor color) =>
         color == PieceColor.White ? PieceColor.Black : PieceColor.White;
+
+    private static PieceColor GetPlayerColor(ChessGame game, Guid userId) =>
+        game.WhitePlayer.UserId == userId ? PieceColor.White : PieceColor.Black;
 
     private static void ApplyIncrement(ChessGame game, PieceColor color)
     {

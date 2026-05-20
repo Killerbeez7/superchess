@@ -3,6 +3,7 @@ import type {
   GameHistoryResponse,
   GameResponse,
   GameSessionResponse,
+  GameStatsResponse,
   MoveSummary,
   PieceColor,
 } from "@/types/game";
@@ -96,6 +97,11 @@ export const getGameHistory = (accessToken: string) =>
   apiFetch<ApiGameHistoryResponse[]>("/api/games/history", {
     headers: authHeaders(accessToken),
   }).then((games) => games.map(normalizeGameHistoryResponse));
+
+export const getGameStats = (accessToken: string) =>
+  apiFetch<GameStatsResponse>("/api/games/stats", {
+    headers: authHeaders(accessToken),
+  });
 
 export const createGame = (accessToken: string, request?: CreateGameRequest) =>
   apiFetch<ApiGameSessionResponse>("/api/games", {

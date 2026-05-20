@@ -42,7 +42,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           onChange={(event) => setDisplayName(event.target.value)}
           autoComplete="nickname"
           required
-          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-sm outline-none transition placeholder:text-text-muted focus:border-primary-green"
+          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-base outline-none transition placeholder:text-text-muted/50 focus:border-primary-green sm:text-sm"
           placeholder="Player name"
         />
       </label>
@@ -54,8 +54,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
           required
-          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-sm outline-none transition placeholder:text-text-muted focus:border-primary-green"
+          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-base outline-none transition placeholder:text-text-muted/50 focus:border-primary-green sm:text-sm"
           placeholder="you@example.com"
         />
       </label>
@@ -67,8 +69,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           autoComplete="new-password"
+          autoCapitalize="none"
+          autoCorrect="off"
           required
-          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-sm outline-none transition placeholder:text-text-muted focus:border-primary-green"
+          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-base outline-none transition placeholder:text-text-muted/50 focus:border-primary-green sm:text-sm"
           placeholder="At least 6 characters"
         />
       </label>

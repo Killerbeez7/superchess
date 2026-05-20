@@ -9,6 +9,7 @@ type AppSidebarItemProps = {
   label: string;
   icon: ReactNode;
   exact?: boolean;
+  onClick?: () => void;
 };
 
 export function AppSidebarItem({
@@ -16,6 +17,7 @@ export function AppSidebarItem({
   label,
   icon,
   exact = false,
+  onClick,
 }: AppSidebarItemProps) {
   const pathname = usePathname();
 
@@ -27,6 +29,7 @@ export function AppSidebarItem({
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
+      onClick={onClick}
       className={`group relative flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
         isActive
           ? "bg-bg-light text-white"

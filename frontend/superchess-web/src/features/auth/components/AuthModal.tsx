@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { LoginForm } from "@/features/auth/components/LoginForm";
@@ -15,15 +16,11 @@ export type AuthModalProps = {
   reason?: string;
 };
 
-export function AuthModal({
-  isOpen,
-  onClose,
-  onAuthenticated,
-  reason,
-}: AuthModalProps) {
+export function AuthModal({ isOpen, onClose, onAuthenticated, reason }: AuthModalProps) {
   const [mode, setMode] = useState<AuthMode>("login");
 
   if (!isOpen) return null;
+  if (typeof document === "undefined") return null;
 
   const handleAuthenticated = (session: AuthResponse) => {
     onAuthenticated?.(session);
@@ -32,14 +29,14 @@ export function AuthModal({
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-90 grid place-items-center bg-black/60 p-4">
-      <section className="w-full max-w-md rounded-2xl border border-app-border bg-panel shadow-2xl">
+      <section className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-app-border bg-panel shadow-2xl">
         <header className="flex items-start justify-between gap-4 border-b border-app-border p-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
+            {/* <p className="text-xs font-bold uppercase tracking-[0.18em] text-text-muted">
               SuperChess account
-            </p>
+            </p> */}
             <h2 className="mt-1 text-xl font-black text-text-primary">
               {mode === "login" ? "Sign in" : "Create account"}
             </h2>
@@ -90,6 +87,7 @@ export function AuthModal({
           </div>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }

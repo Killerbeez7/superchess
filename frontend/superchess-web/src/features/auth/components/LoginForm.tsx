@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -16,7 +16,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     try {
@@ -40,8 +40,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
           required
-          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-sm outline-none transition placeholder:text-text-muted focus:border-primary-green"
+          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-base outline-none transition placeholder:text-text-muted/50 focus:border-primary-green sm:text-sm"
           placeholder="you@example.com"
         />
       </label>
@@ -53,8 +55,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           autoComplete="current-password"
+          autoCapitalize="none"
+          autoCorrect="off"
           required
-          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-sm outline-none transition placeholder:text-text-muted focus:border-primary-green"
+          className="h-11 rounded-xl border border-app-border bg-sidebar px-3 text-base outline-none transition placeholder:text-text-muted/50 focus:border-primary-green sm:text-sm"
           placeholder="Password"
         />
       </label>

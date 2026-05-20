@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
@@ -29,6 +29,7 @@ import type { PieceColor } from "@/types/game";
 export function PlayAiClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const setupPanelRef = useRef<HTMLDivElement>(null);
   const { user, accessToken, isReady, isAuthenticated, refreshUser } = useAuth();
   const { prepareSounds } = useGameSounds();
 
@@ -54,6 +55,19 @@ export function PlayAiClient() {
   const [error, setError] = useState<string | null>(null);
   const [shouldStartAfterAuth, setShouldStartAfterAuth] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 1024px)").matches) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      setupPanelRef.current?.scrollIntoView({
+        block: "start",
+        behavior: "auto",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, []);
 
   const prepareGameAudio = useCallback(() => {
     void prepareSounds(JOIN_PRELOAD_SOUNDS);
@@ -126,6 +140,7 @@ export function PlayAiClient() {
 
   return (
     <NewOnlineGameShell
+      panelRef={setupPanelRef}
       board={
         <NewGameBoardPreview
           playerName={user?.displayName}

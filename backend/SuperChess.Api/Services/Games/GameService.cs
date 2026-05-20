@@ -76,6 +76,7 @@ public class GameService : IGameService
             WhitePlayerId = white.Id,
             WhitePlayer = white,
             Status = GameStatus.Waiting,
+            Kind = GameKind.Online,
             CurrentFen = _engine.StartingFen,
             WhoseTurn = PieceColor.White,
             InitialClockMs = timeControl.InitialClockMs,
@@ -159,6 +160,7 @@ public class GameService : IGameService
             BlackPlayerId = black.Id,
             BlackPlayer = black,
             Status = GameStatus.Active,
+            Kind = GameKind.Bot,
             CurrentFen = _engine.StartingFen,
             WhoseTurn = PieceColor.White,
             InitialClockMs = timeControl.InitialClockMs,
@@ -215,6 +217,16 @@ public class GameService : IGameService
     {
         var games = await _repo.GetWaitingGamesAsync(ct);
         return games.Select(GameMapper.ToResponse).ToList();
+    }
+
+    public async Task<List<GameHistoryResponse>> GetGameHistoryAsync(
+        AuthenticatedGameUser player,
+        CancellationToken ct = default)
+    {
+        var games = await _repo.GetGamesForUserAsync(player.UserId, 30, ct);
+        return games
+            .Select(game => GameMapper.ToHistoryResponse(game, player.UserId))
+            .ToList();
     }
 
     public async Task<Result<GameSessionResponse>> JoinGameAsync(

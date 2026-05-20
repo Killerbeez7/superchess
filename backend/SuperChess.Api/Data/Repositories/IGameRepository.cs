@@ -6,6 +6,7 @@ public interface IGameRepository
 {
     Task<ChessGame?> GetByIdWithDetailsAsync(Guid gameId, CancellationToken ct = default);
     Task<List<ChessGame>> GetWaitingGamesAsync(CancellationToken ct = default);
+    Task<List<ChessGame>> GetGamesForUserAsync(Guid userId, int take, CancellationToken ct = default);
     void AddGame(ChessGame game);
     void AddPlayer(Player player);
     void AddMove(Move move);

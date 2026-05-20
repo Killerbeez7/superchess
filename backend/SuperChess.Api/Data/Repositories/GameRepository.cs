@@ -4,14 +4,10 @@ using SuperChess.Api.Models;
 
 namespace SuperChess.Api.Data.Repositories;
 
-public sealed class GameRepository : IGameRepository
+public sealed class GameRepository(AppDbContext db) : IGameRepository
 {
-    private readonly AppDbContext _db;
-
-    public GameRepository(AppDbContext db) => _db = db;
-
     private IQueryable<ChessGame> WithDetails() =>
-        _db.Games
+        db.Games
             .Include(g => g.WhitePlayer)
             .Include(g => g.BlackPlayer)
             .Include(g => g.Moves);
@@ -20,15 +16,44 @@ public sealed class GameRepository : IGameRepository
         WithDetails().FirstOrDefaultAsync(g => g.Id == gameId, ct);
 
     public Task<List<ChessGame>> GetWaitingGamesAsync(CancellationToken ct = default) =>
-        WithDetails()
-            .Where(g => g.Status == GameStatus.Waiting)
+        GetWaitingGamesQuery()
             .OrderByDescending(g => g.CreatedAtUtc)
             .ToListAsync(ct);
 
-    public void AddGame(ChessGame game) => _db.Games.Add(game);
-    public void AddPlayer(Player player) => _db.Players.Add(player);
-    public void AddMove(Move move) => _db.Moves.Add(move);
+    public Task<List<ChessGame>> GetGamesForUserAsync(
+        Guid userId,
+        int take,
+        CancellationToken ct = default) =>
+        WithDetails()
+            .Where(g =>
+                g.Kind == GameKind.Online &&
+                g.Status == GameStatus.Completed &&
+                !g.WhitePlayer.IsBot &&
+                g.BlackPlayer != null &&
+                !g.BlackPlayer.IsBot &&
+                (g.WhitePlayer.UserId == userId ||
+                 g.BlackPlayer.UserId == userId))
+            .OrderByDescending(g => g.UpdatedAtUtc)
+            .ThenByDescending(g => g.CreatedAtUtc)
+            .Take(take)
+            .ToListAsync(ct);
+
+    public void AddGame(ChessGame game) => db.Games.Add(game);
+    public void AddPlayer(Player player) => db.Players.Add(player);
+    public void AddMove(Move move) => db.Moves.Add(move);
 
     public Task SaveChangesAsync(CancellationToken ct = default) =>
-        _db.SaveChangesAsync(ct);
+        db.SaveChangesAsync(ct);
+
+    private IQueryable<ChessGame> GetWaitingGamesQuery()
+    {
+        var cutoff = DateTime.UtcNow.AddMinutes(-15);
+
+        return WithDetails()
+            .Where(g =>
+                g.Kind == GameKind.Online &&
+                g.Status == GameStatus.Waiting &&
+                !g.WhitePlayer.IsBot &&
+                g.CreatedAtUtc >= cutoff);
+    }
 }

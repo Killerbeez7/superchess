@@ -16,6 +16,7 @@ public class ChessGame
     public Player? BlackPlayer { get; set; }
 
     public GameStatus Status { get; set; }
+    public GameKind Kind { get; set; } = GameKind.Online;
     public string CurrentFen { get; set; } = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     public PieceColor WhoseTurn { get; set; }
     public int InitialClockMs { get; set; } = DefaultInitialClockMs;

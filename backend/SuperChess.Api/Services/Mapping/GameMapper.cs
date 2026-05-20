@@ -1,4 +1,5 @@
 using SuperChess.Api.DTOs.Games;
+using SuperChess.Api.Domain.Enums;
 using SuperChess.Api.Models;
 using SuperChess.Core.Chess;
 
@@ -10,6 +11,7 @@ public static class GameMapper
     {
         Id = game.Id,
         Status = game.Status.ToString().ToLowerInvariant(),
+        Kind = game.Kind.ToString().ToLowerInvariant(),
         CurrentFen = game.CurrentFen,
         WhoseTurn = game.WhoseTurn.ToString().ToLowerInvariant(),
         InitialClockMs = game.InitialClockMs,
@@ -49,6 +51,40 @@ public static class GameMapper
         };
     }
 
+    public static GameHistoryResponse ToHistoryResponse(ChessGame game, Guid userId)
+    {
+        var isWhitePlayer = game.WhitePlayer.UserId == userId;
+        var playerColor = isWhitePlayer ? PieceColor.White : PieceColor.Black;
+        var opponent = isWhitePlayer ? game.BlackPlayer : game.WhitePlayer;
+
+        return new GameHistoryResponse
+        {
+            Id = game.Id,
+            Status = game.Status.ToString().ToLowerInvariant(),
+            Kind = game.Kind.ToString().ToLowerInvariant(),
+            PlayerColor = playerColor.ToString().ToLowerInvariant(),
+            Result = GetHistoryResult(game, playerColor),
+            WinnerColor = game.WinnerColor is null
+                ? null
+                : game.WinnerColor.Value.ToString().ToLowerInvariant(),
+            WhitePlayerName = game.WhitePlayer.DisplayName,
+            BlackPlayerName = game.BlackPlayer?.DisplayName ?? "Waiting for player 2",
+            OpponentUserId = opponent?.UserId,
+            OpponentName = opponent?.DisplayName ?? "Waiting for player 2",
+            OpponentIsBot = opponent?.IsBot ?? false,
+            InitialClockMs = game.InitialClockMs,
+            IncrementMs = game.IncrementMs,
+            TimeControlType = game.TimeControlType.ToString().ToLowerInvariant(),
+            IsRated = game.IsRated,
+            MoveCount = GetFullMoveCount(game),
+            EndReason = game.EndReason is null
+                ? null
+                : game.EndReason.Value.ToString().ToLowerInvariant(),
+            CreatedAtUtc = game.CreatedAtUtc,
+            UpdatedAtUtc = game.UpdatedAtUtc
+        };
+    }
+
     private static PlayerSummary ToSummary(Player p) => new()
     {
         Id = p.Id,
@@ -64,4 +100,22 @@ public static class GameMapper
         PlayerColor = m.PlayedByColor,
         CreatedAtUtc = m.CreatedAtUtc
     };
+
+    private static string GetHistoryResult(ChessGame game, PieceColor playerColor)
+    {
+        if (game.Status is not GameStatus.Completed)
+        {
+            return game.Status.ToString().ToLowerInvariant();
+        }
+
+        if (game.WinnerColor is null)
+        {
+            return "draw";
+        }
+
+        return game.WinnerColor == playerColor ? "win" : "loss";
+    }
+
+    private static int GetFullMoveCount(ChessGame game) =>
+        (game.Moves.Count + 1) / 2;
 }

@@ -52,6 +52,21 @@ public class GamesController(IGameService gameService) : ControllerBase
         return Ok(games);
     }
 
+    [Authorize]
+    [HttpGet("history")]
+    public async Task<ActionResult<List<GameHistoryResponse>>> GetGameHistory(
+        CancellationToken ct)
+    {
+        var currentUser = GetAuthenticatedGameUser();
+        if (currentUser is null)
+        {
+            return Unauthorized("Authentication is required.");
+        }
+
+        var games = await gameService.GetGameHistoryAsync(currentUser, ct);
+        return Ok(games);
+    }
+
     [HttpGet("{gameId:guid}")]
     public async Task<ActionResult<GameResponse>> GetGame(
         Guid gameId,

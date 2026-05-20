@@ -4,6 +4,7 @@ public class GameResponse
 {
     public Guid Id { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty;
     public string CurrentFen { get; set; } = string.Empty;
     public string WhoseTurn { get; set; } = string.Empty;
     public int InitialClockMs { get; set; }

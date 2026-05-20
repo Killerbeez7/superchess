@@ -58,6 +58,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
                 .HasMaxLength(30)
                 .IsRequired();
 
+            entity.Property(x => x.Kind)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
             entity.Property(x => x.CurrentFen)
                 .HasMaxLength(200)
                 .IsRequired();

@@ -1,5 +1,6 @@
 import { apiFetch } from "./client";
 import type {
+  GameHistoryResponse,
   GameResponse,
   GameSessionResponse,
   MoveSummary,
@@ -39,6 +40,10 @@ type ApiGameSessionResponse = Omit<GameSessionResponse, "game" | "color"> & {
   color: ApiPieceColor;
 };
 
+type ApiGameHistoryResponse = Omit<GameHistoryResponse, "playerColor"> & {
+  playerColor: ApiPieceColor;
+};
+
 function normalizePieceColor(color: ApiPieceColor): PieceColor {
   if (color === "white" || color === "White" || color === 0) return "white";
   return "black";
@@ -68,6 +73,15 @@ function normalizeGameSessionResponse(
   };
 }
 
+function normalizeGameHistoryResponse(
+  response: ApiGameHistoryResponse
+): GameHistoryResponse {
+  return {
+    ...response,
+    playerColor: normalizePieceColor(response.playerColor),
+  };
+}
+
 function authHeaders(accessToken?: string): HeadersInit {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 }
@@ -77,6 +91,11 @@ export const getGames = async () =>
 
 export const getGame = async (gameId: string) =>
   normalizeGameResponse(await apiFetch<ApiGameResponse>(`/api/games/${gameId}`));
+
+export const getGameHistory = (accessToken: string) =>
+  apiFetch<ApiGameHistoryResponse[]>("/api/games/history", {
+    headers: authHeaders(accessToken),
+  }).then((games) => games.map(normalizeGameHistoryResponse));
 
 export const createGame = (accessToken: string, request?: CreateGameRequest) =>
   apiFetch<ApiGameSessionResponse>("/api/games", {

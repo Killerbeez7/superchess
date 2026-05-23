@@ -95,9 +95,9 @@ export default function AboutPage() {
 
           <aside className="rounded-3xl border border-border-light bg-card p-4 shadow-sm">
             <div className="overflow-hidden rounded-2xl border border-border-light bg-bg-dark">
-              <div className="relative aspect-[4/3] overflow-hidden">
+              <div className="relative aspect-4/3 overflow-hidden">
                 <Image
-                  src="/images/about/superchess-hero.png"
+                  src="/images/about/superchess-hero-card.webp"
                   alt="Stylized SuperChess board teaser"
                   fill
                   priority

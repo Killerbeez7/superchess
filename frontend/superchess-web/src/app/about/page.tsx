@@ -83,7 +83,7 @@ export default function AboutPage() {
             priority
             aria-hidden="true"
             sizes="(min-width: 1024px) calc(100vw - 280px), calc(100vw - 32px)"
-            className="object-cover opacity-45"
+            className="object-cover opacity-25 sm:opacity-35"
           />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_35%,rgba(129,182,76,0.12),transparent_30%),linear-gradient(90deg,rgba(31,30,27,0.96)_0%,rgba(31,30,27,0.86)_43%,rgba(31,30,27,0.52)_100%)]" />
           <div className="absolute inset-0 bg-gradient-to-t from-card/75 via-transparent to-transparent" />
@@ -118,7 +118,7 @@ export default function AboutPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-border-medium bg-bg-dark/50 p-2 shadow-2xl backdrop-blur-[2px]">
+            <div className="rounded-xl border border-border-light bg-bg-dark/65 p-2 shadow-lg backdrop-blur-[2px] lg:translate-y-2">
               <div className="relative aspect-video overflow-hidden rounded-lg">
                 <Image
                   src="/images/about/superchess-hero-card.webp"
@@ -133,7 +133,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="mt-4 grid gap-4 px-4 sm:px-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.76fr)_minmax(310px,0.86fr)]">
+        <section className="mt-6 grid gap-4 px-4 sm:mt-4 sm:px-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.76fr)_minmax(310px,0.86fr)]">
           <div className="grid gap-4">
             {articles.map((article) => (
               <InfoCard key={article.title} item={article} />
@@ -189,7 +189,7 @@ function InfoCard({ item }: { item: CardItem }) {
   return (
     <article className="rounded-none border-0 border-b border-border-light bg-transparent p-0 pb-4 shadow-none sm:rounded-xl sm:border sm:border-border-light sm:bg-card sm:bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] sm:p-5 sm:shadow-sm">
       <div className="flex items-center gap-3">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-icon-muted text-accent">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-icon-muted text-sm text-accent sm:h-8 sm:w-8 sm:text-base">
           {item.icon}
         </span>
         <h2 className="text-lg font-black text-text-primary">{item.title}</h2>

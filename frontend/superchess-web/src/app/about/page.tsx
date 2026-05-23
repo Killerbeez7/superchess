@@ -8,9 +8,7 @@ import {
   FaCirclePlay,
   FaDiscord,
   FaGlobe,
-  FaQuestion,
   FaShieldHalved,
-  FaStar,
   FaTrophy,
   FaUserGroup,
 } from "react-icons/fa6";
@@ -27,72 +25,57 @@ type CardItem = {
 const articles: CardItem[] = [
   {
     title: "What is SuperChess?",
-    body: "SuperChess keeps everything you love about classic chess: strategy, depth, and pure skill. Then it opens the door to freedom. Special moves, unique pieces, bigger boards, and dynamic variants can shift a match in a new direction.",
+    body: "SuperChess keeps the strategy, depth, and pure skill of classic chess, then opens the door to freedom. It starts with stable online games and grows toward new pieces, bigger boards, and dynamic variants where every match can shift in a new direction.",
     icon: <FaChessKing />,
   },
   {
-    title: "Our Vision",
-    body: "We want to build the ultimate chess playground. A place where players of all levels can enjoy classic games or step into new worlds. One platform, infinite ways to play.",
-    icon: <FaGlobe />,
-  },
-  {
     title: "Built for Players",
-    body: "Whether you want a focused competitive match or a wild experimental battle, SuperChess gives you the tools. No pay-to-win. No tricks. Just chess, reimagined.",
+    body: "Focused matches, bot practice, and experimental battles should all feel fair, fast, and readable. No pay-to-win. No tricks. Just chess, reimagined.",
     icon: <FaUserGroup />,
   },
 ];
 
 const availableNow: CardItem[] = [
   {
-    title: "Online classical games",
+    title: "Online games",
     body: "Real players, real matches.",
     icon: <FaGlobe />,
   },
   {
-    title: "Saved preferences",
+    title: "Saved setup",
     body: "Your time control. Your style.",
     icon: <FaShieldHalved />,
   },
   {
-    title: "Realtime multiplayer",
+    title: "Realtime play",
     body: "Live updates. Smooth experience.",
     icon: <FaBolt />,
-  },
-  {
-    title: "Bot opponents",
-    body: "Practice anytime, any level.",
-    icon: <FaChessKnight />,
   },
 ];
 
 const comingSoon: CardItem[] = [
   {
-    title: "New variants & game modes",
+    title: "New variants",
     body: "More ways to play.",
     icon: <FaBolt />,
   },
   {
-    title: "Special pieces & abilities",
+    title: "Special pieces",
     body: "Break the rules. Change the game.",
     icon: <FaChessKnight />,
   },
   {
-    title: "Tournaments & ladders",
+    title: "Tournaments",
     body: "Compete. Climb. Prove yourself.",
     icon: <FaTrophy />,
-  },
-  {
-    title: "And more...",
-    body: "We're just getting started.",
-    icon: <FaStar />,
   },
 ];
 
 export default function AboutPage() {
   return (
     <PageShell>
-      <div className="mx-auto w-full max-w-[1700px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
-        <section className="relative overflow-hidden rounded-2xl border border-border-light bg-card shadow-sm">
+      <div className="mx-auto w-full max-w-[1700px] px-0 pb-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+        <section className="relative overflow-hidden rounded-none border-b border-border-light bg-card shadow-sm sm:rounded-2xl sm:border">
           <Image
             src="/images/about/superchess-hero.png"
             alt=""
@@ -120,14 +103,14 @@ export default function AboutPage() {
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href={ONLINE_SETUP_HREF}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-black text-text-inverse shadow-sm transition hover:bg-accent-hover"
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-black text-text-inverse shadow-sm transition hover:bg-accent-hover sm:w-auto"
                 >
                   <FaBolt aria-hidden="true" />
                   Play now
                 </Link>
                 <Link
                   href="/games"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border-light bg-card-muted/80 px-5 text-sm font-black text-text-primary transition hover:bg-bg-light"
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border-light bg-card-muted/80 px-5 text-sm font-black text-text-primary transition hover:bg-bg-light sm:w-auto"
                 >
                   <FaTrophy aria-hidden="true" />
                   View history
@@ -150,7 +133,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.76fr)_minmax(310px,0.86fr)]">
+        <section className="mt-4 grid gap-4 px-4 sm:px-0 xl:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.76fr)_minmax(310px,0.86fr)]">
           <div className="grid gap-4">
             {articles.map((article) => (
               <InfoCard key={article.title} item={article} />
@@ -167,16 +150,13 @@ export default function AboutPage() {
           </div>
 
           <aside className="grid gap-4 xl:self-start">
-            <section className="rounded-xl border border-border-light bg-card bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] p-4 shadow-sm">
+            <section className="rounded-none border-0 border-b border-border-light bg-transparent p-0 pb-4 shadow-none sm:rounded-xl sm:border sm:border-border-light sm:bg-card sm:bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] sm:p-4 sm:shadow-sm">
               <div className="flex items-center gap-2">
                 <FaCirclePlay className="text-accent" aria-hidden="true" />
                 <h2 className="text-sm font-black text-text-primary">Gameplay teaser</h2>
               </div>
-              <p className="mt-2 text-xs leading-5 text-text-muted">
-                A first look at the mood, speed, and future chaos of SuperChess.
-              </p>
 
-              <div className="relative mt-4 aspect-video overflow-hidden rounded-lg border border-border-medium bg-bg-dark shadow-lg">
+              <div className="relative mt-3 aspect-video overflow-hidden rounded-lg border border-border-medium bg-bg-dark shadow-lg">
                 <Image
                   src="/images/about/gameplay-teaser.png"
                   alt="SuperChess gameplay teaser"
@@ -197,19 +177,7 @@ export default function AboutPage() {
               </div>
             </section>
 
-            <ActionPanel
-              icon={<FaDiscord />}
-              title="Join the Community"
-              body="Share ideas, report bugs, and help shape the future."
-              action="Join our Discord"
-            />
-
-            <ActionPanel
-              icon={<FaQuestion />}
-              title="Have Feedback?"
-              body="We read everything. Help us make SuperChess better."
-              action="Send feedback"
-            />
+            <CommunityPanel />
           </aside>
         </section>
       </div>
@@ -219,16 +187,14 @@ export default function AboutPage() {
 
 function InfoCard({ item }: { item: CardItem }) {
   return (
-    <article className="rounded-xl border border-border-light bg-card bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] p-5 shadow-sm">
-      <div className="flex gap-4">
-        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-icon-muted text-accent">
+    <article className="rounded-none border-0 border-b border-border-light bg-transparent p-0 pb-4 shadow-none sm:rounded-xl sm:border sm:border-border-light sm:bg-card sm:bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] sm:p-5 sm:shadow-sm">
+      <div className="flex items-center gap-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-icon-muted text-accent">
           {item.icon}
         </span>
-        <div>
-          <h2 className="text-lg font-black text-text-primary">{item.title}</h2>
-          <p className="mt-2 text-sm leading-6 text-text-muted">{item.body}</p>
-        </div>
+        <h2 className="text-lg font-black text-text-primary">{item.title}</h2>
       </div>
+      <p className="mt-2 text-sm leading-6 text-text-muted">{item.body}</p>
     </article>
   );
 }
@@ -243,7 +209,7 @@ function StackedList({
   marker: "green" | "gold";
 }) {
   return (
-    <section className="rounded-xl border border-border-light bg-card bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] p-4 shadow-sm">
+    <section className="rounded-none border-0 border-b border-border-light bg-transparent p-0 pb-4 shadow-none sm:rounded-xl sm:border sm:border-border-light sm:bg-card sm:bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] sm:p-4 sm:shadow-sm">
       <div className="flex items-center gap-2">
         <span
           className={
@@ -257,20 +223,20 @@ function StackedList({
 
       <div className="mt-4 grid gap-3">
         {items.map((item) => (
-          <div key={item.title} className="flex gap-3 rounded-lg px-1 py-0.5">
+          <div key={item.title} className="rounded-lg py-0.5 sm:px-1">
+            <div className="flex items-center gap-2">
             <span
               className={
                 marker === "green"
-                  ? "mt-0.5 text-base text-accent"
-                  : "mt-0.5 text-base text-[#d5a94d]"
+                  ? "text-base text-accent"
+                  : "text-base text-[#d5a94d]"
               }
             >
               {item.icon}
             </span>
-            <div>
               <h3 className="text-sm font-black text-text-primary">{item.title}</h3>
-              <p className="mt-0.5 text-xs leading-5 text-text-muted">{item.body}</p>
             </div>
+            <p className="mt-1 text-xs leading-5 text-text-muted">{item.body}</p>
           </div>
         ))}
       </div>
@@ -278,30 +244,32 @@ function StackedList({
   );
 }
 
-function ActionPanel({
-  icon,
-  title,
-  body,
-  action,
-}: {
-  icon: ReactNode;
-  title: string;
-  body: string;
-  action: string;
-}) {
+function CommunityPanel() {
   return (
-    <section className="rounded-xl border border-border-light bg-card bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] p-4 shadow-sm">
+    <section className="rounded-none border-0 border-b border-border-light bg-transparent p-0 pb-4 shadow-none sm:rounded-xl sm:border sm:border-border-light sm:bg-card sm:bg-[linear-gradient(135deg,rgba(255,255,255,0.035),transparent_55%)] sm:p-4 sm:shadow-sm">
       <div className="flex items-center gap-2">
-        <span className="text-text-muted">{icon}</span>
-        <h2 className="text-sm font-black text-text-primary">{title}</h2>
+        <span className="text-text-muted">
+          <FaDiscord />
+        </span>
+        <h2 className="text-sm font-black text-text-primary">Community & Feedback</h2>
       </div>
-      <p className="mt-2 text-xs leading-5 text-text-muted">{body}</p>
-      <button
-        type="button"
-        className="mt-3 h-9 w-full rounded-lg border border-border-light bg-card-muted text-xs font-black text-text-primary transition hover:bg-bg-light"
-      >
-        {action}
-      </button>
+      <p className="mt-2 text-xs leading-5 text-text-muted">
+        Share ideas, report bugs, and help shape what SuperChess becomes next.
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+        <button
+          type="button"
+          className="h-9 rounded-lg border border-border-light bg-card-muted text-xs font-black text-text-primary transition hover:bg-bg-light"
+        >
+          Join Discord
+        </button>
+        <button
+          type="button"
+          className="h-9 rounded-lg border border-border-light bg-card-muted text-xs font-black text-text-primary transition hover:bg-bg-light"
+        >
+          Send feedback
+        </button>
+      </div>
     </section>
   );
 }

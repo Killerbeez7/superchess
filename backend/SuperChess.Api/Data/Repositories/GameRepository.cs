@@ -64,4 +64,27 @@ public sealed class GameRepository(AppDbContext db) : IGameRepository
                 !g.BlackPlayer.IsBot &&
                 (g.WhitePlayer.UserId == userId ||
                  g.BlackPlayer.UserId == userId));
+
+    public async Task<ChessGame?> FindCompatibleWaitingGameAsync(
+        Guid userId,
+        int initialClockMs,
+        int incrementMs,
+        bool isRated,
+        DateTime minCreatedAtUtc,
+        CancellationToken ct = default)
+    {
+        return await WithDetails()
+            .Where(g =>
+                g.Status == GameStatus.Waiting &&
+                g.Kind == GameKind.Online &&
+                g.BlackPlayerId == null &&
+                !g.WhitePlayer.IsBot &&
+                g.WhitePlayer.UserId != userId &&
+                g.InitialClockMs == initialClockMs &&
+                g.IncrementMs == incrementMs &&
+                g.IsRated == isRated &&
+                g.CreatedAtUtc >= minCreatedAtUtc)
+            .OrderBy(g => g.CreatedAtUtc)
+            .FirstOrDefaultAsync(ct);
+    }
 }

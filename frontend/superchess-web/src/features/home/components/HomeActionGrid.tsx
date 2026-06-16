@@ -19,7 +19,7 @@ import {
 } from "@/features/game/setupPreferences";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
-import { createGame } from "@/lib/api/games";
+import { matchmakeGame } from "@/lib/api/games";
 import { saveGameSession } from "@/lib/storage/gameSession";
 
 import { HomeActionCard } from "./HomeActionCard";
@@ -27,7 +27,7 @@ import { HomeActionCard } from "./HomeActionCard";
 export function HomeActionGrid() {
   const router = useRouter();
   const { user, accessToken, isReady, isAuthenticated } = useAuth();
-  const { prepareSounds } = useGameSounds();
+  const { prepareSounds, playSound } = useGameSounds();
   const [isCreatingQuickGame, setIsCreatingQuickGame] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function HomeActionGrid() {
         setIsCreatingQuickGame(true);
         prepareGameAudio();
 
-        const result = await createGame(
+        const result = await matchmakeGame(
           session.accessToken,
           toCreateGameRequest(session.user.lastGameSettings)
         );
@@ -57,6 +57,10 @@ export function HomeActionGrid() {
           playerName: session.user.displayName,
         });
 
+        if (result.game.status === "active") {
+          playSound("game-start");
+        }
+
         router.push(`/game/${result.game.id}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to start quick game.");
@@ -64,7 +68,7 @@ export function HomeActionGrid() {
         setIsCreatingQuickGame(false);
       }
     },
-    [prepareGameAudio, router]
+    [playSound, prepareGameAudio, router]
   );
 
   const handleQuickPlay = useCallback(() => {

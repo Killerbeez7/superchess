@@ -41,4 +41,9 @@ public interface IGameService
         AuthenticatedGameUser player,
         MakeMoveRequest request,
         CancellationToken ct = default);
+
+    Task<Result<GameSessionResponse>> MatchmakeAsync(
+        AuthenticatedGameUser player,
+        CreateGameRequest request,
+        CancellationToken ct = default);
 }

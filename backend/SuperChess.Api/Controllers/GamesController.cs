@@ -161,4 +161,20 @@ public class GamesController(IGameService gameService) : ControllerBase
             _ => BadRequest(new { message = result.Error })
         };
     }
+
+    [Authorize]
+    [HttpPost("matchmake")]
+    public async Task<ActionResult<GameSessionResponse>> Matchmake(
+        CreateGameRequest request,
+        CancellationToken ct)
+    {
+        var currentUser = GetAuthenticatedGameUser();
+        if (currentUser is null)
+        {
+            return Unauthorized("Authentication is required.");
+        }
+
+        var result = await gameService.MatchmakeAsync(currentUser, request, ct);
+        return ToActionResult(result);
+    }
 }

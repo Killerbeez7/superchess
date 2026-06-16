@@ -261,6 +261,51 @@ public class GameService : IGameService
         return stats;
     }
 
+    public async Task<Result<GameSessionResponse>> MatchmakeAsync(
+        AuthenticatedGameUser player,
+        CreateGameRequest request,
+        CancellationToken ct = default)
+    {
+        if (player.UserId == Guid.Empty)
+        {
+            return Result<GameSessionResponse>.Forbidden("Authentication is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(player.DisplayName))
+        {
+            return Result<GameSessionResponse>.Validation("Player display name is required.");
+        }
+
+        var timeControlResult = CreateTimeControl(request);
+        if (!timeControlResult.IsSuccess)
+        {
+            return Result<GameSessionResponse>.Validation(timeControlResult.Error!);
+        }
+
+        var timeControl = timeControlResult.Value!;
+        var minCreatedAtUtc = DateTime.UtcNow.AddMinutes(-15);
+        var compatibleGame = await _repo.FindCompatibleWaitingGameAsync(
+            player.UserId,
+            timeControl.InitialClockMs,
+            timeControl.IncrementMs,
+            timeControl.IsRated,
+            minCreatedAtUtc,
+            ct);
+
+        if (compatibleGame is null)
+        {
+            return await CreateGameAsync(player, request, ct);
+        }
+
+        var settingsError = await UpdateLastGameSettingsAsync(player.UserId, request);
+        if (settingsError is not null)
+        {
+            return Result<GameSessionResponse>.Forbidden(settingsError);
+        }
+
+        return await JoinWaitingGameAsync(compatibleGame, player, ct);
+    }
+
     public async Task<Result<GameSessionResponse>> JoinGameAsync(
         Guid gameId,
         AuthenticatedGameUser player,
@@ -283,6 +328,24 @@ public class GameService : IGameService
             return Result<GameSessionResponse>.NotFound("Game not found.");
         }
 
+        if (game.BlackPlayerId is not null || game.BlackPlayer is not null)
+        {
+            return Result<GameSessionResponse>.Conflict("Game already has two players.");
+        }
+
+        if (game.WhitePlayer.UserId == player.UserId)
+        {
+            return Result<GameSessionResponse>.Forbidden("You cannot join your own game.");
+        }
+
+        return await JoinWaitingGameAsync(game, player, ct);
+    }
+
+    private async Task<Result<GameSessionResponse>> JoinWaitingGameAsync(
+        ChessGame game,
+        AuthenticatedGameUser player,
+        CancellationToken ct)
+    {
         if (game.BlackPlayerId is not null || game.BlackPlayer is not null)
         {
             return Result<GameSessionResponse>.Conflict("Game already has two players.");

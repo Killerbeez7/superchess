@@ -110,6 +110,13 @@ export const createGame = (accessToken: string, request?: CreateGameRequest) =>
     body: JSON.stringify(request ?? {}),
   }).then(normalizeGameSessionResponse);
 
+export const matchmakeGame = (accessToken: string, request?: CreateGameRequest) =>
+  apiFetch<ApiGameSessionResponse>("/api/games/matchmake", {
+    method: "POST",
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(request ?? {}),
+  }).then(normalizeGameSessionResponse);
+
 export const createAiGame = (accessToken: string, request?: CreateAiGameRequest) =>
   apiFetch<ApiGameSessionResponse>("/api/games/ai", {
     method: "POST",

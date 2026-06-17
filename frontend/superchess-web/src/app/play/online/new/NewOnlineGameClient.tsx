@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { AuthResponse } from "@/features/auth/api/auth";
 import { AuthModal } from "@/features/auth/components/AuthModal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { GameSearchingOverlay } from "@/features/game/components/GameSearchingOverlay";
 import { NewGameBoardPreview } from "@/features/game/components/setup/NewGameBoardPreview";
 import { NewGameSetupPanel } from "@/features/game/components/setup/NewGameSetupPanel";
 import { NewOnlineGameShell } from "@/features/game/components/setup/NewOnlineGameShell";
@@ -18,8 +19,8 @@ import {
 import { toCreateGameRequest } from "@/features/game/setupPreferences";
 import { useGameSounds } from "@/features/game/sounds/GameSoundProvider";
 import { JOIN_PRELOAD_SOUNDS } from "@/features/game/sounds/gameSounds";
-import { createGame } from "@/lib/api/games";
-import { saveGameSession } from "@/lib/storage/gameSession";
+import { createGame, matchmakeGame } from "@/lib/api/games";
+import { markGameMatchmakingSearch, saveGameSession } from "@/lib/storage/gameSession";
 
 type PendingCreateAction = "start" | "friend";
 
@@ -27,7 +28,7 @@ export function NewOnlineGameClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, accessToken, isReady, isAuthenticated, refreshUser } = useAuth();
-  const { prepareSounds } = useGameSounds();
+  const { prepareSounds, playSound } = useGameSounds();
 
   const routeTimeControl = useMemo(
     () => findTimeControlFromSetupParams(searchParams),
@@ -48,6 +49,8 @@ export function NewOnlineGameClient() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingCreateAction | null>(null);
+  const [activeCreateAction, setActiveCreateAction] =
+    useState<PendingCreateAction | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const prepareGameAudio = useCallback(() => {
@@ -55,18 +58,24 @@ export function NewOnlineGameClient() {
   }, [prepareSounds]);
 
   const createRoomForSession = useCallback(
-    async (session: AuthResponse) => {
+    async (session: AuthResponse, action: PendingCreateAction) => {
       try {
         setError(null);
         setIsCreating(true);
+        setActiveCreateAction(action);
         prepareGameAudio();
 
-        const result = await createGame(session.accessToken, {
+        const request = {
           ...toCreateGameRequest(session.user.lastGameSettings),
           initialMinutes: currentTimeControl.minutes,
           incrementSeconds: currentTimeControl.incrementSeconds,
           gameMode: "classical",
-        });
+        };
+
+        const result =
+          action === "start"
+            ? await matchmakeGame(session.accessToken, request)
+            : await createGame(session.accessToken, request);
 
         await refreshUser();
 
@@ -77,14 +86,21 @@ export function NewOnlineGameClient() {
           playerName: session.user.displayName,
         });
 
+        if (result.game.status === "active") {
+          playSound("game-start");
+        } else if (action === "start" && result.game.status === "waiting") {
+          markGameMatchmakingSearch(result.game.id);
+        }
+
         router.push(`/game/${result.game.id}`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to create game.");
       } finally {
+        setActiveCreateAction(null);
         setIsCreating(false);
       }
     },
-    [currentTimeControl, prepareGameAudio, refreshUser, router]
+    [currentTimeControl, playSound, prepareGameAudio, refreshUser, router]
   );
 
   const beginCreateFlow = useCallback(
@@ -98,7 +114,7 @@ export function NewOnlineGameClient() {
         return;
       }
 
-      await createRoomForSession({ accessToken, user });
+      await createRoomForSession({ accessToken, user }, action);
     },
     [accessToken, createRoomForSession, isAuthenticated, isReady, user]
   );
@@ -111,7 +127,7 @@ export function NewOnlineGameClient() {
       setPendingAction(null);
 
       if (action) {
-        void createRoomForSession(session);
+        void createRoomForSession(session, action);
       }
     },
     [createRoomForSession, pendingAction]
@@ -123,6 +139,13 @@ export function NewOnlineGameClient() {
         <NewGameBoardPreview
           playerName={user?.displayName}
           timeControl={currentTimeControl}
+          boardOverlay={
+            <GameSearchingOverlay
+              isOpen={activeCreateAction === "start"}
+              title="Finding opponent"
+              subtitle={`${currentTimeControl.label} · Classical · Casual`}
+            />
+          }
         />
       }
       panel={

@@ -4,12 +4,14 @@ import { GameTable } from "@/features/game/components/room/GameTable";
 import type { TimeControl } from "@/features/game/components/setup/TimeControlPicker";
 import type { PieceColor } from "@/types/game";
 import { createStartPosition } from "@/utils/board/position";
+import type { ReactNode } from "react";
 
 type NewGameBoardPreviewProps = {
   playerName?: string;
   timeControl: TimeControl;
   playerColor?: PieceColor;
   opponentName?: string;
+  boardOverlay?: ReactNode;
 };
 
 function formatInitialClock(timeControl: TimeControl) {
@@ -21,6 +23,7 @@ export function NewGameBoardPreview({
   timeControl,
   playerColor = "white",
   opponentName = "Waiting for player 2",
+  boardOverlay,
 }: NewGameBoardPreviewProps) {
   const timer = formatInitialClock(timeControl);
   const opponentColor = playerColor === "white" ? "black" : "white";
@@ -43,6 +46,7 @@ export function NewGameBoardPreview({
           interactive={false}
         />
       }
+      overlays={boardOverlay}
       bottomPlayer={
         <GamePlayerBar
           name={playerName?.trim() || "Player 1"}

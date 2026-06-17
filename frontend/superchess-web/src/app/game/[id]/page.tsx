@@ -9,6 +9,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ChessBoard } from "@/features/game/components/board/ChessBoard";
 import { GameEndBanner } from "@/features/game/components/GameEndBanner";
 import { GamePlayerBar } from "@/features/game/components/GamePlayerBar";
+import { GameSearchingOverlay } from "@/features/game/components/GameSearchingOverlay";
 import { GameStartOverlay } from "@/features/game/components/GameStartOverlay";
 import { PromotionPicker } from "@/features/game/components/PromotionPicker";
 // components
@@ -42,6 +43,10 @@ import {
   squareToCoords,
 } from "@/utils/board/interactions";
 import type { GameResponse, PieceColor, PromotionPiece } from "@/types/game";
+import {
+  clearGameMatchmakingSearch,
+  hasGameMatchmakingSearch,
+} from "@/lib/storage/gameSession";
 import { getBoardPositionFromGameState } from "@/utils/board/position";
 import type { BoardPiece } from "@/utils/board/position";
 
@@ -161,6 +166,14 @@ function moveKey(from: string, to: string, color?: PieceColor) {
   return `${color ?? "unknown"}:${from}:${to}`;
 }
 
+function formatMatchmakingSubtitle(game: GameResponse) {
+  const minutes = Math.round(game.initialClockMs / 60000);
+  const type = game.timeControlType[0].toUpperCase() + game.timeControlType.slice(1);
+  const rated = game.isRated ? "Rated" : "Casual";
+
+  return `${minutes} min · ${type} · ${rated}`;
+}
+
 export default function GameDetailsPage() {
   const params = useParams();
   const gameId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -168,6 +181,7 @@ export default function GameDetailsPage() {
   const [isEndModalDismissed, setIsEndModalDismissed] = useState(false);
   const [showStartOverlay, setShowStartOverlay] = useState(false);
   const [startOverlayKey, setStartOverlayKey] = useState(0);
+  const [isMatchmakingSearch, setIsMatchmakingSearch] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const pendingTapMoveFromRef = useRef<string | null>(null);
   const timeoutRefreshKeyRef = useRef<string | null>(null);
@@ -210,6 +224,28 @@ export default function GameDetailsPage() {
 
   const { playSound, playSounds, preloadSounds, prepareSounds, unlockSounds } =
     useGameSounds();
+
+  useEffect(() => {
+    if (!gameId) return;
+
+    const id = window.setTimeout(() => {
+      setIsMatchmakingSearch(hasGameMatchmakingSearch(gameId));
+    }, 0);
+
+    return () => window.clearTimeout(id);
+  }, [gameId]);
+
+  useEffect(() => {
+    if (!gameId || !game || !isMatchmakingSearch || game.status === "waiting") return;
+
+    clearGameMatchmakingSearch(gameId);
+
+    const id = window.setTimeout(() => {
+      setIsMatchmakingSearch(false);
+    }, 0);
+
+    return () => window.clearTimeout(id);
+  }, [game?.status, gameId, isMatchmakingSearch]);
 
   const markStartOverlaySeen = useCallback((id: string) => {
     try {
@@ -505,6 +541,9 @@ export default function GameDetailsPage() {
 
   const showEndModal =
     !!game && (game.status === "completed" || !!timedOutColor) && !isEndModalDismissed;
+
+  const showWaitingForOpponentOverlay =
+    !!game && session?.color === "white" && game.status === "waiting" && !game.blackPlayer;
 
   useEffect(() => {
     const handleGameStatus = async () => {
@@ -839,6 +878,12 @@ export default function GameDetailsPage() {
           }
           overlays={
             <>
+              <GameSearchingOverlay
+                isOpen={showWaitingForOpponentOverlay}
+                title="Waiting for opponent"
+                subtitle={formatMatchmakingSubtitle(game)}
+              />
+
               {showStartOverlay && (
                 <GameStartOverlay
                   key={startOverlayKey}

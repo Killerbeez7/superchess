@@ -104,7 +104,7 @@ export function AccountButton({ onOpen, variant = "row" }: AccountButtonProps) {
           disabled={!isReady}
           aria-label={label}
           title={label}
-          className="grid h-10 w-10 place-items-center rounded-xl text-sm text-text-muted transition enabled:hover:bg-bg-light enabled:hover:text-text-primary disabled:cursor-wait disabled:opacity-70"
+          className="grid h-10 w-10 place-items-center rounded-xl border border-border-light bg-card-muted text-sm text-text-muted shadow-sm transition enabled:hover:border-border-medium enabled:hover:bg-bg-light enabled:hover:text-text-primary disabled:cursor-wait disabled:opacity-70"
         >
           <FaUser />
         </button>

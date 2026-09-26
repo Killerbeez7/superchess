@@ -1,0 +1,313 @@
+import Image from "next/image";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import {
+  FaBolt,
+  FaChessKing,
+  FaChessKnight,
+  FaCirclePlay,
+  FaDiscord,
+  FaGlobe,
+  FaQuestion,
+  FaShieldHalved,
+  FaStar,
+  FaTrophy,
+  FaUserGroup,
+} from "react-icons/fa6";
+
+import { Container } from "@/components/layout/Container";
+import { PageShell } from "@/components/layout/PageShell";
+import { ONLINE_SETUP_HREF } from "@/features/game/setupRoutes";
+
+type CardItem = {
+  title: string;
+  body: string;
+  icon: ReactNode;
+};
+
+const articles: CardItem[] = [
+  {
+    title: "What is SuperChess?",
+    body: "SuperChess keeps everything you love about classic chess: strategy, depth, and pure skill. Then it opens the door to freedom. Special moves, unique pieces, bigger boards, and dynamic variants can shift a match in a new direction.",
+    icon: <FaChessKing />,
+  },
+  {
+    title: "Our Vision",
+    body: "We want to build the ultimate chess playground. A place where players of all levels can enjoy classic games or step into new worlds. One platform, infinite ways to play.",
+    icon: <FaGlobe />,
+  },
+  {
+    title: "Built for Players",
+    body: "Whether you want a focused competitive match or a wild experimental battle, SuperChess gives you the tools. No pay-to-win. No tricks. Just chess, reimagined.",
+    icon: <FaUserGroup />,
+  },
+];
+
+const availableNow: CardItem[] = [
+  {
+    title: "Online classical games",
+    body: "Real players, real matches.",
+    icon: <FaGlobe />,
+  },
+  {
+    title: "Saved preferences",
+    body: "Your time control. Your style.",
+    icon: <FaShieldHalved />,
+  },
+  {
+    title: "Realtime multiplayer",
+    body: "Live updates. Smooth experience.",
+    icon: <FaBolt />,
+  },
+  {
+    title: "Bot opponents",
+    body: "Practice anytime, any level.",
+    icon: <FaChessKnight />,
+  },
+];
+
+const comingSoon: CardItem[] = [
+  {
+    title: "New variants & game modes",
+    body: "More ways to play.",
+    icon: <FaBolt />,
+  },
+  {
+    title: "Special pieces & abilities",
+    body: "Break the rules. Change the game.",
+    icon: <FaChessKnight />,
+  },
+  {
+    title: "Tournaments & ladders",
+    body: "Compete. Climb. Prove yourself.",
+    icon: <FaTrophy />,
+  },
+  {
+    title: "And more...",
+    body: "We're just getting started.",
+    icon: <FaStar />,
+  },
+];
+
+export default function AboutPage() {
+  return (
+    <PageShell>
+      <Container className="py-5 sm:py-6 lg:py-7">
+        <header className="mb-4 px-1">
+          <h1 className="text-2xl font-black text-text-primary">About SuperChess</h1>
+          <p className="mt-1 text-sm text-text-muted">
+            What we are building and where we are heading.
+          </p>
+        </header>
+
+        <section className="relative overflow-hidden rounded-2xl border border-border-light bg-card shadow-sm">
+          <Image
+            src="/images/about/superchess-hero.png"
+            alt=""
+            fill
+            priority
+            aria-hidden="true"
+            sizes="(min-width: 1024px) calc(100vw - 280px), calc(100vw - 32px)"
+            className="object-cover opacity-45"
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_35%,rgba(129,182,76,0.12),transparent_30%),linear-gradient(90deg,rgba(31,30,27,0.96)_0%,rgba(31,30,27,0.86)_43%,rgba(31,30,27,0.52)_100%)]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-card/75 via-transparent to-transparent" />
+
+          <div className="relative z-10 grid min-h-[250px] gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,380px)] lg:items-center lg:p-8">
+            <div className="max-w-2xl">
+              <h2 className="text-3xl font-black leading-tight text-text-primary sm:text-4xl lg:text-5xl">
+                Chess that starts familiar, then refuses to stay predictable.
+              </h2>
+
+              <p className="mt-5 max-w-xl text-sm leading-6 text-text-muted sm:text-base">
+                SuperChess is a modern evolution of the world's most timeless game.
+                Classic at its core, but built to break the limits of repetition. New
+                rules. New pieces. New strategies. Same beautiful chaos.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href={ONLINE_SETUP_HREF}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-accent px-5 text-sm font-black text-text-inverse shadow-sm transition hover:bg-accent-hover"
+                >
+                  <FaBolt aria-hidden="true" />
+                  Play now
+                </Link>
+                <Link
+                  href="/games"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-border-light bg-card-muted/80 px-5 text-sm font-black text-text-primary transition hover:bg-bg-light"
+                >
+                  <FaTrophy aria-hidden="true" />
+                  View history
+                </Link>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border-medium bg-bg-dark/45 p-2 shadow-2xl backdrop-blur-[2px]">
+              <div className="relative aspect-video overflow-hidden rounded-lg">
+                <Image
+                  src="/images/about/superchess-hero-card.webp"
+                  alt="Dark fantasy chess battlefield with a glowing king"
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 380px, calc(100vw - 72px)"
+                  className="object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(270px,0.78fr)_minmax(250px,0.74fr)]">
+          <div className="grid gap-4">
+            {articles.map((article) => (
+              <InfoCard key={article.title} item={article} />
+            ))}
+          </div>
+
+          <div className="grid gap-4 xl:self-start">
+            <StackedList title="Currently Available" items={availableNow} marker="green" />
+            <StackedList title="What's Coming" items={comingSoon} marker="gold" />
+          </div>
+
+          <aside className="grid gap-4 xl:self-start">
+            <section className="rounded-xl border border-border-light bg-card p-4 shadow-sm">
+              <div className="flex items-center gap-2">
+                <FaCirclePlay className="text-accent" aria-hidden="true" />
+                <h2 className="text-sm font-black text-text-primary">Watch & Learn</h2>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-text-muted">
+                Check out tutorials, guides and strategy breakdowns.
+              </p>
+
+              <div className="relative mt-4 aspect-video overflow-hidden rounded-lg border border-border-light bg-bg-dark">
+                <Image
+                  src="/images/about/superchess-hero-card.webp"
+                  alt="SuperChess tutorial teaser"
+                  fill
+                  sizes="(min-width: 1280px) 250px, calc(100vw - 48px)"
+                  className="object-cover opacity-80"
+                />
+                <span className="absolute inset-0 grid place-items-center bg-black/15">
+                  <span className="grid h-12 w-12 place-items-center rounded-full bg-text-primary/90 text-lg text-text-inverse shadow-xl">
+                    <FaCirclePlay aria-hidden="true" />
+                  </span>
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="mt-3 h-9 w-full rounded-lg border border-border-light bg-card-muted text-xs font-black text-text-primary transition hover:bg-bg-light"
+              >
+                Watch videos
+              </button>
+            </section>
+
+            <ActionPanel
+              icon={<FaDiscord />}
+              title="Join the Community"
+              body="Share ideas, report bugs, and help shape the future."
+              action="Join our Discord"
+            />
+
+            <ActionPanel
+              icon={<FaQuestion />}
+              title="Have Feedback?"
+              body="We read everything. Help us make SuperChess better."
+              action="Send feedback"
+            />
+          </aside>
+        </section>
+      </Container>
+    </PageShell>
+  );
+}
+
+function InfoCard({ item }: { item: CardItem }) {
+  return (
+    <article className="rounded-xl border border-border-light bg-card p-5 shadow-sm">
+      <div className="flex gap-4">
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-icon-muted text-accent">
+          {item.icon}
+        </span>
+        <div>
+          <h2 className="text-lg font-black text-text-primary">{item.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-text-muted">{item.body}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function StackedList({
+  title,
+  items,
+  marker,
+}: {
+  title: string;
+  items: CardItem[];
+  marker: "green" | "gold";
+}) {
+  return (
+    <section className="rounded-xl border border-border-light bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span
+          className={
+            marker === "green"
+              ? "h-3 w-3 rounded-full bg-accent"
+              : "h-3 w-3 rounded-full bg-[#d5a94d]"
+          }
+        />
+        <h2 className="text-sm font-black text-text-primary">{title}</h2>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {items.map((item) => (
+          <div key={item.title} className="flex gap-3">
+            <span
+              className={
+                marker === "green"
+                  ? "mt-0.5 text-base text-accent"
+                  : "mt-0.5 text-base text-[#d5a94d]"
+              }
+            >
+              {item.icon}
+            </span>
+            <div>
+              <h3 className="text-sm font-black text-text-primary">{item.title}</h3>
+              <p className="mt-0.5 text-xs leading-5 text-text-muted">{item.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ActionPanel({
+  icon,
+  title,
+  body,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  action: string;
+}) {
+  return (
+    <section className="rounded-xl border border-border-light bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className="text-text-muted">{icon}</span>
+        <h2 className="text-sm font-black text-text-primary">{title}</h2>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-text-muted">{body}</p>
+      <button
+        type="button"
+        className="mt-3 h-9 w-full rounded-lg border border-border-light bg-card-muted text-xs font-black text-text-primary transition hover:bg-bg-light"
+      >
+        {action}
+      </button>
+    </section>
+  );
+}

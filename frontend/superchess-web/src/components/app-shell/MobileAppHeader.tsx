@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { FaChessKnight, FaCircleQuestion, FaHouse, FaTableCellsLarge } from "react-icons/fa6";
 
 import { AccountButton } from "./AccountButton";
 import { AppSidebarItem } from "./AppSidebarItem";
 import { SettingsButton } from "./SettingsButton";
 
 const navItems = [
-  { href: "/", label: "Home", icon: "H", exact: true },
-  { href: "/play", label: "Play", icon: "P" },
-  { href: "/games", label: "Games", icon: "G" },
-  { href: "/about", label: "About", icon: "?" },
+  { href: "/", label: "Home", icon: <FaHouse />, exact: true },
+  { href: "/play", label: "Play", icon: <FaChessKnight /> },
+  { href: "/games", label: "Games", icon: <FaTableCellsLarge /> },
+  { href: "/about", label: "About", icon: <FaCircleQuestion /> },
 ];
 
 export function MobileAppHeader() {
@@ -22,7 +23,7 @@ export function MobileAppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-app-border bg-sidebar/95 px-3 py-2 backdrop-blur lg:hidden">
+    <header className="relative z-50 border-b border-app-border bg-sidebar px-3 py-2 lg:hidden">
       <div className="relative flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
@@ -31,7 +32,7 @@ export function MobileAppHeader() {
             aria-expanded={isMenuOpen}
             aria-controls="mobile-app-menu"
             aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-            className="flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-text-primary transition hover:bg-bg-light"
+            className="grid h-10 w-10 place-items-center rounded-xl border border-border-light bg-card-muted text-text-primary shadow-sm transition hover:border-border-medium hover:bg-bg-light"
           >
             <span className="relative block h-4 w-5 shrink-0">
               <span
@@ -55,10 +56,19 @@ export function MobileAppHeader() {
           <Link
             href="/"
             aria-label="SuperChess home"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-green text-base font-black text-panel shadow-[0_8px_24px_rgba(129,182,76,0.22)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-green text-base font-black text-panel shadow-[0_8px_24px_rgba(129,182,76,0.22)] transition hover:bg-primary-green-hover"
           >
             S
           </Link>
+
+          <div className="hidden min-w-0 min-[390px]:block">
+            <p className="truncate text-sm font-black leading-tight text-text-primary">
+              SuperChess
+            </p>
+            <p className="truncate text-[11px] font-medium leading-tight text-text-muted">
+              Online chess
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-1">
@@ -69,15 +79,15 @@ export function MobileAppHeader() {
         {isMenuOpen && (
           <nav
             id="mobile-app-menu"
-            className="absolute left-0 top-full mt-2 w-64 rounded-2xl border border-app-border bg-sidebar p-2 shadow-2xl"
+            className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-app-border bg-card p-2 shadow-2xl"
           >
-            <div className="grid gap-1">
+            <div className="grid gap-1 rounded-xl bg-card-muted/55 p-1">
               {navItems.map((item) => (
                 <AppSidebarItem
                   key={item.href}
                   href={item.href}
                   label={item.label}
-                  icon={<span>{item.icon}</span>}
+                  icon={item.icon}
                   exact={item.exact}
                   onClick={() => setIsMenuOpen(false)}
                 />

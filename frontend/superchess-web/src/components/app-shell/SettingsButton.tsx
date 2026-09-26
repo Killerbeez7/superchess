@@ -36,7 +36,7 @@ export function SettingsButton({ onOpen, variant = "row" }: SettingsButtonProps)
           aria-expanded={isOpen}
           aria-label="Open settings"
           title="Settings"
-          className="grid h-10 w-10 place-items-center rounded-xl text-sm text-text-muted transition enabled:hover:bg-bg-light enabled:hover:text-text-primary disabled:cursor-wait disabled:opacity-45"
+          className="grid h-10 w-10 place-items-center rounded-xl border border-border-light bg-card-muted text-sm text-text-muted shadow-sm transition enabled:hover:border-border-medium enabled:hover:bg-bg-light enabled:hover:text-text-primary disabled:cursor-wait disabled:opacity-45"
         >
           <FaGear />
         </button>
